@@ -12,11 +12,28 @@ async function renderSettings() {
         <tbody id="users-tbody"></tbody>
       </table>
     </div>
+    <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><i class="bi bi-mortarboard"></i> כיתות</h5>
+        <button class="btn btn-primary btn-sm" onclick="addClassModal()"><i class="bi bi-plus"></i> כיתה חדשה</button>
+      </div>
+      <table class="table table-hover mb-0">
+        <thead><tr><th style="width:50%">שם כיתה</th><th style="width:25%">סדר</th><th style="width:25%">פעולות</th></tr></thead>
+        <tbody id="classes-tbody"></tbody>
+      </table>
+    </div>
+    <div class="card p-3 mb-3">
+      <h5><i class="bi bi-arrow-up-circle"></i> שנת לימודים</h5>
+      <p class="text-muted small mb-2">מעבר לשנה הבאה: כל התלמידים הפעילים יועלו כיתה אחת. תלמידי הכיתה הגבוהה ביותר יסומנו כסיימו את המוסד.</p>
+      <button class="btn btn-warning" onclick="promoteAllConfirm()">
+        <i class="bi bi-arrow-up-square"></i> מעבר לשנה הבאה (כל התלמידים)
+      </button>
+    </div>
     <div class="card p-3">
       <h5>אודות המערכת</h5>
       <ul class="mb-2">
         <li>מערכת בית התלמוד - גרסה 1.0</li>
-        <li>backend: Google Apps Script + Google Sheets</li>
+        <li>backend: Google Apps Script + Google Sheets (סנכרון אוטומטי)</li>
         <li>אחסון מקומי כגיבוי (localStorage)</li>
         <li>RTL עברית מלא</li>
       </ul>
@@ -24,6 +41,7 @@ async function renderSettings() {
         <i class="bi bi-table"></i> פתח את קובץ הנתונים בגוגל שיטס
       </a>
     </div>`;
+  renderClasses();
   const r = await api('listUsers', []);
   const users = r.data || [];
   const tbody = document.getElementById('users-tbody');
@@ -94,8 +112,101 @@ async function editUser(username) {
 
 async function deleteUser(username) {
   if (!confirm('בטוח למחוק את ' + username + '?')) return;
-  await api('deleteUser', [username]);
+  const r = await api('deleteUser', [username]);
+  if (!r.ok) { alert(r.error || 'שגיאה'); return; }
   renderSettings();
+}
+
+async function renderClasses() {
+  const r = await api('listClasses', []);
+  const classes = r.data || [];
+  const tbody = document.getElementById('classes-tbody');
+  if (!tbody) return;
+  if (!classes.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-3">אין כיתות מוגדרות</td></tr>';
+    return;
+  }
+  const data = getData();
+  tbody.innerHTML = classes.map(c => {
+    const count = data.students.filter(s => s['מחזור'] === c['שם'] && s['סטטוס'] !== 'סיים').length;
+    return `<tr>
+      <td><strong>${c['שם']||''}</strong> ${count > 0 ? `<span class="badge bg-secondary me-1">${count} תלמידים</span>` : ''}</td>
+      <td>${c['סדר']||''}</td>
+      <td>
+        <button class="btn btn-sm btn-outline-primary me-1" onclick="editClassModal('${c['שם']}')"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteClass('${c['שם']}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function addClassModal(existing) {
+  const c = existing || { 'שם': '', 'סדר': '' };
+  const isEdit = !!existing;
+  const html = `<div class="modal fade" id="classModal"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-mortarboard"></i> ${isEdit ? 'עריכת כיתה: ' + c['שם'] : 'כיתה חדשה'}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-3">
+        <label class="form-label">שם כיתה</label>
+        <input id="cls-name" class="form-control form-control-lg" value="${c['שם']||''}" placeholder="לדוגמה: א, שיעור א, כיתה ב">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">סדר (קובע את סדר העלייה השנתית)</label>
+        <input id="cls-order" type="number" class="form-control" value="${c['סדר']||''}" placeholder="1, 2, 3...">
+        <small class="text-muted">מספר נמוך יותר = כיתה נמוכה יותר. במעבר שנתי עוברים לסדר הבא.</small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="saveClass(${isEdit ? '1' : '0'},'${c['שם']||''}')"><i class="bi bi-check"></i> שמור</button>
+    </div>
+  </div></div></div>`;
+  const old = document.getElementById('classModal'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('classModal')).show();
+}
+
+async function editClassModal(name) {
+  const data = getData();
+  const c = data.classes.find(x => x['שם'] === name);
+  if (!c) return;
+  addClassModal(c);
+}
+
+async function saveClass(isEdit, originalName) {
+  const name = document.getElementById('cls-name').value.trim();
+  const order = parseInt(document.getElementById('cls-order').value) || 0;
+  if (!name) return alert('שם כיתה חובה');
+  if (!order) return alert('סדר חובה');
+  let r;
+  if (isEdit) {
+    r = await api('updateClass', [{'שם': name, 'סדר': order, 'שם קודם': originalName}]);
+  } else {
+    r = await api('addClass', [{'שם': name, 'סדר': order}]);
+  }
+  if (!r.ok) { alert(r.error || 'שגיאה'); return; }
+  bootstrap.Modal.getInstance(document.getElementById('classModal')).hide();
+  renderClasses();
+  if (typeof toast === 'function') toast(isEdit ? 'הכיתה עודכנה' : 'הכיתה נוספה', 'success');
+}
+
+async function deleteClass(name) {
+  if (!confirm('בטוח למחוק את כיתה ' + name + '?')) return;
+  const r = await api('deleteClass', [name]);
+  if (!r.ok) { alert(r.error || 'שגיאה'); return; }
+  renderClasses();
+  if (typeof toast === 'function') toast('הכיתה נמחקה', 'success');
+}
+
+async function promoteAllConfirm() {
+  const data = getData();
+  const active = data.students.filter(s => s['סטטוס'] !== 'סיים').length;
+  if (!confirm(`לבצע מעבר שנתי ל${active} תלמידים פעילים?\n\nכל התלמידים יועלו כיתה אחת.\nתלמידי הכיתה הגבוהה ביותר יסומנו כסיימו את המוסד.\n\nפעולה זו לא ניתנת לביטול בקלות.`)) return;
+  const r = await api('promoteAll', []);
+  if (!r.ok) { alert(r.error || 'שגיאה'); return; }
+  const d = r.data || {};
+  alert(`בוצע מעבר שנתי:\n${d.promoted} תלמידים הועלו כיתה\n${d.graduated} תלמידים סיימו את המוסד\n${d.skipped} דולגו (לא מסווגים או כבר סיימו)`);
+  if (typeof toast === 'function') toast('המעבר השנתי הושלם', 'success');
 }
 
 const PERMISSION_AREAS = [
@@ -227,7 +338,7 @@ async function saveUser() {
     'שם משתמש': document.getElementById('nu-name').value.trim(),
     'סיסמה': document.getElementById('nu-pass').value.trim(),
     'תפקיד': document.getElementById('nu-role').value,
-    'הרשאות': checked.length === 4 ? 'all' : checked.join(','),
+    'הרשאות': checked.length === PERMISSION_AREAS.length ? 'all' : checked.join(','),
     'תלמידים_מורשים': visibleStudents,
     'קטגוריות_מורשות': visibleCats,
   };
@@ -236,11 +347,22 @@ async function saveUser() {
   if (!allStudents && !visibleStudents) return alert('יש לבחור לפחות תלמיד אחד או לסמן "כל התלמידים"');
   const editMode = document.getElementById('addUModal').dataset.editMode === '1';
   const originalUsername = document.getElementById('nu-name').dataset.originalUsername;
-  if (editMode && originalUsername && originalUsername !== obj['שם משתמש']) {
+  if (editMode && originalUsername) {
     obj['שם משתמש קודם'] = originalUsername;
   }
   const r = editMode ? await api('updateUser', [obj]) : await api('addUser', [obj]);
+  if (!r.ok) { alert(r.error || 'שגיאה'); return; }
   bootstrap.Modal.getInstance(document.getElementById('addUModal')).hide();
+  // Refresh in-memory currentUser if user edited themselves
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  if (typeof currentUser !== 'undefined' && currentUser && sess.username) {
+    currentUser.username = sess.username;
+    currentUser.role = sess.role;
+    currentUser.permissions = sess.permissions;
+    const ui = document.getElementById('user-info');
+    if (ui) ui.innerHTML = currentUser.username + ' (' + (currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
+    if (typeof filterByPermissions === 'function') filterByPermissions();
+  }
   renderSettings();
 }
 
