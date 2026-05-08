@@ -34,10 +34,13 @@ async function renderSettings() {
     const cls = role === 'מנהל' ? 'role-admin' : role === 'רב' ? 'role-rabbi' : 'role-readonly';
     const perms = (u['הרשאות']||'').split(',').map(p => p.trim()).filter(Boolean);
     const permBadges = perms.map(p => `<span class="cat-badge me-1">${PERM_LABELS[p]||p}</span>`).join(' ');
-    const isAdmin = u['שם משתמש'] === 'admin';
-    const actions = isAdmin ? '' :
+    const isAdmin = u['שם משתמש'] === 'admin' || u['תפקיד'] === 'מנהל';
+    const lastAdmin = users.filter(x => x['תפקיד'] === 'מנהל').length === 1 && isAdmin;
+    const deleteBtn = lastAdmin ? '' :
+      `<button class="btn btn-sm btn-outline-danger" onclick="deleteUser('${u['שם משתמש']}')"><i class="bi bi-trash"></i></button>`;
+    const actions =
       `<button class="btn btn-sm btn-outline-primary me-1" onclick="editUser('${u['שם משתמש']}')"><i class="bi bi-pencil"></i></button>
-       <button class="btn btn-sm btn-outline-danger" onclick="deleteUser('${u['שם משתמש']}')"><i class="bi bi-trash"></i></button>`;
+       ${deleteBtn}`;
     return `<tr><td>${u['שם משתמש']||''}</td><td><span class="badge ${cls}">${role}</span></td><td>${permBadges}</td><td>${actions}</td></tr>`;
   }).join('');
 }
@@ -49,7 +52,8 @@ async function editUser(username) {
   addUserModal();
   setTimeout(() => {
     document.getElementById('nu-name').value = u.username;
-    document.getElementById('nu-name').readOnly = true;
+    document.getElementById('nu-name').readOnly = false;
+    document.getElementById('nu-name').dataset.originalUsername = u.username;
     document.getElementById('nu-pass').value = u.password_hash || '';
     document.getElementById('nu-role').value = u.role || 'מורה';
     document.getElementById('nu-role').dispatchEvent(new Event('change'));
@@ -228,6 +232,10 @@ async function saveUser() {
   if (!checked.length) return alert('יש לסמן לפחות מסך אחד');
   if (!allStudents && !visibleStudents) return alert('יש לבחור לפחות תלמיד אחד או לסמן "כל התלמידים"');
   const editMode = document.getElementById('addUModal').dataset.editMode === '1';
+  const originalUsername = document.getElementById('nu-name').dataset.originalUsername;
+  if (editMode && originalUsername && originalUsername !== obj['שם משתמש']) {
+    obj['שם משתמש קודם'] = originalUsername;
+  }
   const r = editMode ? await api('updateUser', [obj]) : await api('addUser', [obj]);
   bootstrap.Modal.getInstance(document.getElementById('addUModal')).hide();
   renderSettings();

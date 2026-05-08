@@ -43,8 +43,8 @@ async function loadData() {
     users: stored.users || (usersJ && usersJ.users) || [{username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'}],
     categories: (categoriesJ && categoriesJ.categories) || [],
   };
-  // Always make sure admin exists
-  if (!_data.users.find(u => u.username === 'admin')) {
+  // Always make sure at least one admin exists
+  if (!_data.users.find(u => u.role === 'מנהל')) {
     _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
     saveStored(_data);
   }
@@ -189,11 +189,12 @@ async function api(fn, args) {
     }
     case 'updateUser': {
       const obj = args[0];
-      const username = obj['שם משתמש'] || obj.username;
-      const idx = _data.users.findIndex(u => u.username === username);
+      const newUsername = obj['שם משתמש'] || obj.username;
+      const lookupUsername = obj['שם משתמש קודם'] || newUsername;
+      const idx = _data.users.findIndex(u => u.username === lookupUsername);
       if (idx < 0) return { ok: false, error: 'not found' };
       _data.users[idx] = {
-        username,
+        username: newUsername,
         password_hash: obj['סיסמה'] || obj.password_hash || _data.users[idx].password_hash,
         role: obj['תפקיד'] || obj.role,
         permissions: obj['הרשאות'] || obj.permissions,
@@ -202,14 +203,30 @@ async function api(fn, args) {
       };
       saveStored(_data);
       markLocalChange();
-      syncUpdateRow('משתמשים', obj, 'שם משתמש', username).then(updateSyncIndicator);
+      // If renamed, delete old + add new in sheet; otherwise update
+      if (lookupUsername !== newUsername) {
+        syncDeleteRow('משתמשים', 'שם משתמש', lookupUsername).then(() =>
+          syncRowToSheet('משתמשים', obj).then(updateSyncIndicator));
+      } else {
+        syncUpdateRow('משתמשים', obj, 'שם משתמש', newUsername).then(updateSyncIndicator);
+      }
+      // If session belongs to renamed user, refresh session
+      const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+      if (sess.username === lookupUsername && lookupUsername !== newUsername) {
+        sess.username = newUsername;
+        sessionStorage.setItem('user', JSON.stringify(sess));
+      }
       return { ok: true };
     }
     case 'deleteUser': {
       const username = args[0];
-      if (username === 'admin') return { ok: false, error: 'אסור למחוק admin' };
       const idx = _data.users.findIndex(u => u.username === username);
       if (idx < 0) return { ok: false, error: 'not found' };
+      const target = _data.users[idx];
+      const adminCount = _data.users.filter(u => u.role === 'מנהל').length;
+      if (target.role === 'מנהל' && adminCount === 1) {
+        return { ok: false, error: 'לא ניתן למחוק את המנהל היחיד' };
+      }
       _data.users.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
@@ -363,7 +380,7 @@ async function pullAllFromSheet() {
       visible_students: u['תלמידים_מורשים'] || 'all',
       visible_categories: u['קטגוריות_מורשות'] || 'all',
     }));
-    if (!_data.users.find(u => u.username === 'admin')) {
+    if (!_data.users.find(u => u.role === 'מנהל')) {
       _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
     }
   }
