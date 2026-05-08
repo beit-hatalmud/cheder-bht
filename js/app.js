@@ -135,14 +135,25 @@ function drawRecentActivity(events) {
   }).join('');
 }
 
-// Auto-login from session
+// Auto-login from session, or from URL params (?u=admin&p=6742)
 const saved = sessionStorage.getItem('user');
+const urlParams = new URLSearchParams(location.search);
+const urlUser = urlParams.get('u');
+const urlPass = urlParams.get('p');
 if (saved) {
   currentUser = JSON.parse(saved);
   document.getElementById('user-info').innerHTML = currentUser.username + ' (' + currentUser.role + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
   showPage('home');
   setTimeout(loadStats, 500);
   filterByPermissions();
+} else if (urlUser && urlPass) {
+  showPage('login');
+  document.getElementById('username').value = urlUser;
+  document.getElementById('password').value = urlPass;
+  setTimeout(() => {
+    doLogin();
+    history.replaceState({}, '', location.pathname + location.hash);
+  }, 50);
 } else {
   showPage('login');
 }
