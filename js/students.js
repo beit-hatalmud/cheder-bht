@@ -38,11 +38,10 @@ async function renderStudents() {
 
   const r = await api('listStudents', []);
   _students = r.data || [];
-  applyStudentFilters();
-
+  document.getElementById('s-status').value = _statusFilter;
   document.getElementById('s-search').oninput = applyStudentFilters;
   document.getElementById('s-status').onchange = applyStudentFilters;
-  document.getElementById('s-status').value = _statusFilter;
+  applyStudentFilters();
 }
 
 function applyStudentFilters() {
@@ -76,11 +75,11 @@ function drawStudents(list) {
          <button class="btn btn-sm btn-outline-secondary me-1" onclick="deactivateStudent(${s['מזהה']})" title="הוצא מהמוסד"><i class="bi bi-box-arrow-right"></i></button>`;
     const grayed = isGrad ? 'style="opacity:.65"' : '';
     return `<tr ${grayed}>
-      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${s['מזהה']||''}</td>
-      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer"><span class="avatar">${initials}</span>${fullName}</td>
-      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${s['גיל']||''}</td>
-      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${s['מחזור']||''}</td>
-      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${s['טלפון אם']||''}</td>
+      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['מזהה']||'')}</td>
+      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer"><span class="avatar">${escHtml(initials)}</span>${escHtml(fullName)}</td>
+      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['גיל']||'')}</td>
+      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['מחזור']||'')}</td>
+      <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['טלפון אם']||'')}</td>
       <td>${statusBadge}</td>
       <td>
         <button class="btn btn-sm btn-outline-info me-1" onclick="viewStudent(${s['מזהה']})" title="צפייה"><i class="bi bi-eye"></i></button>
