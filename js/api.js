@@ -5,7 +5,8 @@
 const STORAGE_KEY = 'cheder_data';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
 const AGENT_TOKEN = 'BHT_AGENT_2026';
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/16rmLPnUyRPpJZ5YF_l74eRUSbRMrlwJXa1ND0drLNjM/edit';
+const INSTANCE = 'bht';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1-GFdXr0diOlof-mMAp2Qci0fVjq0QHf21rv3FNFHQOs/edit';
 
 let _data = null;
 let _online = false;
@@ -304,6 +305,7 @@ async function syncToBackend() {
 async function syncRowToSheet(tab, row) {
   try {
     const url = APPS_SCRIPT_URL + '?action=cheder_appendRow&token=' + AGENT_TOKEN +
+      '&instance=' + INSTANCE +
       '&tab=' + encodeURIComponent(tab) + '&row=' + encodeURIComponent(JSON.stringify(row));
     const r = await fetch(url, { method: 'GET', mode: 'cors' });
     if (!r.ok) return false;
@@ -315,7 +317,7 @@ async function syncRowToSheet(tab, row) {
 async function syncUpdateRow(tab, row, matchKey, matchValue) {
   try {
     const params = new URLSearchParams({
-      action: 'cheder_updateRow', token: AGENT_TOKEN,
+      action: 'cheder_updateRow', token: AGENT_TOKEN, instance: INSTANCE,
       tab, row: JSON.stringify(row), matchKey, matchValue: String(matchValue),
     });
     const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
@@ -328,7 +330,7 @@ async function syncUpdateRow(tab, row, matchKey, matchValue) {
 async function syncDeleteRow(tab, matchKey, matchValue) {
   try {
     const params = new URLSearchParams({
-      action: 'cheder_deleteRow', token: AGENT_TOKEN,
+      action: 'cheder_deleteRow', token: AGENT_TOKEN, instance: INSTANCE,
       tab, matchKey, matchValue: String(matchValue),
     });
     const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
@@ -341,7 +343,7 @@ async function syncDeleteRow(tab, matchKey, matchValue) {
 async function pullFromSheet(tab) {
   try {
     const params = new URLSearchParams({
-      action: 'cheder_listRows', token: AGENT_TOKEN, tab,
+      action: 'cheder_listRows', token: AGENT_TOKEN, instance: INSTANCE, tab,
     });
     const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
     if (!r.ok) return null;
