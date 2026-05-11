@@ -268,6 +268,7 @@ async function viewStudent(id) {
       </div>
       <ul class="nav nav-tabs mt-3" id="stu-tabs">
         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#stu-tab-behavior">התנהגות (${events.length})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-profile">פרופיל אישי</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-timeline">טיים-ליין</a></li>
       </ul>
       <div class="tab-content pt-2">
@@ -277,6 +278,31 @@ async function viewStudent(id) {
             <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
           </div>
           ${eventsHtml}
+        </div>
+        <div class="tab-pane fade" id="stu-tab-profile">
+          <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-sm btn-primary" onclick="saveStudentProfile(${id})"><i class="bi bi-save"></i> שמור</button>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold"><i class="bi bi-file-earmark-text"></i> דוח אישי</label>
+            <textarea id="sp-report" class="form-control" rows="4" placeholder="דוח כללי על התלמיד...">${escHtml(s['דוח_אישי']||'')}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold"><i class="bi bi-people"></i> הורים</label>
+            <textarea id="sp-parents" class="form-control" rows="3" placeholder="מצב במשפחה, יחס לחינוך...">${escHtml(s['פרופיל_הורים']||'')}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold"><i class="bi bi-emoji-smile"></i> אישיות</label>
+            <textarea id="sp-personality" class="form-control" rows="3" placeholder="תכונות אופי, מצבי רוח...">${escHtml(s['פרופיל_אישיות']||'')}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold"><i class="bi bi-activity"></i> התנהגותי</label>
+            <textarea id="sp-behavior" class="form-control" rows="3" placeholder="התנהגות בכיתה, ביחסי חברה...">${escHtml(s['פרופיל_התנהגותי']||'')}</textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-bold"><i class="bi bi-book"></i> לימודי</label>
+            <textarea id="sp-learning" class="form-control" rows="3" placeholder="הישגים, קשיים, מוטיבציה...">${escHtml(s['פרופיל_לימודי']||'')}</textarea>
+          </div>
         </div>
         <div class="tab-pane fade" id="stu-tab-timeline">
           <div id="stu-timeline-content"><div class="text-center py-3 text-muted"><i class="bi bi-hourglass"></i> טוען...</div></div>
@@ -308,6 +334,20 @@ async function viewStudent(id) {
   };
   document.addEventListener('keydown', onKey);
   modalEl.addEventListener('hidden.bs.modal', () => document.removeEventListener('keydown', onKey), { once: true });
+}
+
+async function saveStudentProfile(studentId) {
+  const obj = {
+    'מזהה': studentId,
+    'דוח_אישי': document.getElementById('sp-report').value.trim(),
+    'פרופיל_הורים': document.getElementById('sp-parents').value.trim(),
+    'פרופיל_אישיות': document.getElementById('sp-personality').value.trim(),
+    'פרופיל_התנהגותי': document.getElementById('sp-behavior').value.trim(),
+    'פרופיל_לימודי': document.getElementById('sp-learning').value.trim(),
+  };
+  const r = await api('updateStudent', [obj]);
+  if (r.ok) notify('הפרופיל נשמר ומסונכרן לשיטס', 'success');
+  else alert(r.error || 'שגיאה');
 }
 
 async function drawStudentTimeline(studentId) {

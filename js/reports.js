@@ -88,18 +88,68 @@ function genReportWeekly() {
   const events = (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > weekAgo)
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   const high = events.filter(e => e['חומרה'] === 'גבוהה').length;
-  let html = reportHeader('דוח שבועי');
+  const mid = events.filter(e => e['חומרה'] === 'בינונית').length;
+  const low = events.filter(e => e['חומרה'] === 'נמוכה').length;
+  const meetingsWeek = (data.meetings||[]).filter(m => new Date(m['תאריך']).getTime() > weekAgo);
+  const attWeek = (data.attendance||[]).filter(a => new Date(a['תאריך']).getTime() > weekAgo);
+  const attAbs = attWeek.filter(a => a['סטטוס']==='חיסר').length;
+  const attLate = attWeek.filter(a => a['סטטוס']==='איחור').length;
+  // By category
+  const byCat = {};
+  events.forEach(e => { const c = e['קטגוריה']||'אחר'; byCat[c] = (byCat[c]||0) + 1; });
+  // By student
+  const byStu = {};
+  events.forEach(e => { const sid = e['תלמיד_מזהה']; byStu[sid] = (byStu[sid]||0) + 1; });
+  // By reporter
+  const byReporter = {};
+  events.forEach(e => { const r = e['דווח_עי']||'לא ידוע'; byReporter[r] = (byReporter[r]||0) + 1; });
+
+  let html = reportHeader('דוח שבועי מלא');
   html += `<div>
-    <div class="kpi"><strong>${events.length}</strong>אירועים השבוע</div>
-    <div class="kpi"><strong>${high}</strong>חומרה גבוהה</div>
+    <div class="kpi"><strong>${events.length}</strong>אירועים</div>
+    <div class="kpi"><strong style="color:#dc2626">${high}</strong>חומרה גבוהה</div>
+    <div class="kpi"><strong>${mid}</strong>בינונית</div>
+    <div class="kpi"><strong>${low}</strong>נמוכה</div>
     <div class="kpi"><strong>${new Set(events.map(e=>e['תלמיד_מזהה'])).size}</strong>תלמידים</div>
+    <div class="kpi"><strong>${meetingsWeek.length}</strong>אסיפות</div>
+    <div class="kpi"><strong style="color:#f59e0b">${attAbs}</strong>חיסור</div>
+    <div class="kpi"><strong style="color:#0891b2">${attLate}</strong>איחורים</div>
   </div>`;
-  html += '<h2>פירוט אירועים</h2>';
+
+  // Top flagged students
+  const flagged = Object.entries(byStu).filter(([,n]) => n >= 2).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  if (flagged.length) {
+    html += '<h2>תלמידים מובילים באירועים</h2><table><tr><th>תלמיד</th><th>כיתה</th><th>אירועים</th><th>טלפון אם</th></tr>';
+    flagged.forEach(([sid, n]) => {
+      const s = (data.students||[]).find(x => String(x['מזהה'])===String(sid));
+      if (!s) return;
+      html += `<tr><td><strong>${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</strong></td><td>${escHtml(s['מחזור']||'')}</td><td>${n}</td><td>${escHtml(s['טלפון אם']||'')}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // By category
+  if (Object.keys(byCat).length) {
+    html += '<h2>פילוח לפי קטגוריה</h2><table><tr><th>קטגוריה</th><th>מספר</th></tr>';
+    Object.entries(byCat).sort((a,b) => b[1]-a[1]).forEach(([c,n]) => html += `<tr><td>${escHtml(c)}</td><td>${n}</td></tr>`);
+    html += '</table>';
+  }
+
+  // By reporter
+  if (Object.keys(byReporter).length) {
+    html += '<h2>פילוח לפי מדווח</h2><table><tr><th>מדווח</th><th>מספר אירועים</th></tr>';
+    Object.entries(byReporter).sort((a,b) => b[1]-a[1]).forEach(([r,n]) => html += `<tr><td>${escHtml(r)}</td><td>${n}</td></tr>`);
+    html += '</table>';
+  }
+
+  // All events
+  html += '<h2>כל האירועים השבוע</h2>';
   if (!events.length) html += '<p class="text-muted">אין אירועים השבוע</p>';
   else events.forEach(e => {
     const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
     const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
-    html += `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(dt)} · חומרה ${escHtml(e['חומרה']||'')}<br>${escHtml(e['תיאור']||'')}</div>`;
+    const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
+    html += `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(dt)} · חומרה ${escHtml(e['חומרה']||'')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
   });
   html += reportFooter();
   openPrintWindow(html, 'דוח שבועי');
@@ -266,34 +316,128 @@ async function genParentPDF(sendEmail) {
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   const fs = (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(sid));
   const tests = (data.tests||[]).filter(t => String(t['תלמיד_מזהה']) === String(sid));
+  const meds = (data.medications||[]).filter(m => String(m['תלמיד_מזהה']) === String(sid));
+  const meetings = (data.meetings||[]).filter(m => String(m['תלמיד_מזהה']) === String(sid));
+  const att = (data.attendance||[]).filter(a => String(a['תלמיד_מזהה']) === String(sid));
+  const attPresent = att.filter(a => a['סטטוס']==='נוכח').length;
+  const attAbsent = att.filter(a => a['סטטוס']==='חיסר').length;
+  const attLate = att.filter(a => a['סטטוס']==='איחור').length;
   const fullName = (stu['שם פרטי']||'') + ' ' + (stu['שם משפחה']||'');
   const fAvg = fs.length ? (fs.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / fs.length).toFixed(2) : '-';
   const tAvg = tests.length ? (tests.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / tests.length).toFixed(1) : '-';
-  let html = reportHeader('דוח התקדמות — ' + fullName);
-  html += `<p class="subtitle">כיתה ${escHtml(stu['מחזור']||'-')} · גיל ${escHtml(stu['גיל']||'-')}</p>`;
+  // Behavior breakdown
+  const evHigh = events.filter(e => e['חומרה']==='גבוהה').length;
+  const evMid = events.filter(e => e['חומרה']==='בינונית').length;
+  const evLow = events.filter(e => e['חומרה']==='נמוכה').length;
+  // Categories breakdown
+  const byCat = {};
+  events.forEach(e => { const c = e['קטגוריה']||'אחר'; byCat[c] = (byCat[c]||0) + 1; });
+  // Tests by type
+  const testsByType = {};
+  tests.forEach(t => {
+    const type = t['סוג'] || 'אחר';
+    if (!testsByType[type]) testsByType[type] = { sum: 0, n: 0 };
+    testsByType[type].sum += parseFloat(t['ציון']) || 0;
+    testsByType[type].n += 1;
+  });
+  // Functioning by category
+  const fnByCat = {};
+  fs.forEach(f => {
+    const c = f['קטגוריה'] || 'אחר';
+    if (!fnByCat[c]) fnByCat[c] = { sum: 0, n: 0 };
+    fnByCat[c].sum += parseFloat(f['ציון']) || 0;
+    fnByCat[c].n += 1;
+  });
+
+  let html = reportHeader('דוח התקדמות מלא — ' + fullName);
+  html += `<p class="subtitle">כיתה ${escHtml(stu['מחזור']||'-')} · גיל ${escHtml(stu['גיל']||'-')} · ת.ז ${escHtml(stu['מספר זהות']||'-')}</p>`;
   html += `<div>
-    <div class="kpi"><strong>${events.length}</strong>אירועים מתועדים</div>
+    <div class="kpi"><strong>${events.length}</strong>אירועים</div>
     <div class="kpi"><strong>${fAvg}</strong>ממוצע תפקוד</div>
     <div class="kpi"><strong>${tAvg}</strong>ממוצע מבחנים</div>
+    <div class="kpi"><strong>${attPresent}/${att.length}</strong>נוכחות</div>
+    <div class="kpi"><strong>${meetings.length}</strong>אסיפות הורים</div>
   </div>`;
-  html += '<h2>אירועים אחרונים</h2>';
-  if (!events.length) html += '<p>אין אירועים מתועדים</p>';
-  else events.slice(0, 15).forEach(e => {
-    const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
-    const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
-    html += `<div class="event ${c}"><strong>${escHtml(e['קטגוריה']||'')}</strong> · ${escHtml(dt)}<br>${escHtml(e['תיאור']||'')}</div>`;
-  });
-  if (fs.length) {
-    html += '<h2>ציוני תפקוד אחרונים</h2><table><tr><th>קטגוריה</th><th>פרמטר</th><th>ציון</th></tr>';
-    fs.slice(0, 25).forEach(f => html += `<tr><td>${escHtml(f['קטגוריה']||'')}</td><td>${escHtml(f['פרמטר']||'')}</td><td><strong>${f['ציון']||'-'}</strong></td></tr>`);
+  // Personal profile
+  if (stu['דוח_אישי']) {
+    html += `<h2>דוח אישי</h2><p>${escHtml(stu['דוח_אישי'])}</p>`;
+  }
+  if (stu['פרופיל_הורים'] || stu['פרופיל_אישיות'] || stu['פרופיל_התנהגותי'] || stu['פרופיל_לימודי']) {
+    html += '<h2>פרופיל</h2><table>';
+    if (stu['פרופיל_הורים']) html += `<tr><th style="width:120px">הורים</th><td>${escHtml(stu['פרופיל_הורים'])}</td></tr>`;
+    if (stu['פרופיל_אישיות']) html += `<tr><th>אישיות</th><td>${escHtml(stu['פרופיל_אישיות'])}</td></tr>`;
+    if (stu['פרופיל_התנהגותי']) html += `<tr><th>התנהגותי</th><td>${escHtml(stu['פרופיל_התנהגותי'])}</td></tr>`;
+    if (stu['פרופיל_לימודי']) html += `<tr><th>לימודי</th><td>${escHtml(stu['פרופיל_לימודי'])}</td></tr>`;
     html += '</table>';
   }
-  if (tests.length) {
-    html += '<h2>ציוני מבחנים</h2><table><tr><th>סוג</th><th>פרשה</th><th>ציון</th></tr>';
-    tests.slice(0, 20).forEach(t => html += `<tr><td>${escHtml(t['סוג']||'')}</td><td>${escHtml(t['פרשה']||'')}</td><td><strong>${t['ציון']||'-'}</strong></td></tr>`);
+  // Behavior summary
+  html += '<h2>סיכום התנהגות</h2>';
+  html += `<table><tr><th>סה"כ אירועים</th><td><strong>${events.length}</strong></td><th>חומרה גבוהה</th><td style="color:#dc2626"><strong>${evHigh}</strong></td><th>בינונית</th><td>${evMid}</td><th>נמוכה</th><td>${evLow}</td></tr></table>`;
+  if (Object.keys(byCat).length) {
+    html += '<h3>פילוח לפי קטגוריה</h3><table><tr><th>קטגוריה</th><th>מספר אירועים</th></tr>';
+    Object.entries(byCat).sort((a,b) => b[1]-a[1]).forEach(([c,n]) => html += `<tr><td>${escHtml(c)}</td><td>${n}</td></tr>`);
     html += '</table>';
   }
-  html += `<p style="margin-top:30pt;color:#6b7280;font-size:9pt">בברכה,<br>בית התלמוד · בית שמש</p>`;
+  // All behavior events
+  if (events.length) {
+    html += `<h2>כל אירועי ההתנהגות (${events.length})</h2>`;
+    events.forEach(e => {
+      const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
+      const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
+      const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
+      html += `<div class="event ${c}"><strong>${escHtml(e['קטגוריה']||'')}</strong> · ${escHtml(dt)} · חומרה ${escHtml(e['חומרה']||'-')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
+    });
+  }
+  // Functioning summary
+  if (Object.keys(fnByCat).length) {
+    html += '<h2>תפקוד — ממוצעים לפי קטגוריה</h2><table><tr><th>קטגוריה</th><th>ממוצע</th><th>מספר ציונים</th></tr>';
+    Object.entries(fnByCat).sort((a,b) => (b[1].sum/b[1].n) - (a[1].sum/a[1].n)).forEach(([c, d]) => {
+      const avg = d.sum / d.n;
+      html += `<tr><td>${escHtml(c)}</td><td><strong>${avg.toFixed(2)}</strong></td><td>${d.n}</td></tr>`;
+    });
+    html += '</table>';
+  }
+  // Tests summary
+  if (Object.keys(testsByType).length) {
+    html += '<h2>מבחנים — ממוצעים לפי סוג</h2><table><tr><th>סוג</th><th>ממוצע</th><th>מספר מבחנים</th></tr>';
+    Object.entries(testsByType).forEach(([t, d]) => {
+      const avg = d.sum / d.n;
+      html += `<tr><td>${escHtml(t)}</td><td><strong>${avg.toFixed(1)}</strong></td><td>${d.n}</td></tr>`;
+    });
+    html += '</table>';
+    html += '<h3>כל ציוני המבחנים</h3><table><tr><th>סוג</th><th>פרשה</th><th>ציון</th></tr>';
+    tests.slice(0, 40).forEach(t => html += `<tr><td>${escHtml(t['סוג']||'')}</td><td>${escHtml(t['פרשה']||'')}</td><td><strong>${t['ציון']||'-'}</strong></td></tr>`);
+    html += '</table>';
+  }
+  // Medications
+  if (meds.length) {
+    html += '<h2>מעקב רפואי / כדורים</h2>';
+    meds.forEach(m => {
+      html += `<div class="event">
+        ${m['תרופה'] ? `<strong>${escHtml(m['תרופה'])}</strong> · ` : ''}${escHtml(m['תאריך_עדכון']||'')}
+        ${m['מצב_כיום'] ? `<br>מצב: ${escHtml(m['מצב_כיום'])}` : ''}
+        ${m['שיחת_הורים'] ? `<br>שיחת הורים: ${escHtml(m['שיחת_הורים'])}` : ''}
+      </div>`;
+    });
+  }
+  // Meetings
+  if (meetings.length) {
+    html += '<h2>אסיפות הורים</h2>';
+    meetings.forEach(m => {
+      html += `<div class="event">
+        <strong>${escHtml(m['נושא']||'פגישה')}</strong> · ${escHtml(m['תאריך']||'')}
+        ${m['משתתפים'] ? `<br>משתתפים: ${escHtml(m['משתתפים'])}` : ''}
+        ${m['סיכום'] ? `<br>${escHtml(m['סיכום'])}` : ''}
+      </div>`;
+    });
+  }
+  // Attendance
+  if (att.length) {
+    html += '<h2>נוכחות</h2>';
+    html += `<table><tr><th>נוכחויות</th><td style="color:#16a34a"><strong>${attPresent}</strong></td><th>חיסור</th><td style="color:#f59e0b">${attAbsent}</td><th>איחורים</th><td style="color:#0891b2">${attLate}</td><th>אחוז נוכחות</th><td><strong>${att.length ? Math.round(attPresent/att.length*100) : 0}%</strong></td></tr></table>`;
+  }
+
+  html += `<p style="margin-top:30pt;color:#6b7280;font-size:9pt">בברכה,<br>בית התלמוד · בית שמש · ${new Date().toLocaleDateString('he-IL')}</p>`;
   html += reportFooter();
   bootstrap.Modal.getInstance(document.getElementById('rp-modal')).hide();
   if (sendEmail) {
