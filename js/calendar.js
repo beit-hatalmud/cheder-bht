@@ -557,7 +557,7 @@ async function calSaveEvent(editId) {
     const r = await api('addBehavior', [obj]);
     if (!r.ok) return alert(r.error || 'שגיאה');
   }
-  bootstrap.Modal.getInstance(document.getElementById('cal-ev-modal')).hide();
+  hideModal('cal-ev-modal');
   notify(editId ? 'האירוע עודכן' : 'האירוע נוסף', 'success');
   // If new date is in a different month, navigate to it
   const newDate = new Date(isoDate);

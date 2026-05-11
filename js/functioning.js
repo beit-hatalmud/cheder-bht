@@ -199,7 +199,7 @@ async function funcSave() {
   if (!obj['פרמטר'] || !obj['ציון']) return alert('פרמטר וציון חובה');
   const r = await api('addFunctioning', [obj]);
   if (r.ok) {
-    bootstrap.Modal.getInstance(document.getElementById('func-modal')).hide();
+    hideModal('func-modal');
     notify('ציון נוסף', 'success');
     renderFunctioning();
   } else {

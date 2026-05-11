@@ -111,9 +111,11 @@ function meetAddModal(existing) {
       <button class="btn btn-primary" onclick="meetSave(${existing ? e['מזהה'] : 'null'})">שמור</button>
     </div>
   </div></div></div>`;
-  const old = document.getElementById('me-modal'); if (old) old.remove();
+  cleanupModal('me-modal');
   document.body.insertAdjacentHTML('beforeend', html);
-  new bootstrap.Modal(document.getElementById('me-modal')).show();
+  const _m = document.getElementById('me-modal');
+  new bootstrap.Modal(_m).show();
+  _m.addEventListener('hidden.bs.modal', () => cleanupModal('me-modal'), { once: true });
 }
 
 function meetEdit(id) {
@@ -135,7 +137,7 @@ async function meetSave(editId) {
   if (editId) obj['מזהה'] = editId;
   const r = await api(editId ? 'updateMeeting' : 'addMeeting', [obj]);
   if (r.ok) {
-    bootstrap.Modal.getInstance(document.getElementById('me-modal')).hide();
+    hideModal('me-modal');
     notify('נשמר', 'success');
     renderMeetings();
   } else alert(r.error || 'שגיאה');

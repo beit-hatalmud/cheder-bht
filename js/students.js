@@ -309,7 +309,7 @@ async function viewStudent(id) {
       <button class="btn btn-outline-warning" onclick="shareParentPortal(${id})"><i class="bi bi-link-45deg"></i> קישור להורים</button>
       <button class="btn btn-outline-info" onclick="emailParentSummary(${id})"><i class="bi bi-envelope"></i> מייל</button>
       <button class="btn btn-outline-success" onclick="printStudentReport(${id})"><i class="bi bi-printer"></i> הדפס</button>
-      <button class="btn btn-outline-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('viewStuModal')).hide(); editStudent(${id})"><i class="bi bi-pencil"></i> ערוך</button>
+      <button class="btn btn-outline-primary" onclick="hideModal('viewStuModal'); editStudent(${id})"><i class="bi bi-pencil"></i> ערוך</button>
       <button class="btn btn-secondary" data-bs-dismiss="modal">סגור</button>
     </div>
   </div></div></div>`;
@@ -631,7 +631,7 @@ async function saveEventForStudent(studentId, editId) {
     const r = await api('addBehavior', [obj]);
     if (!r.ok) return alert(r.error || 'שגיאה');
   }
-  bootstrap.Modal.getInstance(document.getElementById('stu-ev-modal')).hide();
+  hideModal('stu-ev-modal');
   if (typeof toast === 'function') toast(editId ? 'האירוע עודכן' : 'האירוע נוסף', 'success');
   // Refresh the student card to show updated events
   const oldModal = document.getElementById('viewStuModal');
@@ -987,10 +987,11 @@ function addStudentModal() {
         </div>
       </div>
     </div>`;
-  const old = document.getElementById('addStudentModal');
-  if (old) old.remove();
+  cleanupModal('addStudentModal');
   document.body.insertAdjacentHTML('beforeend', html);
-  new bootstrap.Modal(document.getElementById('addStudentModal')).show();
+  const modalEl = document.getElementById('addStudentModal');
+  new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addStudentModal'), { once: true });
 }
 
 async function saveStudent() {
@@ -1018,7 +1019,7 @@ async function saveStudent() {
     r = await api('addStudent', [obj]);
   }
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug fix: check ok
-  bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+  hideModal('addStudentModal');
   renderStudents();
   loadStats();
 }

@@ -178,7 +178,7 @@ async function saveEvent(event) {
     r = await api('addBehavior', [obj]);
   }
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug #42 fix
-  bootstrap.Modal.getInstance(document.getElementById('addEvModal')).hide();
+  hideModal('addEvModal');
   renderBehavior();
   loadStats();
 }

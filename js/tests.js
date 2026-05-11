@@ -178,7 +178,7 @@ async function testSave() {
   if (!obj['תלמיד_מזהה'] || !obj['סוג']) return alert('תלמיד וסוג חובה');
   const r = await api('addTest', [obj]);
   if (r.ok) {
-    bootstrap.Modal.getInstance(document.getElementById('t-modal')).hide();
+    hideModal('t-modal');
     notify('ציון נוסף', 'success');
     renderTests();
   } else alert(r.error || 'שגיאה');

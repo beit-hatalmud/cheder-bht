@@ -340,7 +340,7 @@ function doRangeReport() {
   const from = new Date(document.getElementById('rg-from').value);
   const to = new Date(document.getElementById('rg-to').value);
   if (!from || !to || isNaN(from) || isNaN(to)) return alert('הזן תאריכים תקינים');
-  bootstrap.Modal.getInstance(document.getElementById('rg-modal')).hide();
+  hideModal('rg-modal');
   const title = `דוח מ-${formatGreg(from)} עד ${formatGreg(to)}`;
   genFullPeriodReport(from, to, title);
 }
@@ -702,7 +702,7 @@ async function genParentPDF(sendEmail) {
 
   html += `<p style="margin-top:30pt;color:#6b7280;font-size:9pt">בברכה,<br>בית התלמוד · בית שמש · ${formatDateBoth(new Date())}</p>`;
   html += reportFooter();
-  bootstrap.Modal.getInstance(document.getElementById('rp-modal')).hide();
+  hideModal('rp-modal');
   if (sendEmail) {
     notify('שולח דוח...', 'success');
     await sendParentReportPDF(html, fullName, email);

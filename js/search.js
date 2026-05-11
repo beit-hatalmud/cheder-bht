@@ -61,7 +61,7 @@ async function doGlobalSearch() {
         type: 'תלמיד', icon: 'bi-person',
         title: (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''),
         subtitle: `כיתה ${s['מחזור']||''} · גיל ${s['גיל']||''}`,
-        action: () => { bootstrap.Modal.getInstance(document.getElementById('gs-modal')).hide(); goto('students'); setTimeout(() => viewStudent(s['מזהה']), 400); },
+        action: () => { hideModal('gs-modal'); goto('students'); setTimeout(() => viewStudent(s['מזהה']), 400); },
       });
     }
   });
@@ -75,7 +75,7 @@ async function doGlobalSearch() {
         type: 'אירוע', icon: 'bi-clipboard-check',
         title: e['שם תלמיד'] || '?',
         subtitle: `${e['קטגוריה']||''} · ${(e['תיאור']||'').slice(0,80)}`,
-        action: () => { bootstrap.Modal.getInstance(document.getElementById('gs-modal')).hide(); goto('behavior'); },
+        action: () => { hideModal('gs-modal'); goto('behavior'); },
       });
     }
   });
@@ -90,7 +90,7 @@ async function doGlobalSearch() {
         type: 'מבחן', icon: 'bi-pencil-square',
         title: stuName,
         subtitle: `${t['סוג']||''} · ${t['פרשה']||''} · ${t['ציון']||''}`,
-        action: () => { bootstrap.Modal.getInstance(document.getElementById('gs-modal')).hide(); goto('tests'); },
+        action: () => { hideModal('gs-modal'); goto('tests'); },
       });
     }
   });
@@ -115,7 +115,7 @@ async function doGlobalSearch() {
         type: 'תפקוד', icon: 'bi-bar-chart-line',
         title: `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`,
         subtitle: `${n} ציונים · ממוצע ${(sum/n).toFixed(2)}`,
-        action: () => { bootstrap.Modal.getInstance(document.getElementById('gs-modal')).hide(); goto('functioning'); },
+        action: () => { hideModal('gs-modal'); goto('functioning'); },
       });
     });
   }

@@ -248,7 +248,7 @@ async function saveClass(isEdit, originalName) {
     r = await api('addClass', [{'שם': name, 'סדר': order}]);
   }
   if (!r.ok) { alert(r.error || 'שגיאה'); return; }
-  bootstrap.Modal.getInstance(document.getElementById('classModal')).hide();
+  hideModal('classModal');
   renderClasses();
   if (typeof toast === 'function') toast(isEdit ? 'הכיתה עודכנה' : 'הכיתה נוספה', 'success');
 }
@@ -510,7 +510,7 @@ async function saveUser() {
   }
   const r = editMode ? await api('updateUser', [obj]) : await api('addUser', [obj]);
   if (!r.ok) { alert(r.error || 'שגיאה'); return; }
-  bootstrap.Modal.getInstance(document.getElementById('addUModal')).hide();
+  hideModal('addUModal');
   // Refresh in-memory currentUser if user edited themselves (read fresh from _data.users)
   if (typeof currentUser !== 'undefined' && currentUser) {
     const editedSelf = editMode && (originalUsername === currentUser.username || obj['שם משתמש'] === currentUser.username);

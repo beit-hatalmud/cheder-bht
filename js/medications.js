@@ -117,7 +117,7 @@ async function medSave(editId) {
   if (editId) obj['מזהה'] = editId;
   const r = await api(editId ? 'updateMedication' : 'addMedication', [obj]);
   if (r.ok) {
-    bootstrap.Modal.getInstance(document.getElementById('m-modal')).hide();
+    hideModal('m-modal');
     notify('נשמר', 'success');
     renderMedications();
   } else alert(r.error || 'שגיאה');

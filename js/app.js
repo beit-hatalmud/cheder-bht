@@ -7,6 +7,13 @@ document.addEventListener('show.bs.modal', (ev) => {
 }, true);
 
 // Bug #1 fix: safe modal lifecycle — disposes Bootstrap instance + removes DOM
+// Safely hide a modal — never throws if instance is gone
+window.hideModal = function(modalId) {
+  const el = document.getElementById(modalId);
+  if (!el) return;
+  try { bootstrap.Modal.getInstance(el)?.hide(); } catch {}
+};
+
 window.cleanupModal = function(modalId) {
   const el = document.getElementById(modalId);
   if (!el) return;
@@ -94,12 +101,24 @@ window.addEventListener('cheder-data-refreshed', () => {
   else if (PAGES.includes(hash)) showPage(hash);
 });
 
+// Reset all module-level UI state (called on login/logout to prevent cross-user leakage)
+function resetModuleState() {
+  try {
+    if (typeof _funcSelected !== 'undefined') window._funcSelected = null;
+    if (typeof _cvSelected !== 'undefined') window._cvSelected = '';
+    if (typeof _calCurMonth !== 'undefined') window._calCurMonth = new Date();
+    if (typeof _statusFilter !== 'undefined') window._statusFilter = 'active';
+  } catch {}
+}
+window.resetModuleState = resetModuleState;
+
 async function doLogin(){
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
   if (!u || !p) return;
   const r = await api('authenticate', [u, p]);
   if (r.ok && r.data && r.data.ok) {
+    resetModuleState();  // Round-6 fix: clear stale UI state from previous user
     currentUser = r.data.user;
     // Augment with permissions from users array
     const userRow = (await api('listUsers',[])).data.find(x=>x['שם משתמש']===u);
