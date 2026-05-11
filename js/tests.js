@@ -187,7 +187,7 @@ async function testSave() {
 async function testDelete(id) {
   if (!confirm('למחוק את הציון?')) return;
   const r = await api('deleteTest', [id]);
-  if (r.ok) { notify('נמחק', 'success'); renderTests(); }
+  if (r.ok) { notify('נמחק', 'success'); renderTests(); } else alert(r.error || 'שגיאה במחיקה');
 }
 
 function testExportCSV() {

@@ -210,7 +210,7 @@ async function funcSave() {
 async function funcDelete(id) {
   if (!confirm('למחוק את הציון?')) return;
   const r = await api('deleteFunctioning', [id]);
-  if (r.ok) { notify('נמחק', 'success'); renderFunctioning(); }
+  if (r.ok) { notify('נמחק', 'success'); renderFunctioning(); } else alert(r.error || 'שגיאה במחיקה');
 }
 
 function funcExportCSV() {

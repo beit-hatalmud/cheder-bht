@@ -126,7 +126,7 @@ async function medSave(editId) {
 async function medDelete(id) {
   if (!confirm('למחוק את הרישום?')) return;
   const r = await api('deleteMedication', [id]);
-  if (r.ok) { notify('נמחק', 'success'); renderMedications(); }
+  if (r.ok) { notify('נמחק', 'success'); renderMedications(); } else alert(r.error || 'שגיאה במחיקה');
 }
 
 function medExportCSV() {

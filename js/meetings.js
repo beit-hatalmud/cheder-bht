@@ -146,5 +146,5 @@ async function meetSave(editId) {
 async function meetDelete(id) {
   if (!confirm('למחוק את הפגישה?')) return;
   const r = await api('deleteMeeting', [id]);
-  if (r.ok) { notify('נמחק', 'success'); renderMeetings(); }
+  if (r.ok) { notify('נמחק', 'success'); renderMeetings(); } else alert(r.error || 'שגיאה במחיקה');
 }
