@@ -126,22 +126,12 @@ function drawBirthdays(students) {
   if (!el) return;
   const today = new Date();
   const thisMonth = today.getMonth() + 1;
-  const list = students.filter(s => {
-    const bd = s['תאריך לידה'];
-    if (!bd) return false;
-    const parts = String(bd).split(/[/\-]/);
-    if (parts.length < 2) return false;
-    let m = parseInt(parts[1]);
-    if (parts[0].length === 4) m = parseInt(parts[1]); // YYYY-MM-DD
-    else m = parseInt(parts[1]); // DD/MM/YYYY
-    return m === thisMonth;
-  }).map(s => {
-    const bd = s['תאריך לידה'];
-    let day = '';
-    const parts = String(bd).split(/[/\-]/);
-    if (parts.length >= 3) day = parts[0].length === 4 ? parts[2] : parts[0];
-    return { ...s, _day: parseInt(day) || 0 };
-  }).sort((a,b) => a._day - b._day);
+  const list = students.map(s => {
+    const d = (typeof parseAnyDate === 'function') ? parseAnyDate(s['תאריך לידה']) : null;
+    if (!d) return null;
+    if (d.getMonth() + 1 !== thisMonth) return null;
+    return { ...s, _day: d.getDate(), _bd: d };
+  }).filter(Boolean).sort((a,b) => a._day - b._day);
   if (!list.length) {
     el.innerHTML = '<p class="text-muted small mb-0">אין ימי הולדת החודש</p>';
     return;

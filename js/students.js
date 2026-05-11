@@ -161,16 +161,12 @@ function uploadStudentPhoto(studentId) {
 }
 
 function getHebrewBirthday(s) {
-  if (!s || !s['תאריך לידה'] || typeof hebcal === 'undefined') return '';
+  if (!s || !s['תאריך לידה']) return '';
+  if (typeof hebrewBirthday === 'function') return hebrewBirthday(s['תאריך לידה']);
+  if (typeof hebcal === 'undefined') return '';
   try {
-    const parts = String(s['תאריך לידה']).split(/[/\-]/);
-    let d;
-    if (parts[0].length === 4) {
-      d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-    } else {
-      d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
-    }
-    if (isNaN(d)) return '';
+    const d = parseAnyDate(s['תאריך לידה']);
+    if (!d) return '';
     return new hebcal.HDate(d).renderGematriya('he');
   } catch (e) { return ''; }
 }
@@ -256,7 +252,7 @@ async function viewStudent(id) {
       </div>
       <h6>פרטים אישיים</h6>
       <table class="table table-sm">
-        <tr><td><strong>תאריך לידה</strong></td><td>${escHtml(s['תאריך לידה']||'-')} ${hebBd ? `· <span class="text-muted">${escHtml(hebBd)}</span>` : ''}</td><td><strong>ת.ז.</strong></td><td>${escHtml(s['מספר זהות']||'-')}</td></tr>
+        <tr><td><strong>תאריך לידה</strong></td><td>${escHtml(formatGreg(s['תאריך לידה'])||'-')} ${hebBd ? `<br><small class="text-muted">${escHtml(hebBd)}</small>` : ''}</td><td><strong>ת.ז.</strong></td><td>${escHtml(s['מספר זהות']||'-')}</td></tr>
         <tr><td><strong>שם אם</strong></td><td>${escHtml(s['שם אם']||'-')}</td><td><strong>טלפון אם</strong></td><td>${escHtml(s['טלפון אם']||'-')} ${waButtons(s['טלפון אם'], fullName, 'אמא')}</td></tr>
         <tr><td><strong>שם אב</strong></td><td>${escHtml(s['שם אב']||'-')}</td><td><strong>טלפון אב</strong></td><td>${escHtml(s['טלפון אב']||'-')} ${waButtons(s['טלפון אב'], fullName, 'אבא')}</td></tr>
         <tr><td><strong>כתובת</strong></td><td colspan="3">${escHtml(s['כתובת']||'-')}${s['עיר'] ? ', ' + escHtml(s['עיר']) : ''}</td></tr>
@@ -865,7 +861,7 @@ td{padding:5pt;border:1px solid #e5e7eb;vertical-align:top}
 <h2>פרטים אישיים</h2>
 <table>
   <tr><th>שם פרטי</th><td>${escHtml(s['שם פרטי']||'-')}</td><th>שם משפחה</th><td>${escHtml(s['שם משפחה']||'-')}</td></tr>
-  <tr><th>תאריך לידה</th><td>${escHtml(s['תאריך לידה']||'-')}${hebBd ? `<br><small style="color:#6b7280">${escHtml(hebBd)}</small>` : ''}</td><th>גיל</th><td>${escHtml(s['גיל']||'-')}</td></tr>
+  <tr><th>תאריך לידה</th><td>${escHtml(formatGreg(s['תאריך לידה'])||'-')}${hebBd ? `<br><small style="color:#6b7280">${escHtml(hebBd)}</small>` : ''}</td><th>גיל</th><td>${escHtml(s['גיל']||'-')}</td></tr>
   <tr><th>מספר זהות</th><td>${escHtml(s['מספר זהות']||'-')}</td><th>מחזור / כיתה</th><td>${escHtml(s['מחזור']||'-')}</td></tr>
   <tr><th>שם אם</th><td>${escHtml(s['שם אם']||'-')}</td><th>ת.ז. אם</th><td>${escHtml(s['תז אם']||'-')}</td></tr>
   <tr><th>טלפון אם</th><td>${escHtml(s['טלפון אם']||'-')}</td><th>טלפון בית</th><td>${escHtml(s['טלפון בית']||'-')}</td></tr>
