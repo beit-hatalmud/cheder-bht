@@ -524,12 +524,16 @@ async function calDeleteEvent(eventId) {
 
 async function calSaveEvent(editId) {
   const data = getVisibleData();
-  const sid = parseInt(document.getElementById('cev-student').value);
+  // Bug #7 fix: don't parseInt — use raw value (string IDs from external imports are valid)
+  const sidRaw = document.getElementById('cev-student').value;
+  const sid = /^\d+$/.test(sidRaw) ? parseInt(sidRaw) : sidRaw;
   const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
-  const isoDate = document.getElementById('cev-date').value;
-  const jsDate = new Date(isoDate);
+  const isoDate = document.getElementById('cev-date').value;  // YYYY-MM-DD
+  // Bug #2 fix: parse as local date components — no timezone shift
+  const [yy, mm, dd] = isoDate.split('-').map(Number);
+  const jsDate = new Date(yy, (mm||1)-1, dd||1);
   const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(jsDate) : { hdate: '', parsha: '' };
   const obj = {
     'תלמיד_מזהה': sid,
@@ -537,7 +541,7 @@ async function calSaveEvent(editId) {
     'קטגוריה': document.getElementById('cev-cat').value,
     'תיאור': document.getElementById('cev-desc').value.trim(),
     'חומרה': document.getElementById('cev-sev').value,
-    'תאריך': new Date(isoDate + 'T12:00:00').toISOString(),
+    'תאריך': isoDate,  // store bare YYYY-MM-DD; consumers use parseAnyDate
     'תאריך_עברי': info.hdate,
     'פרשה': info.parsha,
   };

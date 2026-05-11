@@ -128,14 +128,23 @@ function addEventModal() {
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveEvent()">שמור</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveEvent(event)">שמור</button></div>
   </div></div></div>`;
-  const old = document.getElementById('addEvModal'); if (old) old.remove();
+  cleanupModal('addEvModal');
   document.body.insertAdjacentHTML('beforeend', html);
-  new bootstrap.Modal(document.getElementById('addEvModal')).show();
+  const modalEl = document.getElementById('addEvModal');
+  new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addEvModal'), { once: true });
 }
 
-async function saveEvent() {
+async function saveEvent(event) {
+  // Bug #8 fix: prevent double-submit
+  const btn = event?.target?.closest('button');
+  if (btn && btn.disabled) return;
+  if (btn) {
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = false; }, 3000);
+  }
   const sid = document.getElementById('ne-student').value;
   const stu = _allStudents.find(s => String(s['מזהה']) === sid);
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');

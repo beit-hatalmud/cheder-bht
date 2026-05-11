@@ -172,18 +172,24 @@ function getVisibleData() {
   const allowedSids = new Set(allowedStudents.map(s => String(s['מזהה'])));
 
   const filterBySid = items => (items || []).filter(x => allowedSids.has(String(x['תלמיד_מזהה'])));
-  let behavior = filterBySid(all.behavior);
+  // Bug #13 fix: apply visible_categories to ALL category-bearing entities
+  let catFilter = null;
   if (full.visible_categories && full.visible_categories !== 'all') {
     const cats = full.visible_categories.split(',').map(s => s.trim()).filter(Boolean);
-    behavior = behavior.filter(e => cats.includes(e['קטגוריה']));
+    catFilter = catSet => items => items.filter(e => !e['קטגוריה'] || cats.includes(e['קטגוריה']));
+    catFilter = cats; // store list
   }
+  const applyCat = items => {
+    if (!catFilter) return items;
+    return items.filter(e => !e['קטגוריה'] || catFilter.includes(e['קטגוריה']));
+  };
 
   return {
     ...all,
     students: allowedStudents,
-    behavior,
-    functioning: filterBySid(all.functioning),
-    tests: filterBySid(all.tests),
+    behavior: applyCat(filterBySid(all.behavior)),
+    functioning: applyCat(filterBySid(all.functioning)),
+    tests: filterBySid(all.tests),  // tests don't use קטגוריה
     medications: filterBySid(all.medications),
     meetings: filterBySid(all.meetings),
     attendance: filterBySid(all.attendance),
@@ -220,10 +226,12 @@ async function api(fn, args) {
       const matches = await verifyPassword(user.password_hash, p);
       if (!matches) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
       // Auto-migrate plaintext to hash on successful login
+      // (markLocalChange in case sheet write fails — prevents pull from clobbering local hash)
       if (!String(user.password_hash || '').startsWith(PWD_PREFIX)) {
         user.password_hash = await hashPassword(p);
         saveStored(_data);
         markLocalChange();
+        // Bug #4 fix: ensure pending writes stay queued and pull is blocked while we sync
         const sheetObj = {
           'שם משתמש': user.username, 'סיסמה': user.password_hash,
           'תפקיד': user.role, 'הרשאות': user.permissions,
@@ -973,7 +981,7 @@ function _auditLog(action, tab, rowId, description) {
     const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
     const user = sess.username || 'anonymous';
     const entry = {
-      'מזהה': Date.now() + '-' + Math.floor(Math.random()*1000),
+      'מזהה': genId(),
       'תאריך': new Date().toISOString(),
       'משתמש': user,
       'פעולה': action,
@@ -1139,6 +1147,8 @@ async function pullAllFromSheet() {
   _data.medications = safeReplace(_data.medications, medications);
   _data.meetings = safeReplace(_data.meetings, meetings);
   _data.attendance = safeReplace(_data.attendance, attendance);
+  // Bug #14 fix: notify pages that data was refreshed so they can re-render
+  try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
   if (Array.isArray(categoriesRows) && categoriesRows.length) {
     _data.categories = categoriesRows.map(r => ({
       name: r['קטגוריה'] || r.name || '',

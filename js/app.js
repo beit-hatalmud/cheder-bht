@@ -1,5 +1,35 @@
 // Main app router & login
 
+// Bug #1 fix: safe modal lifecycle — disposes Bootstrap instance + removes DOM
+window.cleanupModal = function(modalId) {
+  const el = document.getElementById(modalId);
+  if (!el) return;
+  try { bootstrap.Modal.getInstance(el)?.dispose(); } catch {}
+  el.remove();
+  // Clean up any stuck backdrops
+  document.querySelectorAll('.modal-backdrop').forEach(b => {
+    if (!document.querySelector('.modal.show')) b.remove();
+  });
+  if (!document.querySelector('.modal.show')) {
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }
+};
+
+// Bug #8 fix: prevents double-submit during async save
+window.guardSubmit = function(btn, asyncFn) {
+  if (!btn || btn.disabled) return false;
+  btn.disabled = true;
+  btn.dataset.originalText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> שומר...';
+  asyncFn().finally(() => {
+    btn.disabled = false;
+    if (btn.dataset.originalText) btn.innerHTML = btn.dataset.originalText;
+  });
+  return true;
+};
+
 function toast(msg, type) {
   let container = document.querySelector('.toast-container');
   if (!container) {
@@ -49,6 +79,13 @@ function goto(page) {
 window.addEventListener('popstate', e => {
   const page = (e.state && e.state.page) || 'home';
   showPage(page);
+});
+
+// Bug #14 fix: re-render current page when data is refreshed from sheet
+window.addEventListener('cheder-data-refreshed', () => {
+  const hash = location.hash.replace('#','') || 'home';
+  if (hash === 'home' && typeof loadStats === 'function') loadStats();
+  else if (PAGES.includes(hash)) showPage(hash);
 });
 
 async function doLogin(){

@@ -313,10 +313,11 @@ async function viewStudent(id) {
       <button class="btn btn-secondary" data-bs-dismiss="modal">סגור</button>
     </div>
   </div></div></div>`;
-  const old = document.getElementById('viewStuModal'); if (old) old.remove();
+  cleanupModal('viewStuModal');
   document.body.insertAdjacentHTML('beforeend', html);
   const modalEl = document.getElementById('viewStuModal');
   new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('viewStuModal'), { once: true });
   // Trend chart for last 14 days
   setTimeout(() => drawStudentTrendChart(id, events), 200);
   // Lazy-load timeline when tab clicked
@@ -594,14 +595,16 @@ async function saveEventForStudent(studentId, editId) {
   if (!s) return;
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
+  // Bug #10 fix: only include שיעור when explicitly set, otherwise preserve existing
+  const lesson = document.getElementById('sev-lesson').value.trim();
   const obj = {
     'תלמיד_מזהה': studentId,
     'שם תלמיד': (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''),
     'קטגוריה': document.getElementById('sev-cat').value,
     'תיאור': document.getElementById('sev-desc').value.trim(),
     'חומרה': document.getElementById('sev-sev').value,
-    'שיעור': document.getElementById('sev-lesson').value.trim(),
   };
+  if (lesson) obj['שיעור'] = lesson;
   if (!obj['קטגוריה'] || !obj['תיאור']) return alert('קטגוריה ותיאור חובה');
   if (editId) {
     obj['מזהה'] = parseInt(editId);
@@ -729,14 +732,14 @@ function importStudentsCSV() {
   input.onchange = async e => {
     const file = e.target.files[0];
     if (!file) return;
-    const text = await file.text();
-    const lines = text.replace(/^﻿/,'').split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) return alert('הקובץ ריק או לא תקין');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+    const text = (await file.text()).replace(/^﻿/, '');
+    const rows = parseCSV(text);
+    if (rows.length < 2) return alert('הקובץ ריק או לא תקין');
+    const headers = rows[0].map(h => h.trim());
     let added = 0;
     let maxId = _students.reduce((m,s) => Math.max(m, parseInt(s['מזהה'])||0), 0);
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i]);
+    for (let i = 1; i < rows.length; i++) {
+      const values = rows[i];
       const obj = {};
       headers.forEach((h,j) => obj[h] = values[j] || '');
       if (!obj['שם פרטי'] && !obj['שם משפחה']) continue;
@@ -754,24 +757,36 @@ function importStudentsCSV() {
   input.click();
 }
 
-function parseCSVLine(line) {
-  const result = [];
+// Bug #6 fix: streaming CSV parser that handles quoted multi-line fields
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
   let cur = '';
   let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
     if (c === '"') {
-      if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; }
       else inQuotes = !inQuotes;
     } else if (c === ',' && !inQuotes) {
-      result.push(cur);
-      cur = '';
+      row.push(cur); cur = '';
+    } else if ((c === '\n' || c === '\r') && !inQuotes) {
+      if (c === '\r' && text[i+1] === '\n') i++;
+      row.push(cur); cur = '';
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
     } else {
       cur += c;
     }
   }
-  result.push(cur);
-  return result;
+  if (cur !== '' || row.length) { row.push(cur); if (row.some(v => v !== '')) rows.push(row); }
+  return rows;
+}
+
+// Legacy helper kept for single-line use
+function parseCSVLine(line) {
+  const rows = parseCSV(line);
+  return rows[0] || [];
 }
 
 function printStudentReport(id) {
