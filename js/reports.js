@@ -111,31 +111,31 @@ function genFullPeriodReport(from, to, title) {
   const toTs = to.getTime() + 24*3600*1000;
 
   const events = (data.behavior||[]).filter(e => {
-    const t = new Date(e['תאריך']).getTime();
+    const t = dateMs(e['תאריך']);
     return t >= fromTs && t < toTs;
   }).sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
 
   const meetings = (data.meetings||[]).filter(m => {
     if (!m['תאריך']) return false;
-    const t = new Date(m['תאריך']).getTime();
+    const t = dateMs(m['תאריך']);
     return t >= fromTs && t < toTs;
   });
 
   const att = (data.attendance||[]).filter(a => {
     if (!a['תאריך']) return false;
-    const t = new Date(a['תאריך']).getTime();
+    const t = dateMs(a['תאריך']);
     return t >= fromTs && t < toTs;
   });
 
   const funcs = (data.functioning||[]).filter(f => {
     if (!f['תאריך']) return true;
-    const t = new Date(f['תאריך']).getTime();
+    const t = dateMs(f['תאריך']);
     return t >= fromTs && t < toTs;
   });
 
   const tests = (data.tests||[]).filter(t => {
     if (!t['תאריך']) return true;
-    const ts = new Date(t['תאריך']).getTime();
+    const ts = dateMs(t['תאריך']);
     return ts >= fromTs && ts < toTs;
   });
 
@@ -352,13 +352,13 @@ function doRangeReport() {
 function genReportWeekly() {
   const data = getVisibleData();
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-  const events = (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > weekAgo)
+  const events = (data.behavior||[]).filter(e => dateMs(e['תאריך']) > weekAgo)
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   const high = events.filter(e => e['חומרה'] === 'גבוהה').length;
   const mid = events.filter(e => e['חומרה'] === 'בינונית').length;
   const low = events.filter(e => e['חומרה'] === 'נמוכה').length;
-  const meetingsWeek = (data.meetings||[]).filter(m => new Date(m['תאריך']).getTime() > weekAgo);
-  const attWeek = (data.attendance||[]).filter(a => new Date(a['תאריך']).getTime() > weekAgo);
+  const meetingsWeek = (data.meetings||[]).filter(m => dateMs(m['תאריך']) > weekAgo);
+  const attWeek = (data.attendance||[]).filter(a => dateMs(a['תאריך']) > weekAgo);
   const attAbs = attWeek.filter(a => a['סטטוס']==='חיסר').length;
   const attLate = attWeek.filter(a => a['סטטוס']==='איחור').length;
   // By category
@@ -425,7 +425,7 @@ function genReportWeekly() {
 function genReportMonthly() {
   const data = getVisibleData();
   const monthAgo = Date.now() - 30 * 24 * 3600 * 1000;
-  const events = (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > monthAgo);
+  const events = (data.behavior||[]).filter(e => dateMs(e['תאריך']) > monthAgo);
   const funcAvg = data.functioning && data.functioning.length
     ? (data.functioning.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / data.functioning.length).toFixed(2) : '-';
   const byCat = {};
@@ -468,7 +468,7 @@ function genReportClass() {
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   students.forEach(s => {
     const ev = (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(s['מזהה']));
-    const evWeek = ev.filter(e => new Date(e['תאריך']).getTime() > weekAgo).length;
+    const evWeek = ev.filter(e => dateMs(e['תאריך']) > weekAgo).length;
     const fs = (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(s['מזהה']));
     const fAvg = fs.length ? (fs.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / fs.length).toFixed(2) : '-';
     const name = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
@@ -483,7 +483,7 @@ function genReportFlags() {
   const data = getVisibleData();
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const counts = {};
-  (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
+  (data.behavior||[]).filter(e => dateMs(e['תאריך']) > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
     counts[e['תלמיד_מזהה']] = (counts[e['תלמיד_מזהה']]||0) + 1;
   });
   const flagged = Object.entries(counts).filter(([,n]) => n >= 2).sort((a,b) => b[1] - a[1]);

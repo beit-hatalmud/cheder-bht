@@ -162,7 +162,7 @@ async function loadStats() {
   document.getElementById('stat-students').textContent = students.length;
   document.getElementById('stat-events').textContent = events.length;
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-  const week = events.filter(e => new Date(e['תאריך']).getTime() > weekAgo);
+  const week = events.filter(e => dateMs(e['תאריך']) > weekAgo);
   document.getElementById('stat-week').textContent = week.length;
   document.getElementById('stat-high').textContent = events.filter(e => e['חומרה'] === 'גבוהה').length;
   drawClassBanner(students);
@@ -213,7 +213,7 @@ function drawAlerts(students, events) {
   if (!el) return;
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const counts = {};
-  events.filter(e => new Date(e['תאריך']).getTime() > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
+  events.filter(e => dateMs(e['תאריך']) > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
     const sid = e['תלמיד_מזהה'];
     counts[sid] = (counts[sid]||0) + 1;
   });

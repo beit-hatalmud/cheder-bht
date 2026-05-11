@@ -33,7 +33,7 @@ function refreshClassView() {
 
   const stats = document.getElementById('cv-stats');
   const totalEvents = events.filter(e => students.some(s => String(s['מזהה']) === String(e['תלמיד_מזהה']))).length;
-  const weekEvents = events.filter(e => students.some(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) && new Date(e['תאריך']).getTime() > weekAgo).length;
+  const weekEvents = events.filter(e => students.some(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) && dateMs(e['תאריך']) > weekAgo).length;
   const stuFunc = funcs.filter(f => students.some(s => String(s['מזהה']) === String(f['תלמיד_מזהה'])));
   const funcAvg = stuFunc.length ? (stuFunc.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / stuFunc.length).toFixed(2) : '-';
   const stuTests = tests.filter(t => students.some(s => String(s['מזהה']) === String(t['תלמיד_מזהה'])));
@@ -53,8 +53,8 @@ function refreshClassView() {
   }
   grid.innerHTML = students.map(s => {
     const stuEvents = events.filter(e => String(e['תלמיד_מזהה']) === String(s['מזהה']));
-    const stuWeek = stuEvents.filter(e => new Date(e['תאריך']).getTime() > weekAgo).length;
-    const stuHigh = stuEvents.filter(e => e['חומרה'] === 'גבוהה' && new Date(e['תאריך']).getTime() > weekAgo).length;
+    const stuWeek = stuEvents.filter(e => dateMs(e['תאריך']) > weekAgo).length;
+    const stuHigh = stuEvents.filter(e => e['חומרה'] === 'גבוהה' && dateMs(e['תאריך']) > weekAgo).length;
     const stuFs = funcs.filter(f => String(f['תלמיד_מזהה']) === String(s['מזהה']));
     const fAvg = stuFs.length ? stuFs.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / stuFs.length : 0;
     const fColor = fAvg >= 4 ? 'success' : fAvg >= 3 ? 'warning' : fAvg > 0 ? 'danger' : 'secondary';

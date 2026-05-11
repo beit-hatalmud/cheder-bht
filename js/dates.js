@@ -115,6 +115,12 @@ function hebrewBirthday(v) {
   } catch { return ''; }
 }
 
+// Round-10 helper: safe date->ms (handles all formats, returns 0 if invalid)
+function dateMs(v) {
+  const d = parseAnyDate(v);
+  return d ? d.getTime() : 0;
+}
+window.dateMs = dateMs;
 window.parseAnyDate = parseAnyDate;
 window.formatGreg = formatGreg;
 window.formatHebrew = formatHebrew;
