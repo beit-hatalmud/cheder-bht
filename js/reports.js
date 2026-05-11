@@ -97,7 +97,11 @@ td{padding:5pt;border:1px solid #e5e7eb}
 }
 
 function reportFooter() {
-  return `<script>setTimeout(()=>window.print(), 800);</script></body></html>`;
+  return `<script>
+const _doPrint = () => window.print();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(_doPrint, 200));
+else window.addEventListener('load', () => setTimeout(_doPrint, 800));
+</script></body></html>`;
 }
 
 // Generates a comprehensive period report between two dates

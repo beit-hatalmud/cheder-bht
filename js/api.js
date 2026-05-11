@@ -342,7 +342,7 @@ async function api(fn, args) {
       // Filter by current user's visible_categories (admins see all)
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
       const isAdmin = u.username === 'admin' || u.role === 'מנהל';
-      let cats = _data.categories.map(c => ({ 'קטגוריה': c.name }));
+      let cats = _data.categories.map(c => ({ 'קטגוריה': c.name || c['קטגוריה'] || '' })).filter(c => c['קטגוריה']);
       if (!isAdmin) {
         const full = _data.users.find(x => x.username === u.username);
         if (!full) return { ok: true, data: [] };  // SECURITY: stale session
