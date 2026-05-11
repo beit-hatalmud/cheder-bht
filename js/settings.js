@@ -130,9 +130,19 @@ async function editUser(username) {
     document.getElementById('all-students').checked = allStu;
     document.getElementById('all-students').dispatchEvent(new Event('change'));
     if (!allStu) {
+      const groupsToOpen = new Set();
       u.visible_students.split(',').map(s=>s.trim()).forEach(id => {
         const cb = document.getElementById('stu-' + id);
-        if (cb) cb.checked = true;
+        if (cb) {
+          cb.checked = true;
+          // Find the parent group class & expand it
+          const cls = Array.from(cb.classList).find(c => c.startsWith('stu-class-'));
+          if (cls) groupsToOpen.add(cls.replace('stu-class-', ''));
+        }
+      });
+      groupsToOpen.forEach(safe => {
+        const el = document.getElementById('stu-group-' + safe);
+        if (el && el.style.display === 'none') toggleStuClassGroup(safe);
       });
     }
     const allCat = !u.visible_categories || u.visible_categories === 'all';
@@ -298,11 +308,39 @@ function addUserModal() {
     </div>
   `).join('');
 
-  const studentOpts = data.students.map(s => `
-    <div class="form-check">
-      <input class="form-check-input student-cb" type="checkbox" value="${escHtml(s['מזהה'])}" id="stu-${escHtml(s['מזהה'])}">
-      <label class="form-check-label" for="stu-${escHtml(s['מזהה'])}">${escHtml(s['שם פרטי']||'')} ${escHtml(s['שם משפחה']||'')} <small class="text-muted">(${escHtml(s['מחזור']||'')})</small></label>
-    </div>`).join('');
+  // Group students by class
+  const studentsByClass = {};
+  data.students.forEach(s => {
+    const cls = s['מחזור'] || 'ללא כיתה';
+    if (!studentsByClass[cls]) studentsByClass[cls] = [];
+    studentsByClass[cls].push(s);
+  });
+  const sortedClasses = Object.keys(studentsByClass).sort((a,b) => {
+    const ca = (data.classes || []).find(c => c['שם'] === a);
+    const cb = (data.classes || []).find(c => c['שם'] === b);
+    return (parseInt(ca?.['סדר']) || 99) - (parseInt(cb?.['סדר']) || 99);
+  });
+  const studentOpts = sortedClasses.map(cls => {
+    const slist = studentsByClass[cls].slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+    const safe = cls.replace(/[^א-תa-zA-Z0-9]/g, '_');
+    return `<div class="border rounded mb-2">
+      <div class="d-flex justify-content-between align-items-center p-2 bg-light" style="cursor:pointer" onclick="toggleStuClassGroup('${safe}')">
+        <strong>כיתה ${escHtml(cls)} <span class="text-muted small">(${slist.length})</span></strong>
+        <div>
+          <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="event.stopPropagation();selectAllInClass('${safe}', true)">סמן הכל</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="event.stopPropagation();selectAllInClass('${safe}', false)">נקה</button>
+          <i class="bi bi-chevron-down" id="stu-group-chevron-${safe}"></i>
+        </div>
+      </div>
+      <div class="p-2" id="stu-group-${safe}" style="display:none">
+        ${slist.map(s => `
+          <div class="form-check">
+            <input class="form-check-input student-cb stu-class-${safe}" type="checkbox" value="${escHtml(s['מזהה'])}" id="stu-${escHtml(s['מזהה'])}">
+            <label class="form-check-label" for="stu-${escHtml(s['מזהה'])}">${escHtml(s['שם פרטי']||'')} ${escHtml(s['שם משפחה']||'')}</label>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
 
   const catOpts = data.categories.map((c, i) => `
     <div class="form-check">
@@ -419,6 +457,22 @@ function addUserModal() {
   document.getElementById('all-classes').addEventListener('change', e => {
     document.getElementById('class-list').classList.toggle('d-none', e.target.checked);
   });
+}
+
+function toggleStuClassGroup(safe) {
+  const el = document.getElementById('stu-group-' + safe);
+  const chev = document.getElementById('stu-group-chevron-' + safe);
+  if (!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if (chev) chev.className = open ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+}
+
+function selectAllInClass(safe, check) {
+  document.querySelectorAll('.stu-class-' + safe).forEach(cb => { cb.checked = check; });
+  // Open the group when interacting with it
+  const el = document.getElementById('stu-group-' + safe);
+  if (el && el.style.display === 'none') toggleStuClassGroup(safe);
 }
 
 async function saveUser() {

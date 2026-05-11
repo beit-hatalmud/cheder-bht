@@ -20,6 +20,24 @@ async function renderReports() {
         </div>
       </div>
       <div class="col-md-6 col-lg-4">
+        <div class="card p-4 h-100" style="cursor:pointer" onclick="genReportQuarterly()">
+          <h5><i class="bi bi-calendar2-range text-primary"></i> דוח רבעוני</h5>
+          <p class="text-muted small mb-0">סיכום 3 חודשים מלא — כל הנתונים, מגמות, השוואה</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card p-4 h-100" style="cursor:pointer" onclick="genReportAnnual()">
+          <h5><i class="bi bi-calendar-event text-success"></i> דוח שנתי</h5>
+          <p class="text-muted small mb-0">דוח מלא של תשפ"ו — כל הנתונים מכל המודולים</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card p-4 h-100" style="cursor:pointer" onclick="genReportRange()">
+          <h5><i class="bi bi-funnel text-warning"></i> טווח מותאם</h5>
+          <p class="text-muted small mb-0">בחר תקופה כלשהי וקבל דוח מלא</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4">
         <div class="card p-4 h-100" style="cursor:pointer" onclick="genReportClass()">
           <h5><i class="bi bi-grid-3x3-gap text-success"></i> דוח כיתתי</h5>
           <p class="text-muted small mb-0">בחר כיתה ותצוגה מפורטת של כל התלמידים בה</p>
@@ -80,6 +98,251 @@ td{padding:5pt;border:1px solid #e5e7eb}
 
 function reportFooter() {
   return `<script>setTimeout(()=>window.print(), 800);</script></body></html>`;
+}
+
+// Generates a comprehensive period report between two dates
+function genFullPeriodReport(from, to, title) {
+  const data = getData();
+  const fromTs = from.getTime();
+  const toTs = to.getTime() + 24*3600*1000;
+
+  const events = (data.behavior||[]).filter(e => {
+    const t = new Date(e['תאריך']).getTime();
+    return t >= fromTs && t < toTs;
+  }).sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+
+  const meetings = (data.meetings||[]).filter(m => {
+    if (!m['תאריך']) return false;
+    const t = new Date(m['תאריך']).getTime();
+    return t >= fromTs && t < toTs;
+  });
+
+  const att = (data.attendance||[]).filter(a => {
+    if (!a['תאריך']) return false;
+    const t = new Date(a['תאריך']).getTime();
+    return t >= fromTs && t < toTs;
+  });
+
+  const funcs = (data.functioning||[]).filter(f => {
+    if (!f['תאריך']) return true;
+    const t = new Date(f['תאריך']).getTime();
+    return t >= fromTs && t < toTs;
+  });
+
+  const tests = (data.tests||[]).filter(t => {
+    if (!t['תאריך']) return true;
+    const ts = new Date(t['תאריך']).getTime();
+    return ts >= fromTs && ts < toTs;
+  });
+
+  const high = events.filter(e => e['חומרה'] === 'גבוהה').length;
+  const mid = events.filter(e => e['חומרה'] === 'בינונית').length;
+  const low = events.filter(e => e['חומרה'] === 'נמוכה').length;
+  const attPresent = att.filter(a => a['סטטוס']==='נוכח').length;
+  const attAbsent = att.filter(a => a['סטטוס']==='חיסר').length;
+  const attLate = att.filter(a => a['סטטוס']==='איחור').length;
+
+  // By category
+  const byCat = {};
+  events.forEach(e => { const c = e['קטגוריה']||'אחר'; byCat[c] = (byCat[c]||0) + 1; });
+  // By student
+  const byStu = {};
+  events.forEach(e => { const sid = e['תלמיד_מזהה']; byStu[sid] = (byStu[sid]||0) + 1; });
+  // By reporter
+  const byReporter = {};
+  events.forEach(e => { const r = e['דווח_עי']||'לא ידוע'; byReporter[r] = (byReporter[r]||0) + 1; });
+  // By class
+  const byClass = {};
+  events.forEach(e => {
+    const stu = (data.students||[]).find(s => String(s['מזהה'])===String(e['תלמיד_מזהה']));
+    const c = stu ? stu['מחזור'] : 'לא ידוע';
+    byClass[c] = (byClass[c]||0) + 1;
+  });
+  // Functioning by cat
+  const fnByCat = {};
+  funcs.forEach(f => {
+    const c = f['קטגוריה'] || 'אחר';
+    if (!fnByCat[c]) fnByCat[c] = { sum: 0, n: 0 };
+    fnByCat[c].sum += parseFloat(f['ציון']) || 0;
+    fnByCat[c].n += 1;
+  });
+  // Tests by type
+  const testsByType = {};
+  tests.forEach(t => {
+    const type = t['סוג'] || 'אחר';
+    if (!testsByType[type]) testsByType[type] = { sum: 0, n: 0 };
+    testsByType[type].sum += parseFloat(t['ציון']) || 0;
+    testsByType[type].n += 1;
+  });
+  // Monthly distribution (for multi-month reports)
+  const byMonth = {};
+  events.forEach(e => {
+    if (!e['תאריך']) return;
+    const d = new Date(e['תאריך']);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    byMonth[key] = (byMonth[key]||0) + 1;
+  });
+
+  let html = reportHeader(title);
+  html += `<p class="subtitle">תקופה: ${escHtml(formatDateBoth(from))} עד ${escHtml(formatDateBoth(to))}</p>`;
+
+  html += `<div>
+    <div class="kpi"><strong>${events.length}</strong>אירועים</div>
+    <div class="kpi"><strong style="color:#dc2626">${high}</strong>חומרה גבוהה</div>
+    <div class="kpi"><strong>${mid}</strong>בינונית</div>
+    <div class="kpi"><strong>${low}</strong>נמוכה</div>
+    <div class="kpi"><strong>${new Set(events.map(e=>e['תלמיד_מזהה'])).size}</strong>תלמידים מעורבים</div>
+    <div class="kpi"><strong>${meetings.length}</strong>אסיפות הורים</div>
+    <div class="kpi"><strong style="color:#f59e0b">${attAbsent}</strong>חיסור</div>
+    <div class="kpi"><strong style="color:#0891b2">${attLate}</strong>איחור</div>
+  </div>`;
+
+  // Distribution over time (months)
+  if (Object.keys(byMonth).length > 1) {
+    html += '<h2>פילוח אירועים לפי חודש</h2><table><tr><th>חודש</th><th>אירועים</th></tr>';
+    Object.entries(byMonth).sort((a,b) => a[0].localeCompare(b[0])).forEach(([m, n]) => {
+      const [y, mm] = m.split('-');
+      const d = new Date(parseInt(y), parseInt(mm)-1, 1);
+      const monLabel = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+      html += `<tr><td>${escHtml(monLabel)}</td><td><strong>${n}</strong></td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Class distribution
+  if (Object.keys(byClass).length) {
+    html += '<h2>פילוח לפי כיתה</h2><table><tr><th>כיתה</th><th>אירועים</th><th>%</th></tr>';
+    const total = events.length || 1;
+    Object.entries(byClass).sort((a,b) => b[1]-a[1]).forEach(([c, n]) => {
+      html += `<tr><td>כיתה ${escHtml(c)}</td><td>${n}</td><td>${Math.round(n/total*100)}%</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Category breakdown
+  if (Object.keys(byCat).length) {
+    html += '<h2>פילוח לפי קטגוריה</h2><table><tr><th>קטגוריה</th><th>אירועים</th><th>%</th></tr>';
+    const total = events.length || 1;
+    Object.entries(byCat).sort((a,b) => b[1]-a[1]).forEach(([c, n]) => {
+      html += `<tr><td>${escHtml(c)}</td><td>${n}</td><td>${Math.round(n/total*100)}%</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Top students
+  const topStu = Object.entries(byStu).sort((a,b) => b[1]-a[1]).slice(0, 15);
+  if (topStu.length) {
+    html += '<h2>תלמידים מובילים באירועים</h2><table><tr><th>תלמיד</th><th>כיתה</th><th>אירועים</th><th>חומרה גבוהה</th><th>טלפון אם</th></tr>';
+    topStu.forEach(([sid, n]) => {
+      const s = (data.students||[]).find(x => String(x['מזהה'])===String(sid));
+      if (!s) return;
+      const sHigh = events.filter(e => String(e['תלמיד_מזהה'])===String(sid) && e['חומרה']==='גבוהה').length;
+      html += `<tr><td><strong>${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</strong></td><td>${escHtml(s['מחזור']||'')}</td><td>${n}</td><td style="color:#dc2626">${sHigh}</td><td>${escHtml(s['טלפון אם']||'-')}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Reporters
+  if (Object.keys(byReporter).length) {
+    html += '<h2>פילוח לפי מדווח</h2><table><tr><th>מדווח</th><th>אירועים</th></tr>';
+    Object.entries(byReporter).sort((a,b) => b[1]-a[1]).forEach(([r, n]) => {
+      html += `<tr><td>${escHtml(r)}</td><td>${n}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Functioning averages
+  if (Object.keys(fnByCat).length) {
+    html += '<h2>ציוני תפקוד — ממוצעים לפי קטגוריה</h2><table><tr><th>קטגוריה</th><th>ממוצע</th><th>מספר ציונים</th></tr>';
+    Object.entries(fnByCat).sort((a,b) => (b[1].sum/b[1].n)-(a[1].sum/a[1].n)).forEach(([c, d]) => {
+      html += `<tr><td>${escHtml(c)}</td><td><strong>${(d.sum/d.n).toFixed(2)}</strong></td><td>${d.n}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Tests averages
+  if (Object.keys(testsByType).length) {
+    html += '<h2>מבחנים — ממוצעים לפי סוג</h2><table><tr><th>סוג</th><th>ממוצע</th><th>מספר מבחנים</th></tr>';
+    Object.entries(testsByType).forEach(([t, d]) => {
+      html += `<tr><td>${escHtml(t)}</td><td><strong>${(d.sum/d.n).toFixed(1)}</strong></td><td>${d.n}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  // Attendance
+  if (att.length) {
+    html += '<h2>נוכחות</h2><table><tr><th>נוכחויות</th><td style="color:#16a34a"><strong>'+attPresent+'</strong></td><th>חיסור</th><td style="color:#f59e0b">'+attAbsent+'</td><th>איחורים</th><td style="color:#0891b2">'+attLate+'</td><th>אחוז נוכחות</th><td><strong>'+(att.length ? Math.round(attPresent/att.length*100) : 0)+'%</strong></td></tr></table>';
+  }
+
+  // All events in chronological order
+  if (events.length) {
+    html += `<h2>כל האירועים בתקופה (${events.length})</h2>`;
+    events.forEach(e => {
+      const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
+      const dt = formatDateBoth(e['תאריך']);
+      const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
+      const parsha = e['פרשה'] ? ` · פר' ${e['פרשה']}` : '';
+      html += `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(dt)}${parsha} · חומרה ${escHtml(e['חומרה']||'')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
+    });
+  }
+
+  // Meetings
+  if (meetings.length) {
+    html += `<h2>אסיפות הורים בתקופה (${meetings.length})</h2>`;
+    meetings.forEach(m => {
+      const stu = (data.students||[]).find(s => String(s['מזהה'])===String(m['תלמיד_מזהה']));
+      const name = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '?';
+      html += `<div class="event"><strong>${escHtml(name)}</strong> · ${escHtml(m['נושא']||'פגישה')} · ${escHtml(formatDateBoth(m['תאריך'])||'')}<br>${escHtml(m['סיכום']||'')}</div>`;
+    });
+  }
+
+  html += reportFooter();
+  openPrintWindow(html, title);
+}
+
+function genReportQuarterly() {
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  const to = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  genFullPeriodReport(from, to, 'דוח רבעוני מלא');
+}
+
+function genReportAnnual() {
+  // School year: September to August (or current year)
+  const today = new Date();
+  let startYear = today.getFullYear();
+  if (today.getMonth() < 8) startYear--;  // before September → prev year
+  const from = new Date(startYear, 8, 1);  // Sep 1
+  const to = new Date(startYear + 1, 7, 31);  // Aug 31
+  genFullPeriodReport(from, to, `דוח שנתי מלא — ${startYear}-${startYear+1}`);
+}
+
+function genReportRange() {
+  const today = new Date().toISOString().slice(0,10);
+  const monthAgo = new Date(Date.now() - 30*24*3600*1000).toISOString().slice(0,10);
+  const html = `<div class="modal fade" id="rg-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>טווח מותאם</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2"><label class="form-label">מתאריך</label><input id="rg-from" type="date" class="form-control" value="${monthAgo}"></div>
+      <div class="mb-2"><label class="form-label">עד תאריך</label><input id="rg-to" type="date" class="form-control" value="${today}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="doRangeReport()"><i class="bi bi-file-earmark-text"></i> צור דוח</button>
+    </div>
+  </div></div></div>`;
+  const old = document.getElementById('rg-modal'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('rg-modal')).show();
+}
+
+function doRangeReport() {
+  const from = new Date(document.getElementById('rg-from').value);
+  const to = new Date(document.getElementById('rg-to').value);
+  if (!from || !to || isNaN(from) || isNaN(to)) return alert('הזן תאריכים תקינים');
+  bootstrap.Modal.getInstance(document.getElementById('rg-modal')).hide();
+  const title = `דוח מ-${formatGreg(from)} עד ${formatGreg(to)}`;
+  genFullPeriodReport(from, to, title);
 }
 
 function genReportWeekly() {
