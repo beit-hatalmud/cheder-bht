@@ -311,3 +311,36 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 /* Page enter animation */
 @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 [id^="page-"]:not(.d-none){animation:pageIn .3s cubic-bezier(.4,0,.2,1)}
+
+/* Round-12 UX polish: skeleton loaders, better focus, smoother transitions */
+@keyframes shimmer{0%{background-position:-200px 0}100%{background-position:calc(200px + 100%) 0}}
+.skeleton{
+  background:#f1f5f9;
+  background-image:linear-gradient(90deg,#f1f5f9 0px,#e2e8f0 40px,#f1f5f9 80px);
+  background-size:200px 100%;background-repeat:no-repeat;
+  animation:shimmer 1.4s infinite linear;
+  border-radius:6px;height:1.25rem;display:inline-block;width:100%;
+}
+.btn:focus-visible,.form-control:focus-visible,.form-select:focus-visible{
+  outline:2px solid var(--primary);outline-offset:2px;
+}
+.card:hover{transition:box-shadow .2s ease;}
+.card-tile:hover{transform:translateY(-2px);transition:transform .2s ease,box-shadow .2s ease;box-shadow:var(--shadow-lg)}
+
+/* Better empty states */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--muted)}
+.empty-state .bi{font-size:3rem;color:var(--border);margin-bottom:.5rem;display:block}
+
+/* Better error toasts */
+.toast-msg.error{border-right-color:var(--danger);background:#fef2f2}
+.toast-msg.warn{border-right-color:var(--warning);background:#fffbeb}
+.toast-msg.success{border-right-color:var(--success);background:#f0fdf4}
+
+/* Disabled buttons clearer */
+.btn:disabled,.btn[disabled]{opacity:.55;cursor:not-allowed}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#f1f5f9}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:#94a3b8}
