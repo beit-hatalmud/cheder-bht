@@ -76,6 +76,22 @@ async function doLogin(){
 document.getElementById('login-btn').onclick = doLogin;
 document.getElementById('password').addEventListener('keypress', e => { if(e.key==='Enter') doLogin(); });
 
+function showLoadingOverlay(text) {
+  let el = document.getElementById('loading-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem';
+    el.innerHTML = `<div class="spinner-border text-primary" role="status" style="width:3rem;height:3rem"></div><div id="loading-text" class="text-primary fw-bold"></div>`;
+    document.body.appendChild(el);
+  }
+  document.getElementById('loading-text').textContent = text;
+}
+function hideLoadingOverlay() {
+  const el = document.getElementById('loading-overlay');
+  if (el) el.remove();
+}
+
 async function loadStats() {
   const s = await api('listStudents', []);
   const b = await api('listBehavior', []);

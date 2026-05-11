@@ -459,12 +459,14 @@ async function addCategory() {
     alert('הקטגוריה כבר קיימת');
     return;
   }
-  data.categories.push({ name, 'קטגוריה': name });
+  data.categories.push({ name, 'קטגוריה': name, 'תיאור': '' });
   saveData('categories', data.categories);
   document.getElementById('new-cat').value = '';
-  if (typeof syncRowToSheet === 'function') syncRowToSheet('קטגוריות', { 'קטגוריה': name, 'תיאור': '' });
+  if (typeof syncRowToSheet === 'function') {
+    syncRowToSheet('קטגוריות', { 'קטגוריה': name, 'תיאור': '' }).then(updateSyncIndicator);
+  }
   renderCategories();
-  notify('הקטגוריה נוספה', 'success');
+  notify('הקטגוריה נוספה ונשמרה בשיטס', 'success');
 }
 
 async function deleteCategory(idx) {

@@ -1,6 +1,5 @@
-// LocalStorage-first data layer
-// Reads from data/*.json (committed in repo), writes to localStorage
-// Background sync (optional) pushes to Apps Script when online
+// Google Sheets = single source of truth. localStorage = cache only.
+// GitHub Pages hosts only the UI; all data lives in the Sheet.
 
 const STORAGE_KEY = 'cheder_bht_data';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
@@ -44,35 +43,30 @@ async function fetchJson(path) {
 
 async function loadData() {
   const stored = loadStored();
-  // Try fetching latest JSON files
-  const [studentsJ, behaviorJ, usersJ, categoriesJ, classesJ, funcJ, testsJ, medsJ, meetingsJ, attJ] = await Promise.all([
-    fetchJson('data/students.json'),
-    fetchJson('data/behavior.json'),
-    fetchJson('data/users.json'),
-    fetchJson('data/categories.json'),
-    fetchJson('data/classes.json'),
-    fetchJson('data/functioning.json'),
-    fetchJson('data/tests.json'),
-    fetchJson('data/medications.json'),
-    fetchJson('data/meetings.json'),
-    fetchJson('data/attendance.json'),
-  ]);
-  const useStored = (arr) => Array.isArray(arr) && arr.length > 0;
+  // Sheet is the single source of truth. Start with stored cache (for instant render).
+  // If cache is empty, we pull synchronously from the Sheet so the UI never shows a blank state.
   _data = {
-    students: useStored(stored.students) ? stored.students : ((studentsJ && studentsJ.students) || []),
-    behavior: useStored(stored.behavior) ? stored.behavior : ((behaviorJ && behaviorJ.events) || []),
-    users: useStored(stored.users) ? stored.users : ((usersJ && usersJ.users) || [{username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'}]),
-    categories: (categoriesJ && categoriesJ.categories) || [],
-    classes: useStored(stored.classes) ? stored.classes : ((classesJ && classesJ.classes) || []),
-    functioning: useStored(stored.functioning) ? stored.functioning : ((funcJ && funcJ.entries) || []),
-    tests: useStored(stored.tests) ? stored.tests : ((testsJ && testsJ.tests) || []),
-    medications: useStored(stored.medications) ? stored.medications : ((medsJ && medsJ.medications) || []),
-    meetings: useStored(stored.meetings) ? stored.meetings : ((meetingsJ && meetingsJ.meetings) || []),
-    attendance: useStored(stored.attendance) ? stored.attendance : ((attJ && attJ.records) || []),
+    students: Array.isArray(stored.students) ? stored.students : [],
+    behavior: Array.isArray(stored.behavior) ? stored.behavior : [],
+    users: Array.isArray(stored.users) && stored.users.length ? stored.users : [{username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'}],
+    categories: Array.isArray(stored.categories) ? stored.categories : [],
+    classes: Array.isArray(stored.classes) ? stored.classes : [],
+    functioning: Array.isArray(stored.functioning) ? stored.functioning : [],
+    tests: Array.isArray(stored.tests) ? stored.tests : [],
+    medications: Array.isArray(stored.medications) ? stored.medications : [],
+    meetings: Array.isArray(stored.meetings) ? stored.meetings : [],
+    attendance: Array.isArray(stored.attendance) ? stored.attendance : [],
   };
+  // If cache is empty (first visit), pull from the Sheet synchronously
+  const hasAnyData = _data.students.length || _data.behavior.length;
+  if (!hasAnyData) {
+    if (typeof showLoadingOverlay === 'function') showLoadingOverlay('טוען נתונים מגוגל שיטס...');
+    await pullAllFromSheet().catch(() => {});
+    if (typeof hideLoadingOverlay === 'function') hideLoadingOverlay();
+  }
   // Default status to פעיל for legacy students
   _data.students.forEach(s => { if (!s['סטטוס']) s['סטטוס'] = 'פעיל'; });
-  // Always make sure at least one admin exists
+  // Always make sure at least one admin exists in the local user list (fallback)
   if (!_data.users.find(u => u.role === 'מנהל')) {
     _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
     saveStored(_data);
@@ -783,7 +777,7 @@ async function pullAllFromSheet() {
     console.log('[sync] skipping pull — recent local change');
     return;
   }
-  const [students, behavior, users, classes, functioning, tests, medications] = await Promise.all([
+  const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows] = await Promise.all([
     pullFromSheet('תלמידים'),
     pullFromSheet('מעקב_התנהגות'),
     pullFromSheet('משתמשים'),
@@ -791,6 +785,9 @@ async function pullAllFromSheet() {
     pullFromSheet('תפקוד'),
     pullFromSheet('מבחנים'),
     pullFromSheet('כדורים'),
+    pullFromSheet('אסיפות'),
+    pullFromSheet('נוכחות'),
+    pullFromSheet('קטגוריות'),
   ]);
   // Don't overwrite local with empty if local has data (avoid silent wipe)
   const safeReplace = (cur, fresh) => {
@@ -827,9 +824,18 @@ async function pullAllFromSheet() {
   _data.functioning = safeReplace(_data.functioning, functioning);
   _data.tests = safeReplace(_data.tests, tests);
   _data.medications = safeReplace(_data.medications, medications);
+  _data.meetings = safeReplace(_data.meetings, meetings);
+  _data.attendance = safeReplace(_data.attendance, attendance);
+  if (Array.isArray(categoriesRows) && categoriesRows.length) {
+    _data.categories = categoriesRows.map(r => ({
+      name: r['קטגוריה'] || r.name || '',
+      'קטגוריה': r['קטגוריה'] || r.name || '',
+      'תיאור': r['תיאור'] || '',
+    })).filter(c => c.name);
+  }
   saveStored(_data);
   // If everything failed, mark offline; if at least one succeeded, online
-  const allFailed = students === null && behavior === null && users === null && classes === null && functioning === null && tests === null && medications === null;
+  const allFailed = students === null && behavior === null && users === null && classes === null && functioning === null && tests === null && medications === null && meetings === null && attendance === null && categoriesRows === null;
   _online = !allFailed;
   // Refresh in-memory currentUser from refreshed users list
   try {
@@ -857,9 +863,9 @@ function updateSyncIndicator() {
     document.body.appendChild(el);
   }
   if (_online) {
-    el.innerHTML = '<i class="bi bi-cloud-check-fill sync-online"></i> מסונכרן';
+    el.innerHTML = '<i class="bi bi-cloud-check-fill sync-online"></i> מסונכרן עם השיטס';
   } else {
-    el.innerHTML = '<i class="bi bi-cloud-slash sync-offline"></i> מצב מקומי';
+    el.innerHTML = '<i class="bi bi-cloud-slash sync-offline"></i> אין חיבור — נתונים מ-cache';
   }
 }
 
