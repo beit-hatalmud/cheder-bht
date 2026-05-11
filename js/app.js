@@ -112,6 +112,20 @@ function resetModuleState() {
 }
 window.resetModuleState = resetModuleState;
 
+// Round-16: global keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  // Esc on a modal already handled by Bootstrap; this is for non-modal scenarios
+  if (e.key === 'Escape' && !document.querySelector('.modal.show')) {
+    const h = location.hash.replace('#','');
+    if (h && h !== 'home' && h !== 'login') goto('home');
+  }
+  // / focuses search (when not typing)
+  if (e.key === '/' && !e.target.matches('input,textarea,select')) {
+    e.preventDefault();
+    if (typeof openGlobalSearch === 'function') openGlobalSearch();
+  }
+});
+
 async function doLogin(){
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
