@@ -240,6 +240,8 @@ window.jsAttr = jsAttr;
 async function api(fn, args) {
   await ensureLoaded();
   args = args || [];
+  // Round-13 guard: ensure _data exists before any mutation
+  if (!_data) _data = { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
