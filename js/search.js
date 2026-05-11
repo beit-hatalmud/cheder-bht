@@ -21,7 +21,12 @@ function openGlobalSearch() {
   modal.show();
   const input = document.getElementById('gs-input');
   setTimeout(() => input.focus(), 200);
-  input.oninput = doGlobalSearch;
+  // Round-11: debounce search to avoid recomputing on every keystroke
+  let _gsDebounce;
+  input.oninput = () => {
+    clearTimeout(_gsDebounce);
+    _gsDebounce = setTimeout(doGlobalSearch, 150);
+  };
   modalEl.addEventListener('keydown', handleGsKeys);
   modalEl.addEventListener('hidden.bs.modal', () => modalEl.remove(), { once: true });
 }

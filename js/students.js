@@ -39,7 +39,9 @@ async function renderStudents() {
   const r = await api('listStudents', []);
   _students = r.data || [];
   document.getElementById('s-status').value = _statusFilter;
-  document.getElementById('s-search').oninput = applyStudentFilters;
+  // Round-11: debounce search input
+  let _sDeb;
+  document.getElementById('s-search').oninput = () => { clearTimeout(_sDeb); _sDeb = setTimeout(applyStudentFilters, 150); };
   document.getElementById('s-status').onchange = applyStudentFilters;
   applyStudentFilters();
 }
