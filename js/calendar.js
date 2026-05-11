@@ -145,7 +145,7 @@ function buildGregorianGrid(year, month, byDay) {
       }
     } catch {}
     const holidayBadge = hasHoliday ? `<div class="small" style="font-size:.65rem;color:#c2410c;line-height:1.1">${escHtml(holidays.join(', ').slice(0, 30))}</div>` : '';
-    html += `<td style="height:90px;padding:4px;background:${bg};${border};cursor:${total?'pointer':'default'};vertical-align:top" ${total ? `onclick="calShowDay(${d})"` : ''}>
+    html += `<td style="height:90px;padding:4px;background:${bg};${border};cursor:pointer;vertical-align:top" onclick="calShowDay(${d})">
       <div class="d-flex justify-content-between align-items-start">
         <span class="${isToday ? 'fw-bold text-primary' : ''}">${d}</span>
         ${hebDay}
@@ -202,7 +202,7 @@ function buildHebrewGrid(jsAnchor, byJsDateKey) {
     const border = isToday ? 'border:2px solid #0066cc' : '';
     const gregLabel = `<span class="small text-muted" style="font-size:.7rem">${jsDate.getDate()}/${jsDate.getMonth()+1}</span>`;
     const holidayBadge = hasHoliday ? `<div class="small" style="font-size:.65rem;color:#c2410c;line-height:1.1">${escHtml(holidays.join(', ').slice(0, 30))}</div>` : '';
-    html += `<td style="height:90px;padding:4px;background:${bg};${border};cursor:${total?'pointer':'default'};vertical-align:top" ${total ? `onclick="calShowDay(${jsDate.getDate()}, ${jsDate.getMonth()}, ${jsDate.getFullYear()})"` : ''}>
+    html += `<td style="height:90px;padding:4px;background:${bg};${border};cursor:pointer;vertical-align:top" onclick="calShowDay(${jsDate.getDate()}, ${jsDate.getMonth()}, ${jsDate.getFullYear()})">
       <div class="d-flex justify-content-between align-items-start">
         <span class="${isToday ? 'fw-bold text-primary' : ''}" style="font-size:1.1rem">${getHebDayLetter(d)}</span>
         ${gregLabel}
@@ -368,10 +368,12 @@ function drawHolidaysPanel() {
   }
 }
 
-function calShowDay(day) {
+function calShowDay(day, monthOverride, yearOverride) {
   const data = getData();
-  const year = _calCurMonth.getFullYear();
-  const month = _calCurMonth.getMonth();
+  const year = (typeof yearOverride === 'number') ? yearOverride : _calCurMonth.getFullYear();
+  const month = (typeof monthOverride === 'number') ? monthOverride : _calCurMonth.getMonth();
+  const jsDate = new Date(year, month, day);
+  window._calDayContext = { day, month, year, isoDate: jsDate.toISOString().slice(0,10) };
   const events = (data.behavior||[]).filter(e => {
     if (!e['תאריך']) return false;
     const d = new Date(e['תאריך']);
@@ -382,18 +384,50 @@ function calShowDay(day) {
     const d = new Date(m['תאריך']);
     return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
   });
-  const dateStr = new Date(year, month, day).toLocaleDateString('he-IL');
+  const dateStr = jsDate.toLocaleDateString('he-IL');
+  let hebDate = '';
+  let dayHolidays = [];
+  let dayParsha = '';
+  try {
+    if (typeof hebcal !== 'undefined' && hebcal.HDate) {
+      hebDate = new hebcal.HDate(jsDate).renderGematriya('he');
+      dayHolidays = holidaysForDate(jsDate);
+      dayParsha = parshaForDate(jsDate);
+    }
+  } catch {}
+
   let body = '';
-  if (events.length) {
-    body += '<h6>אירועי התנהגות</h6>';
+  if (dayHolidays.length || dayParsha) {
+    body += '<div class="alert alert-warning py-2 mb-3">';
+    if (dayHolidays.length) body += `<div><i class="bi bi-stars"></i> <strong>${escHtml(dayHolidays.join(', '))}</strong></div>`;
+    if (dayParsha) body += `<div class="small mt-1"><i class="bi bi-book"></i> פרשת השבוע: ${escHtml(dayParsha)}</div>`;
+    body += '</div>';
+  }
+
+  body += `<div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="mb-0">אירועי התנהגות (${events.length})</h6>
+    <button class="btn btn-sm btn-success" onclick="calAddEventForDay()"><i class="bi bi-plus"></i> אירוע חדש</button>
+  </div>`;
+  if (!events.length) {
+    body += '<p class="text-muted small">אין אירועים ביום זה</p>';
+  } else {
     events.forEach(e => {
       const sev = e['חומרה']==='גבוהה'?'severity-high':e['חומרה']==='נמוכה'?'severity-low':'severity-mid';
+      const reporter = e['דווח_עי'] || '';
       body += `<div class="card p-2 mb-2 ${sev}">
-        <div class="d-flex justify-content-between"><strong>${escHtml(e['שם תלמיד']||'')}</strong><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span></div>
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+          <div><strong>${escHtml(e['שם תלמיד']||'')}</strong><span class="cat-badge me-2">${escHtml(e['קטגוריה']||'')}</span></div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-primary p-1" onclick="calEditEvent(${e['מזהה']||0})" title="עריכה"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger p-1" onclick="calDeleteEvent(${e['מזהה']||0})" title="מחיקה"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
         <div class="small mt-1">${escHtml(e['תיאור']||'')}</div>
+        ${reporter ? `<small class="text-muted mt-1"><i class="bi bi-person-fill"></i> ${escHtml(reporter)}</small>` : ''}
       </div>`;
     });
   }
+
   if (meetings.length) {
     body += '<h6 class="mt-3">אסיפות הורים</h6>';
     meetings.forEach(m => {
@@ -405,12 +439,124 @@ function calShowDay(day) {
       </div>`;
     });
   }
-  if (!body) body = '<p>אין נתונים ליום זה</p>';
+
   const html = `<div class="modal fade" id="cal-day-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5>${escHtml(dateStr)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header">
+      <h5 class="mb-0">${escHtml(dateStr)} ${hebDate ? `<small class="text-muted">· ${escHtml(hebDate)}</small>` : ''}</h5>
+      <button class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
     <div class="modal-body">${body}</div>
   </div></div></div>`;
   const old = document.getElementById('cal-day-modal'); if (old) old.remove();
   document.body.insertAdjacentHTML('beforeend', html);
   new bootstrap.Modal(document.getElementById('cal-day-modal')).show();
+}
+
+async function calAddEventForDay(existingEvent) {
+  const ctx = window._calDayContext || {};
+  const data = getData();
+  const sortedStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
+    String(a['מחזור']).localeCompare(String(b['מחזור'])) ||
+    (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const cats = data.categories || [];
+  const e = existingEvent || {};
+  const dateStr = ctx.isoDate || new Date().toISOString().slice(0,10);
+  const html = `<div class="modal fade" id="cal-ev-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>${existingEvent ? 'עריכת אירוע' : 'אירוע חדש'} · ${escHtml(new Date(dateStr).toLocaleDateString('he-IL'))}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2"><label class="form-label">תלמיד</label>
+        <select id="cev-student" class="form-select">
+          ${sortedStu.map(s => `<option value="${s['מזהה']}" ${String(e['תלמיד_מזהה'])===String(s['מזהה'])?'selected':''}>${escHtml((s['מחזור']||'')+' · '+(s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">קטגוריה</label>
+        <select id="cev-cat" class="form-select">
+          ${cats.map(c => `<option ${(c.name||c['קטגוריה'])===e['קטגוריה']?'selected':''}>${escHtml(c.name||c['קטגוריה'])}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">תיאור</label><textarea id="cev-desc" class="form-control" rows="4">${escHtml(e['תיאור']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">חומרה</label>
+        <select id="cev-sev" class="form-select">
+          <option ${e['חומרה']==='נמוכה'?'selected':''}>נמוכה</option>
+          <option ${(!e['חומרה']||e['חומרה']==='בינונית')?'selected':''}>בינונית</option>
+          <option ${e['חומרה']==='גבוהה'?'selected':''}>גבוהה</option>
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">תאריך</label><input id="cev-date" type="date" class="form-control" value="${dateStr}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="calSaveEvent(${existingEvent ? e['מזהה'] : 'null'})"><i class="bi bi-check"></i> שמור</button>
+    </div>
+  </div></div></div>`;
+  const old = document.getElementById('cal-ev-modal'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('cal-ev-modal')).show();
+}
+
+function calEditEvent(eventId) {
+  const data = getData();
+  const ev = (data.behavior||[]).find(e => String(e['מזהה']) === String(eventId));
+  if (!ev) return alert('האירוע לא נמצא');
+  calAddEventForDay(ev);
+}
+
+async function calDeleteEvent(eventId) {
+  if (!confirm('בטוח למחוק את האירוע?')) return;
+  const r = await api('deleteBehavior', [eventId]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
+  notify('האירוע נמחק', 'success');
+  // Refresh calendar + reopen day
+  const ctx = window._calDayContext;
+  const old = document.getElementById('cal-day-modal');
+  if (old) bootstrap.Modal.getInstance(old).hide();
+  drawCalendar();
+  setTimeout(() => { if (ctx) calShowDay(ctx.day, ctx.month, ctx.year); }, 250);
+}
+
+async function calSaveEvent(editId) {
+  const data = getData();
+  const sid = parseInt(document.getElementById('cev-student').value);
+  const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const reporter = sess.username || 'admin';
+  const isoDate = document.getElementById('cev-date').value;
+  const jsDate = new Date(isoDate);
+  const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(jsDate) : { hdate: '', parsha: '' };
+  const obj = {
+    'תלמיד_מזהה': sid,
+    'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '',
+    'קטגוריה': document.getElementById('cev-cat').value,
+    'תיאור': document.getElementById('cev-desc').value.trim(),
+    'חומרה': document.getElementById('cev-sev').value,
+    'תאריך': new Date(isoDate + 'T12:00:00').toISOString(),
+    'תאריך_עברי': info.hdate,
+    'פרשה': info.parsha,
+  };
+  if (!obj['תלמיד_מזהה'] || !obj['קטגוריה'] || !obj['תיאור']) return alert('תלמיד, קטגוריה ותיאור חובה');
+  if (editId) {
+    obj['מזהה'] = parseInt(editId);
+    const orig = (data.behavior||[]).find(e => String(e['מזהה']) === String(editId));
+    if (orig && orig['דווח_עי']) obj['דווח_עי'] = orig['דווח_עי'];
+    const r = await api('updateBehavior', [obj]);
+    if (!r.ok) return alert(r.error || 'שגיאה');
+  } else {
+    obj['דווח_עי'] = reporter;
+    const r = await api('addBehavior', [obj]);
+    if (!r.ok) return alert(r.error || 'שגיאה');
+  }
+  bootstrap.Modal.getInstance(document.getElementById('cal-ev-modal')).hide();
+  notify(editId ? 'האירוע עודכן' : 'האירוע נוסף', 'success');
+  // If new date is in a different month, navigate to it
+  const newDate = new Date(isoDate);
+  if (newDate.getMonth() !== _calCurMonth.getMonth() || newDate.getFullYear() !== _calCurMonth.getFullYear()) {
+    _calCurMonth = new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+  }
+  drawCalendar();
+  // Refresh day modal if open
+  const dayModal = document.getElementById('cal-day-modal');
+  if (dayModal) bootstrap.Modal.getInstance(dayModal).hide();
+  const refreshDay = newDate.getDate();
+  setTimeout(() => calShowDay(refreshDay, newDate.getMonth(), newDate.getFullYear()), 300);
+  loadStats();
 }
