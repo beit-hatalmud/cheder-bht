@@ -1129,7 +1129,13 @@ async function flushPending() {
 }
 
 // Bi-directional sync — pull latest from sheet on load
+let _pullInProgress = false;
 async function pullAllFromSheet() {
+  // Round-8 fix: prevent overlapping pulls (could happen if previous one stalls past 60s)
+  if (_pullInProgress) {
+    console.log('[sync] skipping pull — previous pull still running');
+    return;
+  }
   // Skip if user changed something in last 30 seconds (let local writes propagate)
   if (Date.now() - _lastLocalChange < 30000) {
     console.log('[sync] skipping pull — recent local change');
@@ -1138,10 +1144,11 @@ async function pullAllFromSheet() {
   // Skip pull if we have un-synced writes — pull would overwrite them
   if (_hasPending()) {
     console.log('[sync] skipping pull — pending writes still queued');
-    // Try to flush before next pull
     flushPending();
     return;
   }
+  _pullInProgress = true;
+  try {
   const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows] = await Promise.all([
     pullFromSheet('תלמידים'),
     pullFromSheet('מעקב_התנהגות'),
@@ -1220,6 +1227,9 @@ async function pullAllFromSheet() {
     }
   } catch {}
   updateSyncIndicator();
+  } finally {
+    _pullInProgress = false;
+  }
 }
 
 function updateSyncIndicator() {

@@ -684,7 +684,14 @@ function restoreBackup(event) {
 
 async function clearLocalCache() {
   if (!confirm('לנקות את ה-cache המקומי ולמשוך את הנתונים מחדש מהשרת?')) return;
-  localStorage.removeItem(STORAGE_KEY);
+  // Round-8 fix: clear all cheder-related localStorage keys, not just main
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('cheder_pending_writes');
+    localStorage.removeItem('cheder_failed_writes');
+    // Clean up any corrupt backups
+    Object.keys(localStorage).filter(k => k.startsWith(STORAGE_KEY + '_corrupt_')).forEach(k => localStorage.removeItem(k));
+  } catch {}
   notify('Cache נוקה. טוען מחדש...', 'success');
   setTimeout(() => location.reload(), 1000);
 }
