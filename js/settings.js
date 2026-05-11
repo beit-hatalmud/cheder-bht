@@ -892,7 +892,11 @@ td{padding:6px 8px;border:1px solid #e5e7eb}
 <p>תלמידים: ${_filteredStudents.length} · אירועים: ${_filteredEvents.length}</p>
 ${_filteredStudents.length ? `<h2>תלמידים</h2><table><tr><th>שם</th><th>גיל</th><th>כיתה</th><th>טלפון</th></tr>${_filteredStudents.map(s=>`<tr><td>${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</td><td>${escHtml(s['גיל']||'')}</td><td>${escHtml(s['מחזור']||'')}</td><td>${escHtml(s['טלפון אם']||'')}</td></tr>`).join('')}</table>` : ''}
 ${_filteredEvents.length ? `<h2>אירועי התנהגות</h2>${_filteredEvents.map(e=>{const c=e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';const rep=e['דווח_עי']?` · דווח ע"י ${escHtml(e['דווח_עי'])}`:'';return `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(new Date(e['תאריך']).toLocaleString('he-IL'))}${rep}<br>${escHtml(e['תיאור']||'')}</div>`}).join('')}` : ''}
-<script>setTimeout(()=>window.print(), 500);</script>
+<script>
+const _doPrint=()=>window.print();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>setTimeout(_doPrint,200));
+else window.addEventListener('load',()=>setTimeout(_doPrint,500));
+</script>
 </body></html>`;
   const w = window.open('', '_blank');
   if (!w) { alert('הדפדפן חוסם חלונות פופ-אפ — אפשר חלון פופ-אפ לאתר ונסה שוב'); return; }
@@ -948,7 +952,11 @@ tr:nth-child(even) td{background:#fafafa}
   <div class="subtitle">בית התלמוד · הופק ב-${escHtml(today)} בשעה ${escHtml(time)}</div>
 </div>
 ${content}
-<script>setTimeout(()=>window.print(), 500);</script>
+<script>
+const _doPrint=()=>window.print();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>setTimeout(_doPrint,200));
+else window.addEventListener('load',()=>setTimeout(_doPrint,500));
+</script>
 </body></html>`;
 
   const w = window.open('', '_blank');
