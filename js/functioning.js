@@ -159,6 +159,7 @@ function funcAddModal() {
   const sid = _funcSelected;
   if (!sid) return alert('בחר תלמיד');
   const student = _funcStudents.find(s => String(s['מזהה']) === String(sid));
+  if (!student) return alert('התלמיד לא זמין יותר — רענן את הדף');  // Bug #40 fix
   const cats = [...new Set(_funcEntries.map(e => e['קטגוריה']).filter(Boolean))];
   const html = `<div class="modal fade" id="func-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">ציון תפקוד חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -190,7 +191,7 @@ async function funcSave() {
     'קטגוריה': document.getElementById('fa-cat').value.trim(),
     'תת_קטגוריה': document.getElementById('fa-sub').value.trim(),
     'פרמטר': document.getElementById('fa-param').value.trim(),
-    'ציון': parseFloat(document.getElementById('fa-score').value) || 0,
+    'ציון': Math.max(0, Math.min(5, parseFloat(document.getElementById('fa-score').value) || 0)),
     'תקופה': document.getElementById('fa-period').value.trim(),
     'תאריך': new Date().toISOString().slice(0,10),
     'הערות': document.getElementById('fa-notes').value.trim(),

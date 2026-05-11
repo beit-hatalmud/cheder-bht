@@ -171,7 +171,7 @@ async function testSave() {
     'תלמיד_מזהה': parseInt(document.getElementById('ta-student').value),
     'סוג': document.getElementById('ta-type').value.trim(),
     'פרשה': document.getElementById('ta-parsha').value.trim(),
-    'ציון': parseFloat(document.getElementById('ta-score').value) || 0,
+    'ציון': Math.max(0, Math.min(100, parseFloat(document.getElementById('ta-score').value) || 0)),
     'תאריך': document.getElementById('ta-date').value,
     'הערות': document.getElementById('ta-notes').value.trim(),
   };

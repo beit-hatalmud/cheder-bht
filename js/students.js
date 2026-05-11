@@ -922,7 +922,14 @@ ${meetings.length ? `<h2>אסיפות הורים</h2>${meetings.map(m => `<div c
 ${att.length ? `<h2>נוכחות</h2><table><tr><th>נוכחויות</th><td style="color:#16a34a"><strong>${attPresent}</strong></td><th>חיסור</th><td style="color:#f59e0b">${attAbsent}</td><th>איחורים</th><td style="color:#0891b2">${attLate}</td><th>אחוז נוכחות</th><td><strong>${att.length ? Math.round(attPresent/att.length*100) : 0}%</strong></td></tr></table>${att.slice(0, 30).length ? `<h3>30 הרישומים האחרונים</h3><table><tr><th>תאריך</th><th>סטטוס</th></tr>${att.slice(0, 30).map(a => `<tr><td>${escHtml(formatDateBoth(a['תאריך'])||'')}</td><td>${escHtml(a['סטטוס']||'')}</td></tr>`).join('')}</table>` : ''}` : ''}
 
 <p style="margin-top:20pt;color:#6b7280;font-size:9pt;border-top:1px solid #e5e7eb;padding-top:8pt">דוח מלא · בית התלמוד · בית שמש · ${escHtml(today)}</p>
-<script>setTimeout(()=>window.print(), 600);</script>
+<script>
+const _doPrint = () => window.print();
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => setTimeout(_doPrint, 200));
+} else {
+  window.addEventListener('load', () => setTimeout(_doPrint, 600));
+}
+</script>
 </body></html>`;
   w.document.write(html);
   w.document.close();
@@ -930,8 +937,8 @@ ${att.length ? `<h2>נוכחות</h2><table><tr><th>נוכחויות</th><td sty
 
 function addStudentModal() {
   const data = getData();
-  const classOpts = (data.classes||[]).sort((a,b)=>parseInt(a['סדר'])-parseInt(b['סדר']))
-    .map(c => `<option value="${c['שם']}">${c['שם']}</option>`).join('');
+  const classOpts = (data.classes||[]).slice().sort((a,b)=>parseInt(a['סדר'])-parseInt(b['סדר']))
+    .map(c => `<option value="${escHtml(c['שם'])}">${escHtml(c['שם'])}</option>`).join('');
   const html = `
     <div class="modal fade" id="addStudentModal" tabindex="-1">
       <div class="modal-dialog">

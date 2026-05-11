@@ -99,7 +99,7 @@ async function doLogin(){
     const userRow = (await api('listUsers',[])).data.find(x=>x['שם משתמש']===u);
     if (userRow) currentUser.permissions = userRow['הרשאות'] || '';
     sessionStorage.setItem('user', JSON.stringify(currentUser));
-    document.getElementById('user-info').innerHTML = currentUser.username + ' (' + currentUser.role + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
+    document.getElementById('user-info').innerHTML = escHtml(currentUser.username) + ' (' + escHtml(currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
     showPage('home');
     loadStats();
     filterByPermissions();

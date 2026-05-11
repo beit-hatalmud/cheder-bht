@@ -123,7 +123,7 @@ function addEventModal() {
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>אירוע חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label><select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
@@ -158,16 +158,16 @@ async function saveEvent(event) {
   };
   if (!obj['תלמיד_מזהה'] || !obj['קטגוריה'] || !obj['תיאור']) return alert('כל השדות חובה');
   const editId = document.getElementById('addEvModal').dataset.editId;
+  let r;
   if (editId) {
     obj['מזהה'] = parseInt(editId);
-    // Preserve original date — recompute hebrew/parsha from it
     const orig = _events.find(x => String(x['מזהה']) === String(editId));
     if (orig && orig['תאריך']) {
       const info = getHebrewInfo(new Date(orig['תאריך']));
       obj['תאריך_עברי'] = orig['תאריך_עברי'] || info.hdate;
       obj['פרשה'] = orig['פרשה'] || info.parsha;
     }
-    await api('updateBehavior', [obj]);
+    r = await api('updateBehavior', [obj]);
   } else {
     const now = new Date();
     const info = getHebrewInfo(now);
@@ -175,8 +175,9 @@ async function saveEvent(event) {
     obj['תאריך_עברי'] = info.hdate;
     obj['פרשה'] = info.parsha;
     obj['דווח_עי'] = reporter;
-    await api('addBehavior', [obj]);
+    r = await api('addBehavior', [obj]);
   }
+  if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug #42 fix
   bootstrap.Modal.getInstance(document.getElementById('addEvModal')).hide();
   renderBehavior();
   loadStats();

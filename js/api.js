@@ -147,6 +147,24 @@ function getData() {
   return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
 }
 
+// Bug #34 fix: check if current user can mutate a given student's data
+function canMutateStudent(sid) {
+  const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+  if (u.username === 'admin' || u.role === 'מנהל') return true;
+  const full = (_data?.users || []).find(x => x.username === u.username);
+  if (!full) return false;
+  if (full.visible_classes && full.visible_classes !== 'all') {
+    const cls = full.visible_classes.split(',').map(s => s.trim()).filter(Boolean);
+    const stu = _data.students.find(s => String(s['מזהה']) === String(sid));
+    if (!stu || !cls.includes(stu['מחזור'])) return false;
+  }
+  if (full.visible_students && full.visible_students !== 'all') {
+    const ids = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
+    if (!ids.includes(String(sid))) return false;
+  }
+  return true;
+}
+
 // Returns _data filtered by current user's permissions. Use this in UI code.
 // Internal api() handlers should use getData() directly so they can mutate.
 function getVisibleData() {
@@ -510,6 +528,7 @@ async function api(fn, args) {
     }
     case 'addBehavior': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה לתלמיד זה' };
       if (!obj['תאריך']) obj['תאריך'] = new Date().toISOString();
       // Auto-generate ID if missing — timestamp+random for multi-device safety
       if (!obj['מזהה']) obj['מזהה'] = genId();
@@ -530,6 +549,7 @@ async function api(fn, args) {
     case 'updateStudent': {
       const obj = args[0];
       const id = obj['מזהה'];
+      if (!canMutateStudent(id)) return { ok: false, error: 'אין הרשאה' };
       const idx = _data.students.findIndex(s => String(s['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
       _data.students[idx] = Object.assign({}, _data.students[idx], obj);
@@ -541,6 +561,7 @@ async function api(fn, args) {
     }
     case 'deleteStudent': {
       const id = args[0];
+      if (!canMutateStudent(id)) return { ok: false, error: 'אין הרשאה' };
       const idx = _data.students.findIndex(s => String(s['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
       const removed = _data.students[idx];
@@ -556,6 +577,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = _data.behavior.findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.behavior[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.behavior[idx] = Object.assign({}, _data.behavior[idx], obj);
       saveStored(_data);
       markLocalChange();
@@ -567,6 +589,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = _data.behavior.findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.behavior[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       const removed = _data.behavior[idx];
       _data.behavior.splice(idx, 1);
       saveStored(_data);

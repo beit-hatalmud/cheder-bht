@@ -29,9 +29,16 @@
 <script>
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-async function fetchJson(path) {
-  try { const r = await fetch(path + '?t=' + Date.now()); return await r.json(); }
-  catch { return null; }
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+const AGENT_TOKEN = 'BHT_AGENT_2026';
+
+async function fetchTab(tab) {
+  try {
+    const url = `${APPS_SCRIPT_URL}?action=cheder_listRows&token=${AGENT_TOKEN}&instance=bht&tab=${encodeURIComponent(tab)}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    return d.ok ? d.rows : [];
+  } catch { return []; }
 }
 
 async function init() {
@@ -42,29 +49,28 @@ async function init() {
     document.getElementById('content').innerHTML = '<div class="alert alert-warning">קישור לא תקין. פנה למזכירות בית התלמוד.</div>';
     return;
   }
-  // Simple token check: token = first 8 chars of md5(sid + "BHT2026")
-  // For static page, we just check that token is non-empty and matches our deterministic hash
   const expectedToken = await computeToken(sid);
   if (token !== expectedToken) {
     document.getElementById('content').innerHTML = '<div class="alert alert-danger">קישור לא תקין או פג תוקף.</div>';
     return;
   }
 
-  const [stJ, behJ, fJ, tJ] = await Promise.all([
-    fetchJson('data/students.json'),
-    fetchJson('data/behavior.json'),
-    fetchJson('data/functioning.json'),
-    fetchJson('data/tests.json'),
+  document.getElementById('content').innerHTML = '<div class="text-center py-5"><div class="spinner-border"></div><p class="mt-2">טוען נתונים...</p></div>';
+  const [stRows, behRows, fRows, tRows] = await Promise.all([
+    fetchTab('תלמידים'),
+    fetchTab('מעקב_התנהגות'),
+    fetchTab('תפקוד'),
+    fetchTab('מבחנים'),
   ]);
-  const student = (stJ?.students || []).find(s => String(s['מזהה']) === String(sid));
+  const student = stRows.find(s => String(s['מזהה']) === String(sid));
   if (!student) {
     document.getElementById('content').innerHTML = '<div class="alert alert-warning">תלמיד לא נמצא.</div>';
     return;
   }
-  const events = (behJ?.events || []).filter(e => String(e['תלמיד_מזהה']) === String(sid))
+  const events = behRows.filter(e => String(e['תלמיד_מזהה']) === String(sid))
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
-  const funcs = (fJ?.entries || []).filter(f => String(f['תלמיד_מזהה']) === String(sid));
-  const tests = (tJ?.tests || []).filter(t => String(t['תלמיד_מזהה']) === String(sid));
+  const funcs = fRows.filter(f => String(f['תלמיד_מזהה']) === String(sid));
+  const tests = tRows.filter(t => String(t['תלמיד_מזהה']) === String(sid));
 
   const fullName = (student['שם פרטי']||'') + ' ' + (student['שם משפחה']||'');
   const fAvg = funcs.length ? (funcs.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / funcs.length).toFixed(2) : '-';

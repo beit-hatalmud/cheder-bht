@@ -394,7 +394,7 @@ function addUserModal() {
               <label class="form-check-label fw-bold" for="all-classes">כל הכיתות</label>
             </div>
             <div id="class-list" class="d-none d-flex flex-wrap gap-3">
-              ${(data.classes || []).sort((a,b) => parseInt(a['סדר'])-parseInt(b['סדר'])).map(c => `
+              ${(data.classes || []).slice().sort((a,b) => parseInt(a['סדר'])-parseInt(b['סדר'])).map(c => `
                 <div class="form-check">
                   <input class="form-check-input class-cb" type="checkbox" value="${escHtml(c['שם'])}" id="cls-perm-${escHtml(c['שם'])}">
                   <label class="form-check-label" for="cls-perm-${escHtml(c['שם'])}">כיתה <strong>${escHtml(c['שם'])}</strong></label>
@@ -836,17 +836,23 @@ function resetReportFilters() {
 }
 
 function exportFilteredCSV() {
+  // Bug #35 fix: quote every field; prefix with ' if starts with =,+,-,@ (formula injection)
+  const safe = (v) => {
+    let s = String(v == null ? '' : v).replace(/"/g, '""');
+    if (/^[=+\-@]/.test(s)) s = "'" + s;
+    return `"${s}"`;
+  };
   let csv = '﻿';  // BOM for Excel Hebrew
   csv += 'תלמידים\n';
   csv += 'מזהה,שם,גיל,מחזור,טלפון אם,טלפון אב\n';
   _filteredStudents.forEach(s => {
-    csv += `${s['מזהה']||''},"${s['שם פרטי']||''} ${s['שם משפחה']||''}",${s['גיל']||''},${s['מחזור']||''},${s['טלפון אם']||''},${s['טלפון אב']||''}\n`;
+    csv += [s['מזהה']||'', (s['שם פרטי']||'')+' '+(s['שם משפחה']||''), s['גיל']||'', s['מחזור']||'', s['טלפון אם']||'', s['טלפון אב']||''].map(safe).join(',') + '\n';
   });
   csv += '\nאירועי התנהגות\n';
   csv += 'תאריך,תלמיד,קטגוריה,חומרה,תיאור\n';
   _filteredEvents.forEach(e => {
     const dt = e['תאריך'] ? new Date(e['תאריך']).toLocaleString('he-IL') : '';
-    csv += `${dt},"${e['שם תלמיד']||''}","${e['קטגוריה']||''}",${e['חומרה']||''},"${(e['תיאור']||'').replace(/"/g,'""')}"\n`;
+    csv += [dt, e['שם תלמיד']||'', e['קטגוריה']||'', e['חומרה']||'', e['תיאור']||''].map(safe).join(',') + '\n';
   });
   const blob = new Blob([csv], {type: 'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
