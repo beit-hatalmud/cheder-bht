@@ -125,6 +125,72 @@ async function reactivateStudent(id) {
   loadStats();
 }
 
+function uploadStudentPhoto(studentId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // Resize to ~150px to keep storage small
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const img = new Image();
+      img.onload = async () => {
+        const max = 200;
+        const ratio = Math.min(max / img.width, max / img.height, 1);
+        const w = img.width * ratio, h = img.height * ratio;
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        const r = await api('updateStudent', [{ 'מזהה': studentId, 'תמונה': dataUrl }]);
+        if (r.ok) {
+          notify('התמונה הועלתה', 'success');
+          const old = document.getElementById('viewStuModal');
+          if (old) bootstrap.Modal.getInstance(old).hide();
+          setTimeout(() => viewStudent(studentId), 250);
+        } else alert(r.error || 'שגיאה');
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function getHebrewBirthday(s) {
+  if (!s || !s['תאריך לידה'] || typeof hebcal === 'undefined') return '';
+  try {
+    const parts = String(s['תאריך לידה']).split(/[/\-]/);
+    let d;
+    if (parts[0].length === 4) {
+      d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    } else {
+      d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+    }
+    if (isNaN(d)) return '';
+    return new hebcal.HDate(d).renderGematriya('he');
+  } catch (e) { return ''; }
+}
+
+function getSortedActiveStudents() {
+  return _students.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
+    String(a['מחזור']).localeCompare(String(b['מחזור'])) ||
+    (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+}
+
+function navigateStudent(currentId, dir) {
+  const list = getSortedActiveStudents();
+  const idx = list.findIndex(s => String(s['מזהה']) === String(currentId));
+  if (idx < 0) return;
+  const nextIdx = (idx + dir + list.length) % list.length;
+  const old = document.getElementById('viewStuModal');
+  if (old) bootstrap.Modal.getInstance(old).hide();
+  setTimeout(() => viewStudent(list[nextIdx]['מזהה']), 250);
+}
+
 async function viewStudent(id) {
   const s = _students.find(x => String(x['מזהה']) === String(id));
   if (!s) return;
@@ -132,6 +198,15 @@ async function viewStudent(id) {
     .filter(e => String(e['תלמיד_מזהה']) === String(id))
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+  const hebBd = getHebrewBirthday(s);
+  const waButtons = (phone, name, parent) => {
+    if (!phone) return '';
+    const clean = phone.replace(/\D/g,'');
+    if (!clean) return '';
+    const intl = clean.startsWith('0') ? '972' + clean.slice(1) : clean;
+    const msg = encodeURIComponent(`שלום, מבית התלמוד בנוגע ל${name.trim()}`);
+    return `<a href="https://wa.me/${intl}?text=${msg}" target="_blank" class="btn btn-sm btn-success p-1 ms-1" title="WhatsApp ${parent}"><i class="bi bi-whatsapp"></i></a><a href="tel:${phone}" class="btn btn-sm btn-outline-primary p-1" title="חיוג ${parent}"><i class="bi bi-telephone"></i></a>`;
+  };
   const eventsHtml = events.length ? events.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
     const dt = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
@@ -163,7 +238,15 @@ async function viewStudent(id) {
   }).join('') : '<p class="text-muted">אין אירועים מתועדים</p>';
 
   const html = `<div class="modal fade" id="viewStuModal"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5><i class="bi bi-person"></i> ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header">
+      <button class="btn btn-sm btn-outline-secondary p-1 ms-2" onclick="navigateStudent(${id}, -1)" title="הקודם (←)"><i class="bi bi-chevron-right"></i></button>
+      <div class="d-flex align-items-center gap-2 flex-grow-1">
+        ${s['תמונה'] ? `<img src="${escHtml(s['תמונה'])}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;cursor:pointer" onclick="uploadStudentPhoto(${id})">` : `<span class="avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:48px;height:48px;cursor:pointer" onclick="uploadStudentPhoto(${id})" title="העלה תמונה">${escHtml(((s['שם פרטי']||' ')[0] + (s['שם משפחה']||' ')[0]).trim() || '?')}</span>`}
+        <h5 class="mb-0"><i class="bi bi-person"></i> ${escHtml(fullName)}</h5>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary p-1 me-2" onclick="navigateStudent(${id}, 1)" title="הבא (→)"><i class="bi bi-chevron-left"></i></button>
+      <button class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+    </div>
     <div class="modal-body">
       <div class="row g-2 mb-3">
         <div class="col-md-3"><div class="card p-2 text-center"><strong>${escHtml(s['גיל']||'-')}</strong><div class="small text-muted">גיל</div></div></div>
@@ -173,11 +256,16 @@ async function viewStudent(id) {
       </div>
       <h6>פרטים אישיים</h6>
       <table class="table table-sm">
-        <tr><td><strong>שם אם</strong></td><td>${escHtml(s['שם אם']||'-')}</td><td><strong>טלפון אם</strong></td><td>${escHtml(s['טלפון אם']||'-')}</td></tr>
-        <tr><td><strong>שם אב</strong></td><td>${escHtml(s['שם אב']||'-')}</td><td><strong>טלפון אב</strong></td><td>${escHtml(s['טלפון אב']||'-')}</td></tr>
-        <tr><td><strong>כתובת</strong></td><td colspan="3">${escHtml(s['כתובת']||'-')}</td></tr>
+        <tr><td><strong>תאריך לידה</strong></td><td>${escHtml(s['תאריך לידה']||'-')} ${hebBd ? `· <span class="text-muted">${escHtml(hebBd)}</span>` : ''}</td><td><strong>ת.ז.</strong></td><td>${escHtml(s['מספר זהות']||'-')}</td></tr>
+        <tr><td><strong>שם אם</strong></td><td>${escHtml(s['שם אם']||'-')}</td><td><strong>טלפון אם</strong></td><td>${escHtml(s['טלפון אם']||'-')} ${waButtons(s['טלפון אם'], fullName, 'אמא')}</td></tr>
+        <tr><td><strong>שם אב</strong></td><td>${escHtml(s['שם אב']||'-')}</td><td><strong>טלפון אב</strong></td><td>${escHtml(s['טלפון אב']||'-')} ${waButtons(s['טלפון אב'], fullName, 'אבא')}</td></tr>
+        <tr><td><strong>כתובת</strong></td><td colspan="3">${escHtml(s['כתובת']||'-')}${s['עיר'] ? ', ' + escHtml(s['עיר']) : ''}</td></tr>
         ${s['הערות'] ? `<tr><td><strong>הערות</strong></td><td colspan="3">${escHtml(s['הערות'])}</td></tr>` : ''}
       </table>
+      <div class="card p-3 mb-3">
+        <h6><i class="bi bi-graph-up"></i> מגמת התנהגות (14 ימים)</h6>
+        <canvas id="stu-trend-chart" style="max-height:120px"></canvas>
+      </div>
       <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
         <h6 class="mb-0">היסטוריית התנהגות (${events.length})</h6>
         <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
@@ -185,7 +273,8 @@ async function viewStudent(id) {
       ${eventsHtml}
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline-info" onclick="emailParentSummary(${id})"><i class="bi bi-envelope"></i> שלח להורים</button>
+      <button class="btn btn-outline-warning" onclick="shareParentPortal(${id})"><i class="bi bi-link-45deg"></i> קישור להורים</button>
+      <button class="btn btn-outline-info" onclick="emailParentSummary(${id})"><i class="bi bi-envelope"></i> מייל</button>
       <button class="btn btn-outline-success" onclick="printStudentReport(${id})"><i class="bi bi-printer"></i> הדפס</button>
       <button class="btn btn-outline-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('viewStuModal')).hide(); editStudent(${id})"><i class="bi bi-pencil"></i> ערוך</button>
       <button class="btn btn-secondary" data-bs-dismiss="modal">סגור</button>
@@ -193,7 +282,38 @@ async function viewStudent(id) {
   </div></div></div>`;
   const old = document.getElementById('viewStuModal'); if (old) old.remove();
   document.body.insertAdjacentHTML('beforeend', html);
-  new bootstrap.Modal(document.getElementById('viewStuModal')).show();
+  const modalEl = document.getElementById('viewStuModal');
+  new bootstrap.Modal(modalEl).show();
+  // Trend chart for last 14 days
+  setTimeout(() => drawStudentTrendChart(id, events), 200);
+  // Keyboard navigation
+  const onKey = (e) => {
+    if (e.target.matches('input,textarea,select')) return;
+    if (e.key === 'ArrowRight') { navigateStudent(id, -1); }
+    else if (e.key === 'ArrowLeft') { navigateStudent(id, 1); }
+  };
+  document.addEventListener('keydown', onKey);
+  modalEl.addEventListener('hidden.bs.modal', () => document.removeEventListener('keydown', onKey), { once: true });
+}
+
+function drawStudentTrendChart(studentId, events) {
+  const el = document.getElementById('stu-trend-chart');
+  if (!el || typeof Chart === 'undefined') return;
+  const labels = [], counts = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 3600 * 1000);
+    labels.push(d.toLocaleDateString('he-IL', {day:'numeric', month:'numeric'}));
+    counts.push(events.filter(e => {
+      const ed = new Date(e['תאריך']);
+      return ed.toDateString() === d.toDateString();
+    }).length);
+  }
+  if (window._stuChart) window._stuChart.destroy();
+  window._stuChart = new Chart(el, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: counts, backgroundColor: '#0066cc' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
 }
 
 function editStudent(id) {
@@ -246,6 +366,19 @@ async function addEventForStudent(studentId, existingEvent) {
           ${cats.map(c => `<option ${c['קטגוריה']===e['קטגוריה']?'selected':''}>${escHtml(c['קטגוריה'])}</option>`).join('')}
         </select>
       </div>
+      <div class="mb-2">
+        <label class="form-label">תבניות מהירות</label>
+        <div class="d-flex flex-wrap gap-1">
+          ${[
+            ['איחור לתפילה','התנהגות','נמוכה'],
+            ['דיבור בתפילה','תפילה','בינונית'],
+            ['שיחה עם הורים','דיבור עם הורים','בינונית'],
+            ['התנהגות מצוינת','חינוך','נמוכה'],
+            ['קושי לימודי','לימודים','בינונית'],
+            ['אירוע חמור','התנהגות','גבוהה'],
+          ].map(([txt,cat,sev]) => `<button type="button" class="btn btn-sm btn-outline-secondary" onclick="applyQuickTemplate('${txt}','${cat}','${sev}')">${txt}</button>`).join('')}
+        </div>
+      </div>
       <div class="mb-2"><label class="form-label">תיאור</label><textarea id="sev-desc" class="form-control" rows="4">${escHtml(e['תיאור']||'')}</textarea></div>
       <div class="mb-2"><label class="form-label">חומרה</label>
         <select id="sev-sev" class="form-select">
@@ -286,6 +419,22 @@ async function deleteEventInStudent(eventId, studentId) {
   if (old) bootstrap.Modal.getInstance(old).hide();
   setTimeout(() => viewStudent(studentId), 250);
   loadStats();
+}
+
+function applyQuickTemplate(text, cat, sev) {
+  const desc = document.getElementById('sev-desc');
+  if (desc) {
+    if (desc.value.trim()) desc.value = desc.value + '\n' + text;
+    else desc.value = text;
+  }
+  const catSel = document.getElementById('sev-cat');
+  if (catSel) {
+    for (const opt of catSel.options) {
+      if (opt.value === cat || opt.textContent === cat) { catSel.value = opt.value; break; }
+    }
+  }
+  const sevSel = document.getElementById('sev-sev');
+  if (sevSel) sevSel.value = sev;
 }
 
 async function saveEventForStudent(studentId, editId) {
@@ -335,6 +484,35 @@ async function saveEventForStudent(studentId, editId) {
   loadStats();
 }
 
+async function shareParentPortal(id) {
+  const s = _students.find(x => String(x['מזהה']) === String(id));
+  if (!s) return;
+  const msg = String(id) + '|BHT2026';
+  const buf = new TextEncoder().encode(msg);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+  const token = hex.slice(0, 12);
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const url = `${base}parent.html?s=${id}&t=${token}`;
+  const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+  const phone = (s['טלפון אם']||'').replace(/\D/g,'');
+  const waUrl = phone ? `https://wa.me/${phone.startsWith('0') ? '972'+phone.slice(1) : phone}?text=${encodeURIComponent(`שלום, קישור לפורטל ההורים של ${fullName}: ${url}`)}` : '';
+  const html = `<div class="modal fade" id="parent-link-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>קישור פורטל הורים — ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted">קישור פרטי לצפייה בלבד — ההורה יראה את הילד שלו בלבד.</p>
+      <div class="input-group">
+        <input id="pl-url" class="form-control" value="${escHtml(url)}" readonly>
+        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('pl-url').value); notify('הקישור הועתק','success')"><i class="bi bi-clipboard"></i> העתק</button>
+      </div>
+      ${waUrl ? `<div class="mt-3"><a href="${waUrl}" target="_blank" class="btn btn-success w-100"><i class="bi bi-whatsapp"></i> שלח ב-WhatsApp להורה</a></div>` : ''}
+    </div>
+  </div></div></div>`;
+  const old = document.getElementById('parent-link-modal'); if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('parent-link-modal')).show();
+}
+
 async function emailParentSummary(id) {
   const s = _students.find(x => String(x['מזהה']) === String(id));
   if (!s) return;
@@ -363,11 +541,27 @@ async function emailParentSummary(id) {
 }
 
 function exportStudentsCSV() {
-  let csv = '﻿';  // BOM
-  csv += 'מזהה,שם פרטי,שם משפחה,גיל,מחזור,שם אם,טלפון אם,שם אב,טלפון אב,כתובת,הערות\n';
+  if (typeof XLSX === 'undefined') return _exportStudentsCSV();
+  const cols = ['מזהה','שם פרטי','שם משפחה','גיל','תאריך לידה','מחזור','שם אם','טלפון אם','שם אב','טלפון אב','כתובת','עיר','מספר זהות','תז אב','תז אם','הערות'];
+  const rows = _students.map(s => {
+    const r = {};
+    cols.forEach(c => r[c] = s[c] || '');
+    return r;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows, { header: cols });
+  ws['!cols'] = cols.map(c => ({ wch: Math.max(10, c.length + 2) }));
+  ws['!rtl'] = true;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'תלמידים');
+  XLSX.writeFile(wb, `תלמידים_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function _exportStudentsCSV() {
+  let csv = '﻿';
+  const cols = ['מזהה','שם פרטי','שם משפחה','גיל','תאריך לידה','מחזור','שם אם','טלפון אם','שם אב','טלפון אב','כתובת','הערות'];
+  csv += cols.join(',') + '\n';
   _students.forEach(s => {
-    const fields = ['מזהה','שם פרטי','שם משפחה','גיל','מחזור','שם אם','טלפון אם','שם אב','טלפון אב','כתובת','הערות'];
-    csv += fields.map(f => `"${(s[f]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
+    csv += cols.map(f => `"${(s[f]||'').toString().replace(/"/g,'""')}"`).join(',') + '\n';
   });
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
   const a = document.createElement('a');

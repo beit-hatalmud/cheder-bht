@@ -29,19 +29,45 @@ async function renderSettings() {
         <i class="bi bi-arrow-up-square"></i> מעבר לשנה הבאה (כל התלמידים)
       </button>
     </div>
+    <div class="card p-3 mb-3">
+      <h5><i class="bi bi-tags"></i> קטגוריות התנהגות</h5>
+      <p class="text-muted small mb-2">הקטגוריות שמופיעות בטופס דיווח אירוע</p>
+      <div id="cats-list" class="d-flex flex-wrap gap-2 mb-2"></div>
+      <div class="input-group">
+        <input id="new-cat" class="form-control" placeholder="קטגוריה חדשה">
+        <button class="btn btn-primary" onclick="addCategory()"><i class="bi bi-plus"></i> הוסף</button>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <h5><i class="bi bi-database"></i> גיבוי ושחזור</h5>
+      <p class="text-muted small mb-2">הורד גיבוי מלא של כל הנתונים (תלמידים, אירועים, תפקוד, מבחנים...) או שחזר מקובץ.</p>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-outline-primary" onclick="downloadBackup()"><i class="bi bi-download"></i> הורד גיבוי JSON</button>
+        <button class="btn btn-outline-warning" onclick="document.getElementById('restore-file').click()"><i class="bi bi-upload"></i> שחזר מקובץ</button>
+        <input id="restore-file" type="file" accept=".json" class="d-none" onchange="restoreBackup(event)">
+        <button class="btn btn-outline-info" onclick="clearLocalCache()"><i class="bi bi-arrow-clockwise"></i> רענן מהשרת (נקה cache)</button>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <h5><i class="bi bi-cloud"></i> סטטוס סנכרון</h5>
+      <div id="sync-status" class="small"></div>
+    </div>
     <div class="card p-3">
-      <h5>אודות המערכת</h5>
-      <ul class="mb-2">
-        <li>מערכת בית התלמוד - גרסה 1.0</li>
-        <li>backend: Google Apps Script + Google Sheets (סנכרון אוטומטי)</li>
-        <li>אחסון מקומי כגיבוי (localStorage)</li>
-        <li>RTL עברית מלא</li>
+      <h5><i class="bi bi-info-circle"></i> אודות המערכת</h5>
+      <ul class="mb-2 small">
+        <li>בית התלמוד · גרסה 1.1 · תשפ"ו</li>
+        <li>Backend: Google Apps Script + Google Sheets (סנכרון אוטומטי כל 60 שניות)</li>
+        <li>אחסון מקומי localStorage כ-cache</li>
+        <li>תאריך עברי ופרשה דרך @hebcal/core</li>
+        <li>תצוגת RTL עברית מלא</li>
       </ul>
-      <a href="${SHEET_URL}" target="_blank" rel="noopener" class="btn btn-success">
+      <a href="${SHEET_URL}" target="_blank" rel="noopener" class="btn btn-success btn-sm">
         <i class="bi bi-table"></i> פתח את קובץ הנתונים בגוגל שיטס
       </a>
     </div>`;
   renderClasses();
+  renderCategories();
+  renderSyncStatus();
   const r = await api('listUsers', []);
   const users = r.data || [];
   const tbody = document.getElementById('users-tbody');
@@ -78,6 +104,10 @@ async function editUser(username) {
     document.getElementById('nu-name').readOnly = false;
     document.getElementById('nu-name').dataset.originalUsername = u.username;
     document.getElementById('nu-pass').value = u.password_hash || '';
+    if (document.getElementById('nu-fullname')) document.getElementById('nu-fullname').value = u['שם מלא'] || u.full_name || '';
+    if (document.getElementById('nu-email')) document.getElementById('nu-email').value = u['אימייל'] || u.email || '';
+    if (document.getElementById('nu-phone')) document.getElementById('nu-phone').value = u['טלפון'] || u.phone || '';
+    if (document.getElementById('nu-notes')) document.getElementById('nu-notes').value = u['הערות_משתמש'] || u.notes || '';
     document.getElementById('nu-role').value = u.role || 'מורה';
     document.getElementById('nu-role').dispatchEvent(new Event('change'));
     const perms = (u.permissions || '').split(',').map(s=>s.trim());
@@ -213,16 +243,24 @@ async function promoteAllConfirm() {
 
 const PERMISSION_AREAS = [
   { key: 'students', label: 'תלמידים', icon: 'bi-people', desc: 'צפייה והוספה של תלמידים' },
-  { key: 'behavior', label: 'מעקב התנהגות', icon: 'bi-clipboard-check', desc: 'תיעוד אירועים' },
-  { key: 'reports', label: 'דוחות וייצוא', icon: 'bi-file-earmark-pdf', desc: 'הורדת PDF' },
+  { key: 'behavior', label: 'מעקב התנהגות', icon: 'bi-clipboard-check', desc: 'תיעוד אירועי התנהגות' },
+  { key: 'functioning', label: 'ציוני תפקוד', icon: 'bi-bar-chart-line', desc: 'ציוני תפקוד 1-5' },
+  { key: 'tests', label: 'מבחנים', icon: 'bi-pencil-square', desc: 'ציוני מבחנים לפי פרשה' },
+  { key: 'medications', label: 'כדורים ורפואי', icon: 'bi-capsule', desc: 'מעקב תרופות' },
+  { key: 'attendance', label: 'נוכחות', icon: 'bi-check2-square', desc: 'נוכחות יומית' },
+  { key: 'meetings', label: 'אסיפות הורים', icon: 'bi-people-fill', desc: 'תיעוד פגישות' },
+  { key: 'calendar', label: 'לוח שנה', icon: 'bi-calendar3', desc: 'תצוגה חודשית' },
+  { key: 'classview', label: 'תצוגת כיתה', icon: 'bi-grid-3x3-gap', desc: 'מבט-על על כיתה' },
+  { key: 'reports', label: 'דוחות וייצוא', icon: 'bi-file-earmark-pdf', desc: 'דוחות, PDF, מייל להורים' },
   { key: 'settings', label: 'ניהול משתמשים', icon: 'bi-gear', desc: 'הוספה ועריכה של משתמשים' },
 ];
 
 const ROLE_DEFAULTS = {
-  'מנהל': ['students','behavior','reports','settings'],
-  'רב': ['students','behavior','reports'],
-  'מורה': ['students','behavior'],
-  'קריאה בלבד': ['students'],
+  'מנהל': ['students','behavior','functioning','tests','medications','attendance','meetings','calendar','classview','reports','settings'],
+  'רב': ['students','behavior','functioning','tests','medications','attendance','meetings','calendar','classview','reports'],
+  'מורה': ['students','behavior','functioning','attendance','classview','calendar'],
+  'מזכירות': ['students','meetings','reports','attendance','calendar'],
+  'קריאה בלבד': ['students','classview','calendar'],
   'מותאם אישית': [],
 };
 
@@ -256,18 +294,34 @@ function addUserModal() {
     <div class="modal-body">
       <div class="row g-3">
         <div class="col-md-6">
-          <label class="form-label">שם משתמש</label>
-          <input id="nu-name" class="form-control form-control-lg" placeholder="לדוגמה: rabbi.cohen">
+          <label class="form-label">שם משתמש <span class="text-danger">*</span></label>
+          <input id="nu-name" class="form-control" placeholder="לדוגמה: rabbi.cohen">
         </div>
         <div class="col-md-6">
-          <label class="form-label">סיסמה</label>
-          <input id="nu-pass" class="form-control form-control-lg" placeholder="לפחות 4 ספרות">
+          <label class="form-label">סיסמה <span class="text-danger">*</span></label>
+          <input id="nu-pass" class="form-control" placeholder="לפחות 4 ספרות">
         </div>
-        <div class="col-12">
-          <label class="form-label">תפקיד</label>
-          <select id="nu-role" class="form-select form-select-lg">
+        <div class="col-md-6">
+          <label class="form-label">שם מלא</label>
+          <input id="nu-fullname" class="form-control" placeholder="הרב פלוני אלמוני">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">תפקיד <span class="text-danger">*</span></label>
+          <select id="nu-role" class="form-select">
             ${Object.keys(ROLE_DEFAULTS).map(r => `<option value="${r}">${r}</option>`).join('')}
           </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">אימייל</label>
+          <input id="nu-email" type="email" class="form-control" placeholder="user@example.com">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">טלפון</label>
+          <input id="nu-phone" class="form-control" placeholder="052-1234567">
+        </div>
+        <div class="col-12">
+          <label class="form-label">הערות</label>
+          <textarea id="nu-notes" class="form-control" rows="2" placeholder="הערות אופציונליות..."></textarea>
         </div>
         <div class="col-12">
           <h6 class="mt-2"><i class="bi bi-shield-check"></i> מסכים שיוכל לראות:</h6>
@@ -339,7 +393,11 @@ async function saveUser() {
   const obj = {
     'שם משתמש': document.getElementById('nu-name').value.trim(),
     'סיסמה': document.getElementById('nu-pass').value.trim(),
+    'שם מלא': (document.getElementById('nu-fullname')?.value || '').trim(),
     'תפקיד': document.getElementById('nu-role').value,
+    'אימייל': (document.getElementById('nu-email')?.value || '').trim(),
+    'טלפון': (document.getElementById('nu-phone')?.value || '').trim(),
+    'הערות_משתמש': (document.getElementById('nu-notes')?.value || '').trim(),
     'הרשאות': checked.length === PERMISSION_AREAS.length ? 'all' : checked.join(','),
     'תלמידים_מורשים': visibleStudents,
     'קטגוריות_מורשות': visibleCats,
@@ -374,7 +432,130 @@ async function saveUser() {
   renderSettings();
 }
 
-async function renderReports() {
+function renderCategories() {
+  const el = document.getElementById('cats-list');
+  if (!el) return;
+  const data = getData();
+  const cats = data.categories || [];
+  if (!cats.length) {
+    el.innerHTML = '<span class="text-muted small">אין קטגוריות מוגדרות</span>';
+    return;
+  }
+  el.innerHTML = cats.map((c, i) => `
+    <span class="badge bg-light text-dark border p-2 d-inline-flex align-items-center gap-2">
+      <i class="bi bi-tag"></i>
+      ${escHtml(c.name || c['קטגוריה'] || '')}
+      <button class="btn-close btn-close-sm" style="font-size:.6rem" onclick="deleteCategory(${i})"></button>
+    </span>
+  `).join('');
+}
+
+async function addCategory() {
+  const name = document.getElementById('new-cat').value.trim();
+  if (!name) return;
+  const data = getData();
+  data.categories = data.categories || [];
+  if (data.categories.some(c => (c.name || c['קטגוריה']) === name)) {
+    alert('הקטגוריה כבר קיימת');
+    return;
+  }
+  data.categories.push({ name, 'קטגוריה': name });
+  saveData('categories', data.categories);
+  document.getElementById('new-cat').value = '';
+  if (typeof syncRowToSheet === 'function') syncRowToSheet('קטגוריות', { 'קטגוריה': name, 'תיאור': '' });
+  renderCategories();
+  notify('הקטגוריה נוספה', 'success');
+}
+
+async function deleteCategory(idx) {
+  const data = getData();
+  const c = data.categories[idx];
+  const name = c.name || c['קטגוריה'];
+  if (!confirm(`למחוק את הקטגוריה "${name}"?`)) return;
+  data.categories.splice(idx, 1);
+  saveData('categories', data.categories);
+  if (typeof syncDeleteRow === 'function') syncDeleteRow('קטגוריות', 'קטגוריה', name);
+  renderCategories();
+  notify('נמחק', 'success');
+}
+
+function renderSyncStatus() {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  const data = getData();
+  const counts = {
+    'תלמידים': (data.students || []).length,
+    'אירועי התנהגות': (data.behavior || []).length,
+    'ציוני תפקוד': (data.functioning || []).length,
+    'מבחנים': (data.tests || []).length,
+    'כדורים': (data.medications || []).length,
+    'אסיפות': (data.meetings || []).length,
+    'נוכחות': (data.attendance || []).length,
+    'משתמשים': (data.users || []).length,
+    'כיתות': (data.classes || []).length,
+    'קטגוריות': (data.categories || []).length,
+  };
+  el.innerHTML = '<div class="row g-2">' + Object.entries(counts).map(([k,v]) =>
+    `<div class="col-md-3 col-sm-6"><strong>${escHtml(k)}:</strong> <span class="badge bg-primary">${v}</span></div>`
+  ).join('') + '</div>';
+}
+
+function downloadBackup() {
+  const data = getData();
+  const backup = {
+    version: '1.1',
+    exportedAt: new Date().toISOString(),
+    students: data.students,
+    behavior: data.behavior,
+    functioning: data.functioning,
+    tests: data.tests,
+    medications: data.medications,
+    meetings: data.meetings,
+    attendance: data.attendance,
+    users: data.users,
+    categories: data.categories,
+    classes: data.classes,
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cheder-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  notify('הגיבוי הורד', 'success');
+}
+
+function restoreBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!confirm('שחזור יחליף את הנתונים הקיימים בדפדפן. הסנכרון לשרת ייעצר זמנית. להמשיך?')) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      const d = getData();
+      ['students','behavior','functioning','tests','medications','meetings','attendance','users','categories','classes'].forEach(k => {
+        if (backup[k]) d[k] = backup[k];
+      });
+      saveData('students', d.students);
+      // Trigger full save
+      Object.keys(d).forEach(k => saveData(k, d[k]));
+      notify('הגיבוי שוחזר. רענן את הדף.', 'success');
+    } catch (err) {
+      alert('שגיאה בקריאת הגיבוי: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function clearLocalCache() {
+  if (!confirm('לנקות את ה-cache המקומי ולמשוך את הנתונים מחדש מהשרת?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  notify('Cache נוקה. טוען מחדש...', 'success');
+  setTimeout(() => location.reload(), 1000);
+}
+
+// Legacy advanced filter — accessed from reports page if needed
+async function renderReportsAdvancedFilter() {
   const data = getData();
   const cycles = [...new Set(data.students.map(s => s['מחזור']).filter(Boolean))];
   const cats = data.categories.map(c => c.name);

@@ -22,7 +22,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','functioning','tests','medications','settings','reports'];
+const PAGES = ['login','home','students','behavior','functioning','tests','medications','classview','attendance','calendar','meetings','settings','reports'];
 
 function showPage(name) {
   PAGES.forEach(p => {
@@ -33,6 +33,10 @@ function showPage(name) {
   if (name === 'functioning' && typeof renderFunctioning === 'function') renderFunctioning();
   if (name === 'tests' && typeof renderTests === 'function') renderTests();
   if (name === 'medications' && typeof renderMedications === 'function') renderMedications();
+  if (name === 'classview' && typeof renderClassView === 'function') renderClassView();
+  if (name === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
+  if (name === 'calendar' && typeof renderCalendar === 'function') renderCalendar();
+  if (name === 'meetings' && typeof renderMeetings === 'function') renderMeetings();
   if (name === 'settings' && typeof renderSettings === 'function') renderSettings();
   if (name === 'reports' && typeof renderReports === 'function') renderReports();
 }
@@ -75,15 +79,91 @@ document.getElementById('password').addEventListener('keypress', e => { if(e.key
 async function loadStats() {
   const s = await api('listStudents', []);
   const b = await api('listBehavior', []);
+  const students = (s.data || []).filter(x => (x['סטטוס']||'פעיל') !== 'סיים');
   const events = b.data || [];
-  document.getElementById('stat-students').textContent = (s.data || []).length;
+  document.getElementById('stat-students').textContent = students.length;
   document.getElementById('stat-events').textContent = events.length;
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const week = events.filter(e => new Date(e['תאריך']).getTime() > weekAgo);
   document.getElementById('stat-week').textContent = week.length;
   document.getElementById('stat-high').textContent = events.filter(e => e['חומרה'] === 'גבוהה').length;
+  drawClassBanner(students);
   drawTrendChart(events);
+  drawBirthdays(students);
+  drawAlerts(students, events);
   drawRecentActivity(events);
+}
+
+function drawClassBanner(students) {
+  const el = document.getElementById('class-banner');
+  if (!el) return;
+  const dist = {};
+  students.forEach(s => { const c = s['מחזור']||'?'; dist[c] = (dist[c]||0) + 1; });
+  const keys = Object.keys(dist).sort();
+  if (!keys.length) { el.textContent = ''; return; }
+  el.innerHTML = keys.map(k => `<span class="me-3"><strong>${escHtml(k)}</strong>: ${dist[k]}</span>`).join('') +
+    ` · סה"כ <strong>${students.length}</strong>`;
+}
+
+function drawBirthdays(students) {
+  const el = document.getElementById('birthdays');
+  if (!el) return;
+  const today = new Date();
+  const thisMonth = today.getMonth() + 1;
+  const list = students.filter(s => {
+    const bd = s['תאריך לידה'];
+    if (!bd) return false;
+    const parts = String(bd).split(/[/\-]/);
+    if (parts.length < 2) return false;
+    let m = parseInt(parts[1]);
+    if (parts[0].length === 4) m = parseInt(parts[1]); // YYYY-MM-DD
+    else m = parseInt(parts[1]); // DD/MM/YYYY
+    return m === thisMonth;
+  }).map(s => {
+    const bd = s['תאריך לידה'];
+    let day = '';
+    const parts = String(bd).split(/[/\-]/);
+    if (parts.length >= 3) day = parts[0].length === 4 ? parts[2] : parts[0];
+    return { ...s, _day: parseInt(day) || 0 };
+  }).sort((a,b) => a._day - b._day);
+  if (!list.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">אין ימי הולדת החודש</p>';
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+    const newAge = (s['גיל']||0) + 1;
+    return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">
+      <div><i class="bi bi-cake2 text-warning"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(כיתה ${escHtml(s['מחזור']||'')})</span></div>
+      <div class="text-muted">${s._day || '?'} בחודש · גיל ${newAge}</div>
+    </div>`;
+  }).join('');
+}
+
+function drawAlerts(students, events) {
+  const el = document.getElementById('alerts-list');
+  if (!el) return;
+  const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+  const counts = {};
+  events.filter(e => new Date(e['תאריך']).getTime() > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
+    const sid = e['תלמיד_מזהה'];
+    counts[sid] = (counts[sid]||0) + 1;
+  });
+  const flagged = Object.entries(counts).filter(([, n]) => n >= 2)
+    .sort((a,b) => b[1] - a[1])
+    .map(([sid, n]) => ({ student: students.find(s => String(s['מזהה']) === String(sid)), count: n }))
+    .filter(x => x.student);
+  if (!flagged.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">אין דגלים השבוע</p>';
+    return;
+  }
+  el.innerHTML = flagged.map(f => {
+    const fullName = (f.student['שם פרטי']||'') + ' ' + (f.student['שם משפחה']||'');
+    return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${f.student['מזהה']})" style="cursor:pointer">
+      <div><i class="bi bi-flag-fill text-danger"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(${escHtml(f.student['מחזור']||'')})</span></div>
+      <div><span class="badge bg-danger">${f.count} אירועי חומרה גבוהה</span></div>
+    </div>`;
+  }).join('');
 }
 
 function drawTrendChart(events) {
@@ -170,6 +250,10 @@ function filterByPermissions(){
     'functioning': ['functioning','all'],
     'tests': ['tests','all'],
     'medications': ['medications','all'],
+    'classview': ['classview','all'],
+    'attendance': ['attendance','all'],
+    'calendar': ['calendar','all'],
+    'meetings': ['meetings','all'],
     'settings': ['settings','all'],
     'reports': ['reports','all'],
   };

@@ -45,7 +45,7 @@ async function fetchJson(path) {
 async function loadData() {
   const stored = loadStored();
   // Try fetching latest JSON files
-  const [studentsJ, behaviorJ, usersJ, categoriesJ, classesJ, funcJ, testsJ, medsJ] = await Promise.all([
+  const [studentsJ, behaviorJ, usersJ, categoriesJ, classesJ, funcJ, testsJ, medsJ, meetingsJ, attJ] = await Promise.all([
     fetchJson('data/students.json'),
     fetchJson('data/behavior.json'),
     fetchJson('data/users.json'),
@@ -54,6 +54,8 @@ async function loadData() {
     fetchJson('data/functioning.json'),
     fetchJson('data/tests.json'),
     fetchJson('data/medications.json'),
+    fetchJson('data/meetings.json'),
+    fetchJson('data/attendance.json'),
   ]);
   const useStored = (arr) => Array.isArray(arr) && arr.length > 0;
   _data = {
@@ -65,6 +67,8 @@ async function loadData() {
     functioning: useStored(stored.functioning) ? stored.functioning : ((funcJ && funcJ.entries) || []),
     tests: useStored(stored.tests) ? stored.tests : ((testsJ && testsJ.tests) || []),
     medications: useStored(stored.medications) ? stored.medications : ((medsJ && medsJ.medications) || []),
+    meetings: useStored(stored.meetings) ? stored.meetings : ((meetingsJ && meetingsJ.meetings) || []),
+    attendance: useStored(stored.attendance) ? stored.attendance : ((attJ && attJ.records) || []),
   };
   // Default status to פעיל for legacy students
   _data.students.forEach(s => { if (!s['סטטוס']) s['סטטוס'] = 'פעיל'; });
@@ -413,6 +417,10 @@ async function api(fn, args) {
         permissions: obj['הרשאות'] ?? obj.permissions ?? _data.users[idx].permissions ?? '',
         visible_students: obj['תלמידים_מורשים'] ?? obj.visible_students ?? 'all',
         visible_categories: obj['קטגוריות_מורשות'] ?? obj.visible_categories ?? 'all',
+        full_name: obj['שם מלא'] ?? _data.users[idx].full_name ?? '',
+        email: obj['אימייל'] ?? _data.users[idx].email ?? '',
+        phone: obj['טלפון'] ?? _data.users[idx].phone ?? '',
+        notes: obj['הערות_משתמש'] ?? _data.users[idx].notes ?? '',
       };
       _data.users[idx] = updated;
       saveStored(_data);
@@ -425,6 +433,10 @@ async function api(fn, args) {
         'הרשאות': updated.permissions,
         'תלמידים_מורשים': updated.visible_students,
         'קטגוריות_מורשות': updated.visible_categories,
+        'שם מלא': updated.full_name,
+        'אימייל': updated.email,
+        'טלפון': updated.phone,
+        'הערות_משתמש': updated.notes,
       };
       // If renamed, delete old + add new in sheet; otherwise update
       if (lookupUsername !== newUsername) {
@@ -467,6 +479,10 @@ async function api(fn, args) {
         permissions: obj['הרשאות'],
         visible_students: obj['תלמידים_מורשים'] || 'all',
         visible_categories: obj['קטגוריות_מורשות'] || 'all',
+        full_name: obj['שם מלא'] || '',
+        email: obj['אימייל'] || '',
+        phone: obj['טלפון'] || '',
+        notes: obj['הערות_משתמש'] || '',
       };
       const idx = _data.users.findIndex(u => u.username === newUser.username);
       if (idx >= 0) {
@@ -500,6 +516,68 @@ async function api(fn, args) {
       return { ok: true, data: _data.tests || [] };
     case 'listMedications':
       return { ok: true, data: _data.medications || [] };
+    case 'listMeetings':
+      return { ok: true, data: _data.meetings || [] };
+    case 'listAttendance':
+      return { ok: true, data: _data.attendance || [] };
+    case 'addMeeting': {
+      const obj = args[0];
+      const max = (_data.meetings || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
+      obj['מזהה'] = max + 1;
+      _data.meetings = _data.meetings || [];
+      _data.meetings.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('אסיפות', obj).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'updateMeeting': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.meetings || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.meetings[idx] = Object.assign({}, _data.meetings[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('אסיפות', _data.meetings[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteMeeting': {
+      const id = args[0];
+      const idx = (_data.meetings || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.meetings.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('אסיפות', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'addAttendance': {
+      const obj = args[0];
+      const max = (_data.attendance || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
+      obj['מזהה'] = max + 1;
+      _data.attendance = _data.attendance || [];
+      _data.attendance.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('נוכחות', obj).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'updateAttendance': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.attendance || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.attendance[idx] = Object.assign({}, _data.attendance[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('נוכחות', _data.attendance[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteAttendance': {
+      const id = args[0];
+      const idx = (_data.attendance || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.attendance.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('נוכחות', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'addFunctioning': {
       const obj = args[0];
       const max = (_data.functioning || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
@@ -735,6 +813,10 @@ async function pullAllFromSheet() {
         permissions: u['הרשאות'],
         visible_students: u['תלמידים_מורשים'] || 'all',
         visible_categories: u['קטגוריות_מורשות'] || 'all',
+        full_name: u['שם מלא'] || '',
+        email: u['אימייל'] || '',
+        phone: u['טלפון'] || '',
+        notes: u['הערות_משתמש'] || '',
       }));
       if (!_data.users.find(u => u.role === 'מנהל')) {
         _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
