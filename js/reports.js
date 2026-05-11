@@ -75,7 +75,7 @@ td{padding:5pt;border:1px solid #e5e7eb}
 </style></head><body>
 <button class="no-print" onclick="window.print()" style="background:#0066cc;color:#fff;border:none;padding:10pt 20pt;border-radius:6px;cursor:pointer;font-size:14pt">🖨 הדפס / שמור כ‑PDF</button>
 <h1>${escHtml(title)}</h1>
-<p class="subtitle">בית התלמוד · בית שמש · ${new Date().toLocaleDateString('he-IL')}</p>`;
+<p class="subtitle">בית התלמוד · בית שמש · ${formatDateBoth(new Date())}</p>`;
 }
 
 function reportFooter() {
@@ -147,7 +147,7 @@ function genReportWeekly() {
   if (!events.length) html += '<p class="text-muted">אין אירועים השבוע</p>';
   else events.forEach(e => {
     const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
-    const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
+    const dt = formatDateBoth(e['תאריך']);
     const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
     html += `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(dt)} · חומרה ${escHtml(e['חומרה']||'')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
   });
@@ -383,7 +383,7 @@ async function genParentPDF(sendEmail) {
     html += `<h2>כל אירועי ההתנהגות (${events.length})</h2>`;
     events.forEach(e => {
       const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
-      const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
+      const dt = formatDateBoth(e['תאריך']);
       const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
       html += `<div class="event ${c}"><strong>${escHtml(e['קטגוריה']||'')}</strong> · ${escHtml(dt)} · חומרה ${escHtml(e['חומרה']||'-')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
     });
@@ -437,7 +437,7 @@ async function genParentPDF(sendEmail) {
     html += `<table><tr><th>נוכחויות</th><td style="color:#16a34a"><strong>${attPresent}</strong></td><th>חיסור</th><td style="color:#f59e0b">${attAbsent}</td><th>איחורים</th><td style="color:#0891b2">${attLate}</td><th>אחוז נוכחות</th><td><strong>${att.length ? Math.round(attPresent/att.length*100) : 0}%</strong></td></tr></table>`;
   }
 
-  html += `<p style="margin-top:30pt;color:#6b7280;font-size:9pt">בברכה,<br>בית התלמוד · בית שמש · ${new Date().toLocaleDateString('he-IL')}</p>`;
+  html += `<p style="margin-top:30pt;color:#6b7280;font-size:9pt">בברכה,<br>בית התלמוד · בית שמש · ${formatDateBoth(new Date())}</p>`;
   html += reportFooter();
   bootstrap.Modal.getInstance(document.getElementById('rp-modal')).hide();
   if (sendEmail) {

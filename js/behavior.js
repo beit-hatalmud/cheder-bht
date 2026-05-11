@@ -81,7 +81,7 @@ function drawEvents(list) {
   }
   el.innerHTML = list.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
-    const date = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
+    const date = e['תאריך'] ? formatGreg(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
     let parsha = e['פרשה'] || '';
     // Backfill from JS date if missing

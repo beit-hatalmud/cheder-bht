@@ -312,7 +312,7 @@ function drawCalendar() {
     listEl.innerHTML = '<p class="text-muted small mb-0">אין אירועים בחודש</p>';
   } else {
     listEl.innerHTML = monthEvents.slice(0, 30).map(e => {
-      const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
+      const dt = formatDateBoth(e['תאריך']);
       const sev = e['חומרה']==='גבוהה'?'text-danger':e['חומרה']==='נמוכה'?'text-success':'text-warning';
       return `<div class="d-flex justify-content-between border-bottom py-1 small">
         <div><i class="bi bi-circle-fill ${sev}" style="font-size:.5rem"></i> <strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')}</div>

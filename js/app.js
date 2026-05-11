@@ -216,7 +216,7 @@ function drawRecentActivity(events) {
   }
   el.innerHTML = sorted.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'text-danger' : e['חומרה'] === 'נמוכה' ? 'text-success' : 'text-warning';
-    const date = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
+    const date = e['תאריך'] ? formatDateBoth(e['תאריך']) : '';
     return `<div class="d-flex justify-content-between border-bottom py-2 small">
       <div><i class="bi bi-circle-fill ${sev}" style="font-size:.6rem"></i> <strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')}</div>
       <div class="text-muted">${escHtml(date)}</div>

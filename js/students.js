@@ -209,7 +209,7 @@ async function viewStudent(id) {
   };
   const eventsHtml = events.length ? events.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
-    const dt = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
+    const dt = e['תאריך'] ? formatDateBoth(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
     let parsha = e['פרשה'] || '';
     if ((!hdate || !parsha) && e['תאריך'] && typeof getHebrewInfo === 'function') {
@@ -437,7 +437,7 @@ async function drawStudentTimeline(studentId) {
     return;
   }
   el.innerHTML = `<div class="timeline">${items.slice(0, 100).map(item => {
-    const dt = item.date ? new Date(item.date).toLocaleDateString('he-IL') : '?';
+    const dt = item.date ? formatDateBoth(item.date) : '?';
     return `<div class="d-flex gap-2 align-items-start py-2 border-bottom">
       <i class="bi ${item.icon} text-${item.color}" style="font-size:1.25rem;margin-top:.15rem"></i>
       <div class="flex-grow-1">
@@ -686,7 +686,7 @@ async function emailParentSummary(id) {
   if (events.length) {
     lines.push('אירועים אחרונים:');
     events.slice(0, 10).forEach(e => {
-      const dt = new Date(e['תאריך']).toLocaleDateString('he-IL');
+      const dt = formatDateBoth(e['תאריך']);
       lines.push(`- ${dt} | ${e['קטגוריה']||''} (${e['חומרה']||'-'}): ${e['תיאור']||''}`);
     });
   }
@@ -781,46 +781,140 @@ function parseCSVLine(line) {
 function printStudentReport(id) {
   const s = _students.find(x => String(x['מזהה']) === String(id));
   if (!s) return;
-  // Open print view (popup-blocker safe)
   const w = window.open('', '_blank');
   if (!w) { alert('הדפדפן חוסם חלונות פופ-אפ — אפשר חלון פופ-אפ לאתר ונסה שוב'); return; }
-  Promise.resolve(api('listBehavior', [])).then(b => {
-    const events = (b.data || []).filter(e => String(e['תלמיד_מזהה']) === String(id))
-      .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
-    const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
-    const today = new Date().toLocaleDateString('he-IL');
-    const titleSafe = String(fullName).replace(/[<>&"']/g,' ');
-    const html = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>${titleSafe}</title>
-<style>
-@page{size:A4;margin:1.5cm}body{font-family:Arial,sans-serif;direction:rtl;color:#1f2937}
-h1{color:#0066cc;border-bottom:3px solid #0066cc;padding-bottom:8pt}
-table{width:100%;border-collapse:collapse;margin:10pt 0;font-size:10pt}
-th{background:#f3f4f6;padding:6pt;border:1px solid #d1d5db;text-align:right}
-td{padding:5pt;border:1px solid #e5e7eb}
-.event{margin:6pt 0;padding:8pt;border-right:4px solid #0066cc;background:#f9fafb}
-.event.high{border-color:#dc2626;background:#fef2f2}.event.mid{border-color:#f59e0b;background:#fffbeb}.event.low{border-color:#16a34a;background:#f0fdf4}
-@media print{.no-print{display:none}}
-</style></head><body>
-<button class="no-print" onclick="window.print()" style="background:#0066cc;color:#fff;border:none;padding:10pt 20pt;border-radius:6px;cursor:pointer">🖨 הדפס</button>
-<h1>${escHtml(fullName)}</h1>
-<p>בית התלמוד · בית שמש · ${escHtml(today)}</p>
-<table>
-<tr><th>גיל</th><td>${escHtml(s['גיל']||'-')}</td><th>כיתה</th><td>${escHtml(s['מחזור']||'-')}</td></tr>
-<tr><th>שם אם</th><td>${escHtml(s['שם אם']||'-')}</td><th>טלפון אם</th><td>${escHtml(s['טלפון אם']||'-')}</td></tr>
-<tr><th>שם אב</th><td>${escHtml(s['שם אב']||'-')}</td><th>טלפון אב</th><td>${escHtml(s['טלפון אב']||'-')}</td></tr>
-<tr><th>כתובת</th><td colspan="3">${escHtml(s['כתובת']||'-')}</td></tr>
-</table>
-<h2>היסטוריית התנהגות (${events.length})</h2>
-${events.map(e => {
-  const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
-  const rep = e['דווח_עי'] ? ` · דווח ע"י ${escHtml(e['דווח_עי'])}` : '';
-  return `<div class="event ${c}"><strong>${escHtml(e['קטגוריה']||'')}</strong> · ${escHtml(new Date(e['תאריך']).toLocaleString('he-IL'))} · חומרה ${escHtml(e['חומרה']||'')}${rep}<br>${escHtml(e['תיאור']||'')}</div>`;
-}).join('')}
-<script>setTimeout(()=>window.print(), 500);</script>
-</body></html>`;
-    w.document.write(html);
-    w.document.close();
+  const data = getData();
+  const events = (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(id))
+    .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  const fs = (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(id));
+  const tests = (data.tests||[]).filter(t => String(t['תלמיד_מזהה']) === String(id));
+  const meds = (data.medications||[]).filter(m => String(m['תלמיד_מזהה']) === String(id));
+  const meetings = (data.meetings||[]).filter(m => String(m['תלמיד_מזהה']) === String(id));
+  const att = (data.attendance||[]).filter(a => String(a['תלמיד_מזהה']) === String(id))
+    .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+  const today = formatDateBoth(new Date());
+  const hebBd = (typeof hebrewBirthday === 'function') ? hebrewBirthday(s['תאריך לידה']) : '';
+  const fAvg = fs.length ? (fs.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / fs.length).toFixed(2) : '-';
+  const tAvg = tests.length ? (tests.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / tests.length).toFixed(1) : '-';
+  const evHigh = events.filter(e => e['חומרה']==='גבוהה').length;
+  const evMid = events.filter(e => e['חומרה']==='בינונית').length;
+  const evLow = events.filter(e => e['חומרה']==='נמוכה').length;
+  const attPresent = att.filter(a => a['סטטוס']==='נוכח').length;
+  const attAbsent = att.filter(a => a['סטטוס']==='חיסר').length;
+  const attLate = att.filter(a => a['סטטוס']==='איחור').length;
+  // Functioning by category
+  const fnByCat = {};
+  fs.forEach(f => {
+    const c = f['קטגוריה'] || 'אחר';
+    if (!fnByCat[c]) fnByCat[c] = { sum: 0, n: 0 };
+    fnByCat[c].sum += parseFloat(f['ציון']) || 0;
+    fnByCat[c].n += 1;
   });
+  // Tests by type
+  const testsByType = {};
+  tests.forEach(t => {
+    const type = t['סוג'] || 'אחר';
+    if (!testsByType[type]) testsByType[type] = { sum: 0, n: 0, items: [] };
+    testsByType[type].sum += parseFloat(t['ציון']) || 0;
+    testsByType[type].n += 1;
+    testsByType[type].items.push(t);
+  });
+  const titleSafe = String(fullName).replace(/[<>&"']/g,' ');
+
+  const photoBlock = s['תמונה']
+    ? `<img src="${escHtml(s['תמונה'])}" alt="" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #0066cc">`
+    : `<div style="width:80px;height:80px;border-radius:50%;background:#0066cc;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28pt;font-weight:bold">${escHtml(((s['שם פרטי']||' ')[0] + (s['שם משפחה']||' ')[0]).trim() || '?')}</div>`;
+
+  const html = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>כרטיס תלמיד — ${titleSafe}</title>
+<style>
+@page{size:A4;margin:1.2cm}
+body{font-family:Arial,Heebo,sans-serif;direction:rtl;color:#1f2937;font-size:10.5pt;line-height:1.5}
+h1{color:#0066cc;border-bottom:3px solid #0066cc;padding-bottom:8pt;margin:0 0 4pt 0;font-size:20pt}
+h2{color:#1e40af;margin:18pt 0 6pt 0;font-size:13pt;border-bottom:1px solid #cbd5e1;padding-bottom:3pt;page-break-after:avoid}
+h3{color:#475569;margin:12pt 0 4pt 0;font-size:11pt}
+.header-bar{display:flex;align-items:center;gap:15pt;margin-bottom:8pt}
+.subtitle{color:#6b7280;margin:0;font-size:10pt}
+table{width:100%;border-collapse:collapse;margin:6pt 0;font-size:9.5pt}
+th{background:#f3f4f6;padding:5pt;border:1px solid #d1d5db;text-align:right;white-space:nowrap}
+td{padding:5pt;border:1px solid #e5e7eb;vertical-align:top}
+.profile-section{background:#fafafa;border-right:3px solid #0066cc;padding:8pt 12pt;margin:6pt 0;border-radius:4px}
+.profile-label{font-weight:bold;color:#0066cc;font-size:9.5pt}
+.event{margin:5pt 0;padding:6pt 8pt;border-right:3px solid #0066cc;background:#f9fafb;page-break-inside:avoid}
+.event.high{border-color:#dc2626;background:#fef2f2}
+.event.mid{border-color:#f59e0b;background:#fffbeb}
+.event.low{border-color:#16a34a;background:#f0fdf4}
+.event-meta{color:#6b7280;font-size:8.5pt;margin-bottom:3pt}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6pt;margin:8pt 0}
+.kpi{background:#eff6ff;padding:6pt;border-radius:4px;text-align:center}
+.kpi strong{font-size:14pt;color:#0066cc;display:block}
+.kpi-label{font-size:8pt;color:#6b7280}
+.print-btn{background:#0066cc;color:#fff;border:none;padding:8pt 16pt;border-radius:6px;cursor:pointer;font-size:11pt;margin-bottom:10pt}
+@media print{.no-print{display:none!important}}
+</style></head><body>
+<button class="no-print print-btn" onclick="window.print()">🖨 הדפס / שמור PDF</button>
+<div class="header-bar">
+  ${photoBlock}
+  <div>
+    <h1>${escHtml(fullName)}</h1>
+    <p class="subtitle">כיתה ${escHtml(s['מחזור']||'-')} · גיל ${escHtml(s['גיל']||'-')} · ת.ז ${escHtml(s['מספר זהות']||'-')}</p>
+    <p class="subtitle">בית התלמוד · בית שמש · ${escHtml(today)}</p>
+  </div>
+</div>
+
+<h2>פרטים אישיים</h2>
+<table>
+  <tr><th>שם פרטי</th><td>${escHtml(s['שם פרטי']||'-')}</td><th>שם משפחה</th><td>${escHtml(s['שם משפחה']||'-')}</td></tr>
+  <tr><th>תאריך לידה</th><td>${escHtml(s['תאריך לידה']||'-')}${hebBd ? `<br><small style="color:#6b7280">${escHtml(hebBd)}</small>` : ''}</td><th>גיל</th><td>${escHtml(s['גיל']||'-')}</td></tr>
+  <tr><th>מספר זהות</th><td>${escHtml(s['מספר זהות']||'-')}</td><th>מחזור / כיתה</th><td>${escHtml(s['מחזור']||'-')}</td></tr>
+  <tr><th>שם אם</th><td>${escHtml(s['שם אם']||'-')}</td><th>ת.ז. אם</th><td>${escHtml(s['תז אם']||'-')}</td></tr>
+  <tr><th>טלפון אם</th><td>${escHtml(s['טלפון אם']||'-')}</td><th>טלפון בית</th><td>${escHtml(s['טלפון בית']||'-')}</td></tr>
+  <tr><th>שם אב</th><td>${escHtml(s['שם אב']||'-')}</td><th>ת.ז. אב</th><td>${escHtml(s['תז אב']||'-')}</td></tr>
+  <tr><th>טלפון אב</th><td>${escHtml(s['טלפון אב']||'-')}</td><th>עיר</th><td>${escHtml(s['עיר']||'-')}</td></tr>
+  <tr><th>כתובת</th><td colspan="3">${escHtml(s['כתובת']||'-')}</td></tr>
+  ${s['הערות'] ? `<tr><th>הערות</th><td colspan="3">${escHtml(s['הערות'])}</td></tr>` : ''}
+</table>
+
+<div class="kpi-grid">
+  <div class="kpi"><strong>${events.length}</strong><div class="kpi-label">אירועים</div></div>
+  <div class="kpi"><strong style="color:#dc2626">${evHigh}</strong><div class="kpi-label">חומרה גבוהה</div></div>
+  <div class="kpi"><strong>${fAvg}</strong><div class="kpi-label">ממוצע תפקוד</div></div>
+  <div class="kpi"><strong>${tAvg}</strong><div class="kpi-label">ממוצע מבחנים</div></div>
+</div>
+
+${(s['דוח_אישי'] || s['פרופיל_הורים'] || s['פרופיל_אישיות'] || s['פרופיל_התנהגותי'] || s['פרופיל_לימודי']) ? '<h2>פרופיל אישי</h2>' : ''}
+${s['דוח_אישי'] ? `<div class="profile-section"><div class="profile-label">דוח אישי</div>${escHtml(s['דוח_אישי']).replace(/\n/g,'<br>')}</div>` : ''}
+${s['פרופיל_הורים'] ? `<div class="profile-section"><div class="profile-label">הורים</div>${escHtml(s['פרופיל_הורים']).replace(/\n/g,'<br>')}</div>` : ''}
+${s['פרופיל_אישיות'] ? `<div class="profile-section"><div class="profile-label">אישיות</div>${escHtml(s['פרופיל_אישיות']).replace(/\n/g,'<br>')}</div>` : ''}
+${s['פרופיל_התנהגותי'] ? `<div class="profile-section"><div class="profile-label">התנהגותי</div>${escHtml(s['פרופיל_התנהגותי']).replace(/\n/g,'<br>')}</div>` : ''}
+${s['פרופיל_לימודי'] ? `<div class="profile-section"><div class="profile-label">לימודי</div>${escHtml(s['פרופיל_לימודי']).replace(/\n/g,'<br>')}</div>` : ''}
+
+<h2>היסטוריית התנהגות (${events.length})</h2>
+${events.length ? events.map(e => {
+  const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
+  const rep = e['דווח_עי'] ? ` · ${escHtml(e['דווח_עי'])}` : '';
+  const dt = formatDateBoth(e['תאריך']);
+  const parsha = e['פרשה'] ? ` · פר' ${escHtml(e['פרשה'])}` : '';
+  return `<div class="event ${c}"><div class="event-meta"><strong>${escHtml(e['קטגוריה']||'')}</strong> · ${escHtml(dt)}${parsha} · חומרה ${escHtml(e['חומרה']||'')}${rep}</div>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
+}).join('') : '<p style="color:#6b7280">אין אירועים מתועדים</p>'}
+
+${Object.keys(fnByCat).length ? `<h2>ציוני תפקוד — ממוצעים</h2><table><tr><th>קטגוריה</th><th>ממוצע</th><th>מספר ציונים</th></tr>${Object.entries(fnByCat).sort((a,b) => (b[1].sum/b[1].n) - (a[1].sum/a[1].n)).map(([c, d]) => `<tr><td>${escHtml(c)}</td><td><strong>${(d.sum/d.n).toFixed(2)}</strong></td><td>${d.n}</td></tr>`).join('')}</table>` : ''}
+
+${Object.keys(testsByType).length ? `<h2>מבחנים</h2><table><tr><th>סוג</th><th>ממוצע</th><th>מספר מבחנים</th></tr>${Object.entries(testsByType).map(([t, d]) => `<tr><td>${escHtml(t)}</td><td><strong>${(d.sum/d.n).toFixed(1)}</strong></td><td>${d.n}</td></tr>`).join('')}</table>` : ''}
+
+${tests.length ? `<h3>פירוט ציוני מבחנים</h3><table><tr><th>סוג</th><th>פרשה</th><th>ציון</th><th>תאריך</th></tr>${tests.slice(0, 50).map(t => `<tr><td>${escHtml(t['סוג']||'')}</td><td>${escHtml(t['פרשה']||'')}</td><td><strong>${t['ציון']||'-'}</strong></td><td>${escHtml(formatDateBoth(t['תאריך'])||'-')}</td></tr>`).join('')}</table>` : ''}
+
+${meds.length ? `<h2>מעקב רפואי / כדורים</h2>${meds.map(m => `<div class="event"><div class="event-meta">${m['תרופה'] ? `<strong>${escHtml(m['תרופה'])}</strong> · ` : ''}${escHtml(formatDateBoth(m['תאריך_עדכון'])||'-')}</div>${m['מצב_כיום'] ? `<strong>מצב כיום:</strong> ${escHtml(m['מצב_כיום'])}<br>` : ''}${m['שיחת_הורים'] ? `<strong>שיחת הורים:</strong> ${escHtml(m['שיחת_הורים'])}` : ''}${m['הערות'] ? `<br><em>${escHtml(m['הערות'])}</em>` : ''}</div>`).join('')}` : ''}
+
+${meetings.length ? `<h2>אסיפות הורים</h2>${meetings.map(m => `<div class="event"><div class="event-meta"><strong>${escHtml(m['נושא']||'פגישה')}</strong> · ${escHtml(formatDateBoth(m['תאריך'])||'')}${m['תקופה']?` · ${escHtml(m['תקופה'])}`:''}</div>${m['משתתפים'] ? `<strong>משתתפים:</strong> ${escHtml(m['משתתפים'])}<br>` : ''}${escHtml(m['סיכום']||'')}${m['הערות']?`<br><em style="color:#6b7280">${escHtml(m['הערות'])}</em>`:''}</div>`).join('')}` : ''}
+
+${att.length ? `<h2>נוכחות</h2><table><tr><th>נוכחויות</th><td style="color:#16a34a"><strong>${attPresent}</strong></td><th>חיסור</th><td style="color:#f59e0b">${attAbsent}</td><th>איחורים</th><td style="color:#0891b2">${attLate}</td><th>אחוז נוכחות</th><td><strong>${att.length ? Math.round(attPresent/att.length*100) : 0}%</strong></td></tr></table>${att.slice(0, 30).length ? `<h3>30 הרישומים האחרונים</h3><table><tr><th>תאריך</th><th>סטטוס</th></tr>${att.slice(0, 30).map(a => `<tr><td>${escHtml(formatDateBoth(a['תאריך'])||'')}</td><td>${escHtml(a['סטטוס']||'')}</td></tr>`).join('')}</table>` : ''}` : ''}
+
+<p style="margin-top:20pt;color:#6b7280;font-size:9pt;border-top:1px solid #e5e7eb;padding-top:8pt">דוח מלא · בית התלמוד · בית שמש · ${escHtml(today)}</p>
+<script>setTimeout(()=>window.print(), 600);</script>
+</body></html>`;
+  w.document.write(html);
+  w.document.close();
 }
 
 function addStudentModal() {

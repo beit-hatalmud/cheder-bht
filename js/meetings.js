@@ -62,7 +62,7 @@ function meetingsRefresh() {
   el.innerHTML = list.map(m => {
     const stu = stuById[m['תלמיד_מזהה']];
     const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '?';
-    const dt = m['תאריך'] ? new Date(m['תאריך']).toLocaleDateString('he-IL') : '';
+    const dt = m['תאריך'] ? formatDateBoth(m['תאריך']) : '';
     return `<div class="card p-3 mb-2">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
