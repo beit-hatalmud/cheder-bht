@@ -574,6 +574,10 @@ async function loadAuditLog() {
   if (!el) return;
   el.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div> טוען...</div>';
   const r = await api('listAuditLog', []);
+  if (!r.ok) {
+    el.innerHTML = `<p class="text-danger small mb-0"><i class="bi bi-exclamation-triangle"></i> ${escHtml(r.error || 'שגיאה בטעינה')}</p>`;
+    return;
+  }
   const rows = (r.data || []).slice().reverse().slice(0, 50);
   if (!rows.length) {
     el.innerHTML = '<p class="text-muted small mb-0">אין פעולות מתועדות</p>';

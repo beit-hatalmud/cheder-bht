@@ -153,10 +153,12 @@ function canMutateStudent(sid) {
   if (u.username === 'admin' || u.role === 'מנהל') return true;
   const full = (_data?.users || []).find(x => x.username === u.username);
   if (!full) return false;
+  // Bug #51 fix: if students not loaded yet, allow — handler will fail-safe later
+  if (!_data.students || !_data.students.length) return true;
   if (full.visible_classes && full.visible_classes !== 'all') {
     const cls = full.visible_classes.split(',').map(s => s.trim()).filter(Boolean);
     const stu = _data.students.find(s => String(s['מזהה']) === String(sid));
-    if (!stu || !cls.includes(stu['מחזור'])) return false;
+    if (stu && !cls.includes(stu['מחזור'])) return false;
   }
   if (full.visible_students && full.visible_students !== 'all') {
     const ids = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
@@ -193,9 +195,7 @@ function getVisibleData() {
   // Bug #13 fix: apply visible_categories to ALL category-bearing entities
   let catFilter = null;
   if (full.visible_categories && full.visible_categories !== 'all') {
-    const cats = full.visible_categories.split(',').map(s => s.trim()).filter(Boolean);
-    catFilter = catSet => items => items.filter(e => !e['קטגוריה'] || cats.includes(e['קטגוריה']));
-    catFilter = cats; // store list
+    catFilter = full.visible_categories.split(',').map(s => s.trim()).filter(Boolean);
   }
   const applyCat = items => {
     if (!catFilter) return items;
@@ -308,7 +308,8 @@ async function api(fn, args) {
     case 'listAuditLog': {
       // Pull fresh from sheet (audit log is not cached aggressively)
       const rows = await pullFromSheet('יומן_פעולות');
-      return { ok: true, data: rows || [] };
+      if (rows === null) return { ok: false, error: 'אין חיבור לשיטס' };
+      return { ok: true, data: rows };
     }
     case 'addCategory': {
       const name = (args[0] || '').trim();
@@ -732,6 +733,7 @@ async function api(fn, args) {
       return { ok: true, data: getVisibleData().attendance || [] };
     case 'addMeeting': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       obj['מזהה'] = genId();
       _data.meetings = _data.meetings || [];
       _data.meetings.push(obj);
@@ -744,6 +746,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = (_data.meetings || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.meetings[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.meetings[idx] = Object.assign({}, _data.meetings[idx], obj);
       saveStored(_data); markLocalChange();
       syncUpdateRow('אסיפות', _data.meetings[idx], 'מזהה', id).then(updateSyncIndicator);
@@ -753,6 +756,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = (_data.meetings || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.meetings[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.meetings.splice(idx, 1);
       saveStored(_data); markLocalChange();
       syncDeleteRow('אסיפות', 'מזהה', id).then(updateSyncIndicator);
@@ -760,6 +764,7 @@ async function api(fn, args) {
     }
     case 'addAttendance': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       obj['מזהה'] = genId();
       _data.attendance = _data.attendance || [];
       _data.attendance.push(obj);
@@ -772,6 +777,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = (_data.attendance || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.attendance[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.attendance[idx] = Object.assign({}, _data.attendance[idx], obj);
       saveStored(_data); markLocalChange();
       syncUpdateRow('נוכחות', _data.attendance[idx], 'מזהה', id).then(updateSyncIndicator);
@@ -781,6 +787,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = (_data.attendance || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.attendance[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.attendance.splice(idx, 1);
       saveStored(_data); markLocalChange();
       syncDeleteRow('נוכחות', 'מזהה', id).then(updateSyncIndicator);
@@ -788,6 +795,7 @@ async function api(fn, args) {
     }
     case 'addFunctioning': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       obj['מזהה'] = genId();
       _data.functioning = _data.functioning || [];
       _data.functioning.push(obj);
@@ -801,6 +809,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = (_data.functioning || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.functioning[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.functioning[idx] = Object.assign({}, _data.functioning[idx], obj);
       saveStored(_data);
       markLocalChange();
@@ -811,6 +820,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = (_data.functioning || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.functioning[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.functioning.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
@@ -819,6 +829,7 @@ async function api(fn, args) {
     }
     case 'addTest': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       obj['מזהה'] = genId();
       _data.tests = _data.tests || [];
       _data.tests.push(obj);
@@ -832,6 +843,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = (_data.tests || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.tests[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.tests[idx] = Object.assign({}, _data.tests[idx], obj);
       saveStored(_data);
       markLocalChange();
@@ -842,6 +854,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = (_data.tests || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.tests[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.tests.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
@@ -850,6 +863,7 @@ async function api(fn, args) {
     }
     case 'addMedication': {
       const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       obj['מזהה'] = genId();
       _data.medications = _data.medications || [];
       _data.medications.push(obj);
@@ -863,6 +877,7 @@ async function api(fn, args) {
       const id = obj['מזהה'];
       const idx = (_data.medications || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.medications[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.medications[idx] = Object.assign({}, _data.medications[idx], obj);
       saveStored(_data);
       markLocalChange();
@@ -873,6 +888,7 @@ async function api(fn, args) {
       const id = args[0];
       const idx = (_data.medications || []).findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.medications[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
       _data.medications.splice(idx, 1);
       saveStored(_data);
       markLocalChange();

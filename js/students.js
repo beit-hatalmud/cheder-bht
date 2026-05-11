@@ -992,12 +992,14 @@ async function saveStudent() {
     if (!v.ok) return alert('שגיאות validation:\n' + v.errors.join('\n'));
   } else if (!obj['שם פרטי']) return alert('שם פרטי חובה');
   const editId = document.getElementById('addStudentModal').dataset.editId;
+  let r;
   if (editId) {
     obj['מזהה'] = parseInt(editId);
-    await api('updateStudent', [obj]);
+    r = await api('updateStudent', [obj]);
   } else {
-    await api('addStudent', [obj]);
+    r = await api('addStudent', [obj]);
   }
+  if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug fix: check ok
   bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
   renderStudents();
   loadStats();
