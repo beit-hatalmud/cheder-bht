@@ -1,5 +1,11 @@
 // Main app router & login
 
+// Round-5 fix: auto-add static backdrop to all modals (prevents dismiss during async save)
+document.addEventListener('show.bs.modal', (ev) => {
+  const m = ev.target;
+  if (m && !m.dataset.bsBackdrop) m.setAttribute('data-bs-backdrop', 'static');
+}, true);
+
 // Bug #1 fix: safe modal lifecycle — disposes Bootstrap instance + removes DOM
 window.cleanupModal = function(modalId) {
   const el = document.getElementById(modalId);

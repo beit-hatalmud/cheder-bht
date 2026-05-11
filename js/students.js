@@ -500,7 +500,8 @@ function editStudent(id) {
 
 async function deleteStudent(id) {
   if (!confirm('בטוח למחוק את התלמיד?')) return;
-  await api('deleteStudent', [id]);
+  const r = await api('deleteStudent', [id]);
+  if (r && !r.ok) return alert(r.error || 'שגיאה במחיקה');
   renderStudents();
   loadStats();
 }
@@ -639,6 +640,23 @@ async function saveEventForStudent(studentId, editId) {
   loadStats();
 }
 
+async function copyParentUrl() {
+  const input = document.getElementById('pl-url');
+  const url = input.value;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      input.select(); input.setSelectionRange(0, url.length);
+      document.execCommand('copy');
+    }
+    notify('הקישור הועתק', 'success');
+  } catch {
+    input.select();
+    notify('סמן ולחץ Ctrl+C להעתקה', 'warn');
+  }
+}
+
 async function shareParentPortal(id) {
   const s = _students.find(x => String(x['מזהה']) === String(id));
   if (!s) return;
@@ -658,7 +676,7 @@ async function shareParentPortal(id) {
       <p class="small text-muted">קישור פרטי לצפייה בלבד — ההורה יראה את הילד שלו בלבד.</p>
       <div class="input-group">
         <input id="pl-url" class="form-control" value="${escHtml(url)}" readonly>
-        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('pl-url').value); notify('הקישור הועתק','success')"><i class="bi bi-clipboard"></i> העתק</button>
+        <button class="btn btn-primary" onclick="copyParentUrl()"><i class="bi bi-clipboard"></i> העתק</button>
       </div>
       ${waUrl ? `<div class="mt-3"><a href="${waUrl}" target="_blank" class="btn btn-success w-100"><i class="bi bi-whatsapp"></i> שלח ב-WhatsApp להורה</a></div>` : ''}
     </div>

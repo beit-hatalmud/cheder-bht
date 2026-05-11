@@ -143,7 +143,11 @@ async function loadData() {
 
 function getData() {
   // Trigger background load (but don't await — sync callers get whatever is loaded now)
-  if (!_loaded) ensureLoaded();
+  if (!_loaded) {
+    ensureLoaded().then(() => {
+      try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
+    });
+  }
   return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
 }
 
@@ -904,10 +908,12 @@ async function api(fn, args) {
 }
 
 let _loaded = false;
+let _loadingPromise = null;
 async function ensureLoaded() {
   if (_loaded) return;
-  _loaded = true;
-  await loadData();
+  if (_loadingPromise) return _loadingPromise;
+  _loadingPromise = loadData().then(() => { _loaded = true; });
+  return _loadingPromise;
 }
 
 // Background sync to Apps Script (best-effort)
@@ -1250,9 +1256,10 @@ window.addEventListener('load', () => {
   }, 1500);
 });
 
-// Periodic pull every 60 seconds for true bi-directional sync
+// Periodic pull every 60 seconds for true bi-directional sync — only when authenticated
 setInterval(async () => {
-  if (_online && _data) {
-    await pullAllFromSheet();
-  }
+  if (!_online || !_data) return;
+  const sess = JSON.parse(sessionStorage.getItem('user') || 'null');
+  if (!sess) return;  // skip on login screen
+  await pullAllFromSheet();
 }, 60000);
