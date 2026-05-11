@@ -22,7 +22,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','settings','reports'];
+const PAGES = ['login','home','students','behavior','functioning','tests','medications','settings','reports'];
 
 function showPage(name) {
   PAGES.forEach(p => {
@@ -30,6 +30,9 @@ function showPage(name) {
   });
   if (name === 'students' && typeof renderStudents === 'function') renderStudents();
   if (name === 'behavior' && typeof renderBehavior === 'function') renderBehavior();
+  if (name === 'functioning' && typeof renderFunctioning === 'function') renderFunctioning();
+  if (name === 'tests' && typeof renderTests === 'function') renderTests();
+  if (name === 'medications' && typeof renderMedications === 'function') renderMedications();
   if (name === 'settings' && typeof renderSettings === 'function') renderSettings();
   if (name === 'reports' && typeof renderReports === 'function') renderReports();
 }
@@ -164,6 +167,9 @@ function filterByPermissions(){
   const permissions = {
     'students': ['students','all'],
     'behavior': ['behavior','all'],
+    'functioning': ['functioning','all'],
+    'tests': ['tests','all'],
+    'medications': ['medications','all'],
     'settings': ['settings','all'],
     'reports': ['reports','all'],
   };

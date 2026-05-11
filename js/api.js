@@ -45,12 +45,15 @@ async function fetchJson(path) {
 async function loadData() {
   const stored = loadStored();
   // Try fetching latest JSON files
-  const [studentsJ, behaviorJ, usersJ, categoriesJ, classesJ] = await Promise.all([
+  const [studentsJ, behaviorJ, usersJ, categoriesJ, classesJ, funcJ, testsJ, medsJ] = await Promise.all([
     fetchJson('data/students.json'),
     fetchJson('data/behavior.json'),
     fetchJson('data/users.json'),
     fetchJson('data/categories.json'),
     fetchJson('data/classes.json'),
+    fetchJson('data/functioning.json'),
+    fetchJson('data/tests.json'),
+    fetchJson('data/medications.json'),
   ]);
   const useStored = (arr) => Array.isArray(arr) && arr.length > 0;
   _data = {
@@ -59,6 +62,9 @@ async function loadData() {
     users: useStored(stored.users) ? stored.users : ((usersJ && usersJ.users) || [{username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'}]),
     categories: (categoriesJ && categoriesJ.categories) || [],
     classes: useStored(stored.classes) ? stored.classes : ((classesJ && classesJ.classes) || []),
+    functioning: useStored(stored.functioning) ? stored.functioning : ((funcJ && funcJ.entries) || []),
+    tests: useStored(stored.tests) ? stored.tests : ((testsJ && testsJ.tests) || []),
+    medications: useStored(stored.medications) ? stored.medications : ((medsJ && medsJ.medications) || []),
   };
   // Default status to פעיל for legacy students
   _data.students.forEach(s => { if (!s['סטטוס']) s['סטטוס'] = 'פעיל'; });
@@ -90,11 +96,11 @@ async function loadData() {
 }
 
 function getData() {
-  return _data || { students: [], behavior: [], users: [], categories: [], classes: [] };
+  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [] };
 }
 
 function saveData(part, value) {
-  if (!_data) _data = { students:[], behavior:[], users:[], categories:[], classes:[] };
+  if (!_data) _data = { students:[], behavior:[], users:[], categories:[], classes:[], functioning:[], tests:[], medications:[] };
   _data[part] = value;
   saveStored(_data);
 }
@@ -488,6 +494,108 @@ async function api(fn, args) {
       if (!fullUser || !fullUser.visible_categories || fullUser.visible_categories === 'all') return { ok: true, data: null };
       return { ok: true, data: fullUser.visible_categories.split(',').map(s => s.trim()).filter(Boolean) };
     }
+    case 'listFunctioning':
+      return { ok: true, data: _data.functioning || [] };
+    case 'listTests':
+      return { ok: true, data: _data.tests || [] };
+    case 'listMedications':
+      return { ok: true, data: _data.medications || [] };
+    case 'addFunctioning': {
+      const obj = args[0];
+      const max = (_data.functioning || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
+      obj['מזהה'] = max + 1;
+      _data.functioning = _data.functioning || [];
+      _data.functioning.push(obj);
+      saveStored(_data);
+      markLocalChange();
+      syncRowToSheet('תפקוד', obj).then(updateSyncIndicator);
+      return { ok: true, data: { rowCount: _data.functioning.length } };
+    }
+    case 'updateFunctioning': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.functioning || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.functioning[idx] = Object.assign({}, _data.functioning[idx], obj);
+      saveStored(_data);
+      markLocalChange();
+      syncUpdateRow('תפקוד', _data.functioning[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteFunctioning': {
+      const id = args[0];
+      const idx = (_data.functioning || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.functioning.splice(idx, 1);
+      saveStored(_data);
+      markLocalChange();
+      syncDeleteRow('תפקוד', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'addTest': {
+      const obj = args[0];
+      const max = (_data.tests || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
+      obj['מזהה'] = max + 1;
+      _data.tests = _data.tests || [];
+      _data.tests.push(obj);
+      saveStored(_data);
+      markLocalChange();
+      syncRowToSheet('מבחנים', obj).then(updateSyncIndicator);
+      return { ok: true, data: { rowCount: _data.tests.length } };
+    }
+    case 'updateTest': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.tests || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.tests[idx] = Object.assign({}, _data.tests[idx], obj);
+      saveStored(_data);
+      markLocalChange();
+      syncUpdateRow('מבחנים', _data.tests[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteTest': {
+      const id = args[0];
+      const idx = (_data.tests || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.tests.splice(idx, 1);
+      saveStored(_data);
+      markLocalChange();
+      syncDeleteRow('מבחנים', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'addMedication': {
+      const obj = args[0];
+      const max = (_data.medications || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
+      obj['מזהה'] = max + 1;
+      _data.medications = _data.medications || [];
+      _data.medications.push(obj);
+      saveStored(_data);
+      markLocalChange();
+      syncRowToSheet('כדורים', obj).then(updateSyncIndicator);
+      return { ok: true, data: { rowCount: _data.medications.length } };
+    }
+    case 'updateMedication': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.medications || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.medications[idx] = Object.assign({}, _data.medications[idx], obj);
+      saveStored(_data);
+      markLocalChange();
+      syncUpdateRow('כדורים', _data.medications[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteMedication': {
+      const id = args[0];
+      const idx = (_data.medications || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.medications.splice(idx, 1);
+      saveStored(_data);
+      markLocalChange();
+      syncDeleteRow('כדורים', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'exportPDF':
       // generate PDF in browser using jsPDF or similar
       return { ok: false, error: 'ייצוא PDF טרם נתמך, יוטמע בקרוב' };
@@ -597,11 +705,14 @@ async function pullAllFromSheet() {
     console.log('[sync] skipping pull — recent local change');
     return;
   }
-  const [students, behavior, users, classes] = await Promise.all([
+  const [students, behavior, users, classes, functioning, tests, medications] = await Promise.all([
     pullFromSheet('תלמידים'),
     pullFromSheet('מעקב_התנהגות'),
     pullFromSheet('משתמשים'),
     pullFromSheet('כיתות'),
+    pullFromSheet('תפקוד'),
+    pullFromSheet('מבחנים'),
+    pullFromSheet('כדורים'),
   ]);
   // Don't overwrite local with empty if local has data (avoid silent wipe)
   const safeReplace = (cur, fresh) => {
@@ -631,9 +742,12 @@ async function pullAllFromSheet() {
     }
   }
   _data.classes = safeReplace(_data.classes, classes);
+  _data.functioning = safeReplace(_data.functioning, functioning);
+  _data.tests = safeReplace(_data.tests, tests);
+  _data.medications = safeReplace(_data.medications, medications);
   saveStored(_data);
   // If everything failed, mark offline; if at least one succeeded, online
-  const allFailed = students === null && behavior === null && users === null && classes === null;
+  const allFailed = students === null && behavior === null && users === null && classes === null && functioning === null && tests === null && medications === null;
   _online = !allFailed;
   // Refresh in-memory currentUser from refreshed users list
   try {

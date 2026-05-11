@@ -1,5 +1,30 @@
 let _events = [], _categories = [], _allStudents = [];
 
+// Compute Hebrew date + parsha for a given JS Date
+function getHebrewInfo(jsDate) {
+  if (typeof hebcal === 'undefined' || !hebcal.HDate) {
+    return { hdate: '', parsha: '' };
+  }
+  try {
+    const hd = new hebcal.HDate(jsDate);
+    const hdate = hd.renderGematriya('he');
+    let parsha = '';
+    try {
+      // Find the parsha of the upcoming Shabbat
+      const sat = new Date(jsDate);
+      sat.setDate(sat.getDate() + ((6 - sat.getDay()) % 7 || 7));
+      const sedra = new hebcal.Sedra(hd.getFullYear(), false);
+      const p = sedra.lookup(new hebcal.HDate(sat));
+      if (p && p.parsha && p.parsha.length) {
+        parsha = p.parsha.join(' ');
+      }
+    } catch (e) {}
+    return { hdate, parsha };
+  } catch (e) {
+    return { hdate: '', parsha: '' };
+  }
+}
+
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
@@ -56,20 +81,33 @@ function drawEvents(list) {
   }
   el.innerHTML = list.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
-    const date = e['תאריך'] ? new Date(e['תאריך']).toLocaleString('he-IL') : '';
+    const date = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
+    let hdate = e['תאריך_עברי'] || '';
+    let parsha = e['פרשה'] || '';
+    // Backfill from JS date if missing
+    if ((!hdate || !parsha) && e['תאריך']) {
+      const info = getHebrewInfo(new Date(e['תאריך']));
+      if (!hdate) hdate = info.hdate;
+      if (!parsha) parsha = info.parsha;
+    }
     const reporter = e['דווח_עי'] || '';
+    const lesson = e['שיעור'] || '';
     const reporterBadge = reporter ? `<small class="text-muted"><i class="bi bi-person-fill"></i> ${escHtml(reporter)}</small>` : '';
+    const lessonBadge = lesson ? `<small class="text-muted ms-2"><i class="bi bi-book"></i> ${escHtml(lesson)}</small>` : '';
+    const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
+    const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
     return `<div class="card p-3 mb-2 ${sev}">
-      <div class="d-flex justify-content-between">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
         <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          ${parshaBadge}${hdateBadge}
           <small class="text-muted">${escHtml(date)}</small>
           <button class="btn btn-sm btn-outline-primary" onclick="editEvent(${e['מזהה']||0})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>
       </div>
       <p class="mb-0 mt-2">${escHtml(e['תיאור']||'')}</p>
-      ${reporterBadge ? `<div class="mt-2">${reporterBadge}</div>` : ''}
+      ${(reporterBadge || lessonBadge) ? `<div class="mt-2">${reporterBadge}${lessonBadge}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -130,9 +168,20 @@ async function saveEvent() {
   const editId = document.getElementById('addEvModal').dataset.editId;
   if (editId) {
     obj['מזהה'] = parseInt(editId);
+    // Preserve original date — recompute hebrew/parsha from it
+    const orig = _events.find(x => String(x['מזהה']) === String(editId));
+    if (orig && orig['תאריך']) {
+      const info = getHebrewInfo(new Date(orig['תאריך']));
+      obj['תאריך_עברי'] = orig['תאריך_עברי'] || info.hdate;
+      obj['פרשה'] = orig['פרשה'] || info.parsha;
+    }
     await api('updateBehavior', [obj]);
   } else {
-    obj['תאריך'] = new Date().toISOString();
+    const now = new Date();
+    const info = getHebrewInfo(now);
+    obj['תאריך'] = now.toISOString();
+    obj['תאריך_עברי'] = info.hdate;
+    obj['פרשה'] = info.parsha;
     obj['דווח_עי'] = reporter;
     await api('addBehavior', [obj]);
   }
