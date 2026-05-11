@@ -49,6 +49,15 @@ async function renderSettings() {
       </div>
     </div>
     <div class="card p-3 mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><i class="bi bi-journal-text"></i> יומן פעולות</h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="loadAuditLog()"><i class="bi bi-arrow-clockwise"></i> רענן</button>
+      </div>
+      <div id="audit-log" class="small" style="max-height:300px;overflow-y:auto">
+        <p class="text-muted small">לחץ "רענן" להצגת יומן הפעולות מהשיטס</p>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
       <h5><i class="bi bi-cloud"></i> סטטוס סנכרון</h5>
       <div id="sync-status" class="small"></div>
     </div>
@@ -469,6 +478,30 @@ async function deleteCategory(idx) {
   if (!r.ok) return alert(r.error || 'שגיאה');
   renderCategories();
   notify('נמחק', 'success');
+}
+
+async function loadAuditLog() {
+  const el = document.getElementById('audit-log');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div> טוען...</div>';
+  const r = await api('listAuditLog', []);
+  const rows = (r.data || []).slice().reverse().slice(0, 50);
+  if (!rows.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">אין פעולות מתועדות</p>';
+    return;
+  }
+  el.innerHTML = '<table class="table table-sm mb-0"><thead><tr><th>תאריך</th><th>משתמש</th><th>פעולה</th><th>טאב</th><th>תיאור</th></tr></thead><tbody>' +
+    rows.map(r => {
+      const dt = r['תאריך'] ? new Date(r['תאריך']).toLocaleString('he-IL') : '';
+      const actionColor = r['פעולה']==='מחיקה'?'text-danger':r['פעולה']==='הוספה'?'text-success':'text-primary';
+      return `<tr>
+        <td class="text-muted" style="white-space:nowrap">${escHtml(dt)}</td>
+        <td><strong>${escHtml(r['משתמש']||'')}</strong></td>
+        <td class="${actionColor}">${escHtml(r['פעולה']||'')}</td>
+        <td><span class="badge bg-light text-dark">${escHtml(r['טאב']||'')}</span></td>
+        <td class="small">${escHtml(r['תיאור']||'')}</td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
 }
 
 function renderSyncStatus() {

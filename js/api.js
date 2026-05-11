@@ -7,6 +7,27 @@ const AGENT_TOKEN = 'BHT_AGENT_2026';
 const INSTANCE = 'bht';
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1-GFdXr0diOlof-mMAp2Qci0fVjq0QHf21rv3FNFHQOs/edit';
 
+// Password hashing — SHA-256 with site-wide salt
+const PWD_SALT = 'BHT2026!cheder';
+const PWD_PREFIX = 'sha256:';
+
+async function hashPassword(pw) {
+  if (!pw) return '';
+  const data = new TextEncoder().encode(PWD_SALT + ':' + pw);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+  return PWD_PREFIX + hex;
+}
+
+async function verifyPassword(stored, attempt) {
+  if (!stored || !attempt) return false;
+  if (stored.startsWith(PWD_PREFIX)) {
+    return (await hashPassword(attempt)) === stored;
+  }
+  // Backward compat: plain-text stored password (will be migrated on next login)
+  return String(stored) === String(attempt);
+}
+
 let _data = null;
 let _online = false;
 
@@ -121,8 +142,25 @@ async function api(fn, args) {
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
-      const user = _data.users.find(x => x.username === u && x.password_hash === p);
+      const user = _data.users.find(x => x.username === u);
       if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
+      const matches = await verifyPassword(user.password_hash, p);
+      if (!matches) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
+      // Auto-migrate plaintext to hash on successful login
+      if (!String(user.password_hash || '').startsWith(PWD_PREFIX)) {
+        user.password_hash = await hashPassword(p);
+        saveStored(_data);
+        markLocalChange();
+        const sheetObj = {
+          'שם משתמש': user.username, 'סיסמה': user.password_hash,
+          'תפקיד': user.role, 'הרשאות': user.permissions,
+          'תלמידים_מורשים': user.visible_students || 'all',
+          'קטגוריות_מורשות': user.visible_categories || 'all',
+          'שם מלא': user.full_name || '', 'אימייל': user.email || '',
+          'טלפון': user.phone || '', 'הערות_משתמש': user.notes || '',
+        };
+        syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', user.username).then(updateSyncIndicator);
+      }
       return { ok: true, data: { ok: true, user: { username: u, role: user.role } } };
     }
     case 'listStudents': {
@@ -150,6 +188,11 @@ async function api(fn, args) {
         }
       }
       return { ok: true, data: events };
+    }
+    case 'listAuditLog': {
+      // Pull fresh from sheet (audit log is not cached aggressively)
+      const rows = await pullFromSheet('יומן_פעולות');
+      return { ok: true, data: rows || [] };
     }
     case 'addCategory': {
       const name = (args[0] || '').trim();
@@ -199,6 +242,7 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncRowToSheet('תלמידים', obj).then(updateSyncIndicator);
+      _auditLog('הוספה', 'תלמידים', obj['מזהה'], `${obj['שם פרטי']||''} ${obj['שם משפחה']||''}`);
       return { ok: true, data: { rowCount: _data.students.length } };
     }
     case 'listClasses':
@@ -377,6 +421,7 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncRowToSheet('מעקב_התנהגות', obj).then(updateSyncIndicator);
+      _auditLog('הוספה', 'מעקב_התנהגות', obj['מזהה'], `${obj['שם תלמיד']||''} - ${obj['קטגוריה']||''}`);
       return { ok: true, data: { rowCount: _data.behavior.length } };
     }
     case 'updateStudent': {
@@ -388,16 +433,19 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncUpdateRow('תלמידים', _data.students[idx], 'מזהה', id).then(updateSyncIndicator);
+      _auditLog('עדכון', 'תלמידים', id, `${_data.students[idx]['שם פרטי']||''} ${_data.students[idx]['שם משפחה']||''}`);
       return { ok: true };
     }
     case 'deleteStudent': {
       const id = args[0];
       const idx = _data.students.findIndex(s => String(s['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      const removed = _data.students[idx];
       _data.students.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
       syncDeleteRow('תלמידים', 'מזהה', id).then(updateSyncIndicator);
+      _auditLog('מחיקה', 'תלמידים', id, `${removed['שם פרטי']||''} ${removed['שם משפחה']||''}`);
       return { ok: true };
     }
     case 'updateBehavior': {
@@ -409,16 +457,19 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncUpdateRow('מעקב_התנהגות', _data.behavior[idx], 'מזהה', id).then(updateSyncIndicator);
+      _auditLog('עדכון', 'מעקב_התנהגות', id, `${_data.behavior[idx]['שם תלמיד']||''} - ${_data.behavior[idx]['קטגוריה']||''}`);
       return { ok: true };
     }
     case 'deleteBehavior': {
       const id = args[0];
       const idx = _data.behavior.findIndex(e => String(e['מזהה']) === String(id));
       if (idx < 0) return { ok: false, error: 'not found' };
+      const removed = _data.behavior[idx];
       _data.behavior.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
       syncDeleteRow('מעקב_התנהגות', 'מזהה', id).then(updateSyncIndicator);
+      _auditLog('מחיקה', 'מעקב_התנהגות', id, `${removed['שם תלמיד']||''} - ${removed['קטגוריה']||''}`);
       return { ok: true };
     }
     case 'updateUser': {
@@ -427,9 +478,15 @@ async function api(fn, args) {
       const lookupUsername = obj['שם משתמש קודם'] || newUsername;
       const idx = _data.users.findIndex(u => u.username === lookupUsername);
       if (idx < 0) return { ok: false, error: 'not found' };
+      // Hash password if provided as plain text
+      let newPwd = obj['סיסמה'] || obj.password_hash || _data.users[idx].password_hash;
+      if (newPwd && !String(newPwd).startsWith(PWD_PREFIX) && obj['סיסמה']) {
+        // Only hash if it's a new plain-text password being set
+        newPwd = await hashPassword(obj['סיסמה']);
+      }
       const updated = {
         username: newUsername,
-        password_hash: obj['סיסמה'] || obj.password_hash || _data.users[idx].password_hash,
+        password_hash: newPwd,
         role: obj['תפקיד'] ?? obj.role ?? _data.users[idx].role,
         permissions: obj['הרשאות'] ?? obj.permissions ?? _data.users[idx].permissions ?? '',
         visible_students: obj['תלמידים_מורשים'] ?? obj.visible_students ?? 'all',
@@ -462,6 +519,7 @@ async function api(fn, args) {
       } else {
         syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', newUsername).then(updateSyncIndicator);
       }
+      _auditLog('עדכון', 'משתמשים', newUsername, `עדכון משתמש: ${newUsername} (${updated.role})`);
       // If session belongs to renamed user, refresh session
       const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
       if (sess.username === lookupUsername) {
@@ -485,13 +543,16 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncDeleteRow('משתמשים', 'שם משתמש', username).then(updateSyncIndicator);
+      _auditLog('מחיקה', 'משתמשים', username, `נמחק משתמש: ${username}`);
       return { ok: true };
     }
     case 'addUser': {
       const obj = args[0];
+      const rawPwd = obj['סיסמה'] || '';
+      const hashed = rawPwd && !rawPwd.startsWith(PWD_PREFIX) ? await hashPassword(rawPwd) : rawPwd;
       const newUser = {
         username: obj['שם משתמש'],
-        password_hash: obj['סיסמה'],
+        password_hash: hashed,
         role: obj['תפקיד'],
         permissions: obj['הרשאות'],
         visible_students: obj['תלמידים_מורשים'] || 'all',
@@ -509,7 +570,10 @@ async function api(fn, args) {
       }
       saveStored(_data);
       markLocalChange();
-      syncRowToSheet('משתמשים', obj).then(updateSyncIndicator);
+      // Use hashed password in sheet, never plain
+      const sheetObj = { ...obj, 'סיסמה': hashed };
+      syncRowToSheet('משתמשים', sheetObj).then(updateSyncIndicator);
+      _auditLog('הוספה', 'משתמשים', newUser.username, `משתמש חדש: ${newUser.username} (${newUser.role})`);
       return { ok: true, data: { rowCount: _data.users.length } };
     }
     case 'currentUserVisibleStudents': {
@@ -806,6 +870,30 @@ async function pullFromSheet(tab) {
 let _lastLocalChange = 0;
 function markLocalChange() {
   _lastLocalChange = Date.now();
+}
+
+// =====================
+// Audit log — every write goes to יומן_פעולות
+// =====================
+function _auditLog(action, tab, rowId, description) {
+  try {
+    const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const user = sess.username || 'anonymous';
+    const entry = {
+      'מזהה': Date.now() + '-' + Math.floor(Math.random()*1000),
+      'תאריך': new Date().toISOString(),
+      'משתמש': user,
+      'פעולה': action,
+      'טאב': tab,
+      'מזהה_שורה': String(rowId || ''),
+      'תיאור': String(description || '').slice(0, 200),
+    };
+    // Append directly to the audit tab (bypass api() to avoid recursion)
+    _enqueueOrSend({
+      kind: 'append', tab: 'יומן_פעולות', row: entry,
+      payload: { action: 'cheder_appendRow', token: AGENT_TOKEN, instance: INSTANCE, tab: 'יומן_פעולות', row: JSON.stringify(entry) },
+    });
+  } catch (e) { /* never let audit break the app */ }
 }
 
 // =====================

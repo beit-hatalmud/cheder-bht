@@ -257,16 +257,55 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 
 /* Mobile */
 @media (max-width:768px){
-  body{font-size:14.5px}
+  body{font-size:14.5px;padding-bottom:80px}
   .navbar{padding:.7rem 0}
   .brand-logo{width:38px;height:38px}
-  .brand-text{font-size:1.1rem}
-  .card-tile{padding:1.5rem 1rem}
-  .card-tile h5{font-size:1rem}
+  .brand-text{font-size:1.05rem}
+  .card-tile{padding:1.25rem .75rem}
+  .card-tile h5{font-size:.95rem}
   .table{font-size:.85rem}
   .display-6{font-size:1.5rem}
   h3{font-size:1.35rem}
   #page-login .card{padding:1.75rem 1.25rem!important;margin-top:1.5rem!important}
+  /* Bigger tap targets (Apple HIG: 44px min) */
+  .btn,.form-control,.form-select,.btn-sm{min-height:44px}
+  .btn-sm{font-size:.85rem;padding:.4rem .65rem}
+  /* No horizontal scroll on tables */
+  .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Modals full-screen on mobile for easier interaction */
+  .modal-dialog{margin:0;max-width:100%;height:100%}
+  .modal-content{border-radius:0;min-height:100vh}
+  .modal-fullscreen-on-mobile .modal-body{max-height:calc(100vh - 180px);overflow-y:auto}
+  /* Calendar table cells smaller text */
+  #cal-grid table{font-size:.75rem}
+  #cal-grid td{height:60px!important;padding:2px!important}
+  #cal-grid td .small{font-size:.6rem!important}
+  /* Compact dashboard cards */
+  .display-6{font-size:1.4rem!important}
+  /* Group filter cards into single column */
+  .row.g-2>.col-md-3,.row.g-2>.col-md-4,.row.g-2>.col-md-6{margin-bottom:.5rem}
+  /* Sticky bottom action bar (for primary actions) */
+  .sticky-bottom-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#fff;border-top:1px solid var(--border);
+    padding:.6rem .75rem;display:flex;gap:.5rem;
+    box-shadow:0 -4px 12px rgba(0,0,0,.08);z-index:1020;
+  }
+  .sticky-bottom-bar .btn{flex:1;min-height:48px}
+  /* Hide secondary actions in compact mode */
+  .mobile-hide{display:none!important}
+  /* Force wrap of long content */
+  .text-break-all{word-break:break-all}
+  /* Bigger student avatars for tap */
+  .avatar{width:44px!important;height:44px!important}
+  /* Toast positioned higher for mobile */
+  .toast-container{bottom:80px!important;top:auto!important}
+}
+
+/* Tablet */
+@media (max-width:1024px) and (min-width:769px){
+  .btn,.form-control,.form-select{min-height:40px}
+  #cal-grid td{height:75px}
 }
 
 /* Page enter animation */

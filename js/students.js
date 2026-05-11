@@ -266,11 +266,22 @@ async function viewStudent(id) {
         <h6><i class="bi bi-graph-up"></i> מגמת התנהגות (14 ימים)</h6>
         <canvas id="stu-trend-chart" style="max-height:120px"></canvas>
       </div>
-      <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-        <h6 class="mb-0">היסטוריית התנהגות (${events.length})</h6>
-        <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
+      <ul class="nav nav-tabs mt-3" id="stu-tabs">
+        <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#stu-tab-behavior">התנהגות (${events.length})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-timeline">טיים-ליין</a></li>
+      </ul>
+      <div class="tab-content pt-2">
+        <div class="tab-pane fade show active" id="stu-tab-behavior">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span></span>
+            <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
+          </div>
+          ${eventsHtml}
+        </div>
+        <div class="tab-pane fade" id="stu-tab-timeline">
+          <div id="stu-timeline-content"><div class="text-center py-3 text-muted"><i class="bi bi-hourglass"></i> טוען...</div></div>
+        </div>
       </div>
-      ${eventsHtml}
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline-warning" onclick="shareParentPortal(${id})"><i class="bi bi-link-45deg"></i> קישור להורים</button>
@@ -286,6 +297,9 @@ async function viewStudent(id) {
   new bootstrap.Modal(modalEl).show();
   // Trend chart for last 14 days
   setTimeout(() => drawStudentTrendChart(id, events), 200);
+  // Lazy-load timeline when tab clicked
+  const tlTab = modalEl.querySelector('a[href="#stu-tab-timeline"]');
+  if (tlTab) tlTab.addEventListener('shown.bs.tab', () => drawStudentTimeline(id), { once: true });
   // Keyboard navigation
   const onKey = (e) => {
     if (e.target.matches('input,textarea,select')) return;
@@ -294,6 +308,108 @@ async function viewStudent(id) {
   };
   document.addEventListener('keydown', onKey);
   modalEl.addEventListener('hidden.bs.modal', () => document.removeEventListener('keydown', onKey), { once: true });
+}
+
+async function drawStudentTimeline(studentId) {
+  const el = document.getElementById('stu-timeline-content');
+  if (!el) return;
+  const data = getData();
+  const items = [];
+  // Behavior
+  (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(studentId)).forEach(e => {
+    items.push({
+      date: e['תאריך'],
+      type: 'התנהגות',
+      icon: 'bi-clipboard-check',
+      color: e['חומרה']==='גבוהה'?'danger':e['חומרה']==='נמוכה'?'success':'warning',
+      title: e['קטגוריה'] || 'אירוע',
+      body: e['תיאור'] || '',
+      extra: e['דווח_עי'] ? `דווח ע"י ${e['דווח_עי']}` : '',
+    });
+  });
+  // Tests
+  (data.tests||[]).filter(t => String(t['תלמיד_מזהה']) === String(studentId)).forEach(t => {
+    if (!t['תאריך']) return;
+    const score = parseFloat(t['ציון']) || 0;
+    items.push({
+      date: t['תאריך'],
+      type: 'מבחן',
+      icon: 'bi-pencil-square',
+      color: score >= 85 ? 'success' : score >= 70 ? 'warning' : 'danger',
+      title: `${t['סוג']||''} · ${t['פרשה']||''}`,
+      body: `ציון: ${score}`,
+      extra: '',
+    });
+  });
+  // Functioning
+  (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(studentId)).slice(0, 50).forEach(f => {
+    items.push({
+      date: f['תאריך'],
+      type: 'תפקוד',
+      icon: 'bi-bar-chart-line',
+      color: 'info',
+      title: `${f['קטגוריה']||''}: ${f['פרמטר']||''}`,
+      body: `ציון: ${f['ציון']||'-'} (${f['תקופה']||''})`,
+      extra: '',
+    });
+  });
+  // Meetings
+  (data.meetings||[]).filter(m => String(m['תלמיד_מזהה']) === String(studentId)).forEach(m => {
+    items.push({
+      date: m['תאריך'],
+      type: 'אסיפה',
+      icon: 'bi-people-fill',
+      color: 'primary',
+      title: m['נושא'] || 'אסיפת הורים',
+      body: m['סיכום'] || '',
+      extra: m['משתתפים'] ? `משתתפים: ${m['משתתפים']}` : '',
+    });
+  });
+  // Attendance
+  (data.attendance||[]).filter(a => String(a['תלמיד_מזהה']) === String(studentId)).slice(0, 50).forEach(a => {
+    if (!a['תאריך']) return;
+    items.push({
+      date: a['תאריך'],
+      type: 'נוכחות',
+      icon: 'bi-check2-square',
+      color: a['סטטוס']==='נוכח'?'success':a['סטטוס']==='איחור'?'info':'warning',
+      title: a['סטטוס'] || '',
+      body: '',
+      extra: '',
+    });
+  });
+  // Medication updates
+  (data.medications||[]).filter(m => String(m['תלמיד_מזהה']) === String(studentId)).forEach(m => {
+    items.push({
+      date: m['תאריך_עדכון'],
+      type: 'רפואי',
+      icon: 'bi-capsule',
+      color: 'secondary',
+      title: m['תרופה'] || 'מעקב רפואי',
+      body: m['מצב_כיום'] || m['שיחת_הורים'] || '',
+      extra: '',
+    });
+  });
+
+  items.sort((a,b) => new Date(b.date||0) - new Date(a.date||0));
+  if (!items.length) {
+    el.innerHTML = '<p class="text-muted text-center py-3">אין נתונים בטיים-ליין</p>';
+    return;
+  }
+  el.innerHTML = `<div class="timeline">${items.slice(0, 100).map(item => {
+    const dt = item.date ? new Date(item.date).toLocaleDateString('he-IL') : '?';
+    return `<div class="d-flex gap-2 align-items-start py-2 border-bottom">
+      <i class="bi ${item.icon} text-${item.color}" style="font-size:1.25rem;margin-top:.15rem"></i>
+      <div class="flex-grow-1">
+        <div class="d-flex justify-content-between align-items-center">
+          <strong>${escHtml(item.title)}</strong>
+          <small class="text-muted">${escHtml(dt)} · ${escHtml(item.type)}</small>
+        </div>
+        ${item.body ? `<div class="small mt-1">${escHtml(item.body)}</div>` : ''}
+        ${item.extra ? `<div class="small text-muted mt-1">${escHtml(item.extra)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function drawStudentTrendChart(studentId, events) {
@@ -719,7 +835,10 @@ async function saveStudent() {
     'טלפון אב': document.getElementById('ns-fphone').value,
     'כתובת': document.getElementById('ns-addr').value,
   };
-  if (!obj['שם פרטי']) return alert('שם פרטי חובה');
+  if (typeof validateStudent === 'function') {
+    const v = validateStudent(obj);
+    if (!v.ok) return alert('שגיאות validation:\n' + v.errors.join('\n'));
+  } else if (!obj['שם פרטי']) return alert('שם פרטי חובה');
   const editId = document.getElementById('addStudentModal').dataset.editId;
   if (editId) {
     obj['מזהה'] = parseInt(editId);
