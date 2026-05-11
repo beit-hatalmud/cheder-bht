@@ -8,7 +8,7 @@ async function renderSettings() {
     <div class="card p-3 mb-3">
       <h5>משתמשים</h5>
       <table class="table table-hover">
-        <thead><tr><th>שם משתמש</th><th>תפקיד</th><th>הרשאות</th><th>פעולות</th></tr></thead>
+        <thead><tr><th>שם משתמש</th><th>תפקיד</th><th>הרשאות</th><th>כיתות</th><th>פעולות</th></tr></thead>
         <tbody id="users-tbody"></tbody>
       </table>
     </div>
@@ -98,7 +98,10 @@ async function renderSettings() {
     const actions =
       `<button class="btn btn-sm btn-outline-primary me-1" onclick="editUser(${jsAttr(uname)})"><i class="bi bi-pencil"></i></button>
        ${deleteBtn}`;
-    return `<tr><td>${escHtml(uname)}</td><td><span class="badge ${cls}">${escHtml(role)}</span></td><td>${permBadges}</td><td>${actions}</td></tr>`;
+    const vc = u['כיתות_מורשות'] || u.visible_classes || 'all';
+    const classesBadge = (vc === 'all' || !vc) ? '<span class="text-muted small">הכל</span>' :
+      vc.split(',').map(c => `<span class="badge bg-info text-dark me-1">${escHtml(c.trim())}</span>`).join('');
+    return `<tr><td>${escHtml(uname)}</td><td><span class="badge ${cls}">${escHtml(role)}</span></td><td>${permBadges}</td><td>${classesBadge}</td><td>${actions}</td></tr>`;
   }).join('');
 }
 
@@ -139,6 +142,15 @@ async function editUser(username) {
       const wanted = u.visible_categories.split(',').map(s=>s.trim());
       document.querySelectorAll('.cat-cb').forEach(cb => {
         if (wanted.includes(cb.dataset.catName || cb.value)) cb.checked = true;
+      });
+    }
+    const allCls = !u.visible_classes || u.visible_classes === 'all';
+    document.getElementById('all-classes').checked = allCls;
+    document.getElementById('all-classes').dispatchEvent(new Event('change'));
+    if (!allCls) {
+      const wantedC = u.visible_classes.split(',').map(s=>s.trim());
+      document.querySelectorAll('.class-cb').forEach(cb => {
+        if (wantedC.includes(cb.value)) cb.checked = true;
       });
     }
     modalEl.dataset.editMode = '1';
@@ -337,6 +349,22 @@ function addUserModal() {
           ${checkboxes}
         </div>
         <div class="col-12">
+          <h6 class="mt-2"><i class="bi bi-mortarboard"></i> אילו כיתות יוכל לראות?</h6>
+          <div class="border rounded p-2 mb-2">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="all-classes" checked>
+              <label class="form-check-label fw-bold" for="all-classes">כל הכיתות</label>
+            </div>
+            <div id="class-list" class="d-none d-flex flex-wrap gap-3">
+              ${(data.classes || []).sort((a,b) => parseInt(a['סדר'])-parseInt(b['סדר'])).map(c => `
+                <div class="form-check">
+                  <input class="form-check-input class-cb" type="checkbox" value="${escHtml(c['שם'])}" id="cls-perm-${escHtml(c['שם'])}">
+                  <label class="form-check-label" for="cls-perm-${escHtml(c['שם'])}">כיתה <strong>${escHtml(c['שם'])}</strong></label>
+                </div>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
           <h6 class="mt-2"><i class="bi bi-people"></i> אילו תלמידים יוכל לראות?</h6>
           <div class="border rounded p-2 mb-2">
             <div class="form-check mb-2">
@@ -388,16 +416,22 @@ function addUserModal() {
   document.getElementById('all-cats').addEventListener('change', e => {
     document.getElementById('cat-list').classList.toggle('d-none', e.target.checked);
   });
+  document.getElementById('all-classes').addEventListener('change', e => {
+    document.getElementById('class-list').classList.toggle('d-none', e.target.checked);
+  });
 }
 
 async function saveUser() {
   const checked = Array.from(document.querySelectorAll('.perm-cb:checked')).map(c => c.value);
   const allStudents = document.getElementById('all-students').checked;
   const allCats = document.getElementById('all-cats').checked;
+  const allClasses = document.getElementById('all-classes').checked;
   const visibleStudents = allStudents ? 'all' :
     Array.from(document.querySelectorAll('.student-cb:checked')).map(c => c.value).join(',');
   const visibleCats = allCats ? 'all' :
     Array.from(document.querySelectorAll('.cat-cb:checked')).map(c => c.value).join(',');
+  const visibleClasses = allClasses ? 'all' :
+    Array.from(document.querySelectorAll('.class-cb:checked')).map(c => c.value).join(',');
 
   const obj = {
     'שם משתמש': document.getElementById('nu-name').value.trim(),
@@ -410,6 +444,7 @@ async function saveUser() {
     'הרשאות': checked.length === PERMISSION_AREAS.length ? 'all' : checked.join(','),
     'תלמידים_מורשים': visibleStudents,
     'קטגוריות_מורשות': visibleCats,
+    'כיתות_מורשות': visibleClasses,
   };
   if (!obj['שם משתמש'] || !obj['סיסמה']) return alert('שם וסיסמה חובה');
   if (!checked.length) return alert('יש לסמן לפחות מסך אחד');

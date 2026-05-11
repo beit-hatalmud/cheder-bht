@@ -167,9 +167,19 @@ async function api(fn, args) {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
       if (u.username === 'admin' || u.role === 'מנהל') return { ok: true, data: _data.students };
       const full = _data.users.find(x => x.username === u.username);
-      if (!full || !full.visible_students || full.visible_students === 'all') return { ok: true, data: _data.students };
-      const allowed = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
-      return { ok: true, data: _data.students.filter(s => allowed.includes(String(s['מזהה']))) };
+      if (!full) return { ok: true, data: _data.students };
+      let list = _data.students;
+      // Filter by visible_classes if set
+      if (full.visible_classes && full.visible_classes !== 'all') {
+        const allowedCls = full.visible_classes.split(',').map(s => s.trim()).filter(Boolean);
+        list = list.filter(s => allowedCls.includes(s['מחזור']));
+      }
+      // Filter by visible_students if set
+      if (full.visible_students && full.visible_students !== 'all') {
+        const allowedIds = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
+        list = list.filter(s => allowedIds.includes(String(s['מזהה'])));
+      }
+      return { ok: true, data: list };
     }
     case 'listBehavior': {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -177,6 +187,12 @@ async function api(fn, args) {
       if (u.username !== 'admin' && u.role !== 'מנהל') {
         const full = _data.users.find(x => x.username === u.username);
         if (full) {
+          // Filter by visible_classes (lookup student to get class)
+          if (full.visible_classes && full.visible_classes !== 'all') {
+            const allowedCls = full.visible_classes.split(',').map(s => s.trim()).filter(Boolean);
+            const allowedSids = new Set(_data.students.filter(s => allowedCls.includes(s['מחזור'])).map(s => String(s['מזהה'])));
+            events = events.filter(e => allowedSids.has(String(e['תלמיד_מזהה'])));
+          }
           if (full.visible_students && full.visible_students !== 'all') {
             const allowed = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
             events = events.filter(e => allowed.includes(String(e['תלמיד_מזהה'])));
@@ -232,7 +248,14 @@ async function api(fn, args) {
       return { ok: true, data: cats };
     }
     case 'listUsers':
-      return { ok: true, data: _data.users.map(u => ({ 'שם משתמש': u.username, 'תפקיד': u.role, 'הרשאות': u.permissions || '' })) };
+      return { ok: true, data: _data.users.map(u => ({
+        'שם משתמש': u.username,
+        'תפקיד': u.role,
+        'הרשאות': u.permissions || '',
+        'תלמידים_מורשים': u.visible_students || 'all',
+        'קטגוריות_מורשות': u.visible_categories || 'all',
+        'כיתות_מורשות': u.visible_classes || 'all',
+      })) };
     case 'addStudent': {
       const obj = args[0];
       const max = _data.students.reduce((m, s) => Math.max(m, parseInt(s['מזהה']) || 0), 0);
@@ -491,6 +514,7 @@ async function api(fn, args) {
         permissions: obj['הרשאות'] ?? obj.permissions ?? _data.users[idx].permissions ?? '',
         visible_students: obj['תלמידים_מורשים'] ?? obj.visible_students ?? 'all',
         visible_categories: obj['קטגוריות_מורשות'] ?? obj.visible_categories ?? 'all',
+        visible_classes: obj['כיתות_מורשות'] ?? obj.visible_classes ?? _data.users[idx].visible_classes ?? 'all',
         full_name: obj['שם מלא'] ?? _data.users[idx].full_name ?? '',
         email: obj['אימייל'] ?? _data.users[idx].email ?? '',
         phone: obj['טלפון'] ?? _data.users[idx].phone ?? '',
@@ -507,6 +531,7 @@ async function api(fn, args) {
         'הרשאות': updated.permissions,
         'תלמידים_מורשים': updated.visible_students,
         'קטגוריות_מורשות': updated.visible_categories,
+        'כיתות_מורשות': updated.visible_classes,
         'שם מלא': updated.full_name,
         'אימייל': updated.email,
         'טלפון': updated.phone,
@@ -557,6 +582,7 @@ async function api(fn, args) {
         permissions: obj['הרשאות'],
         visible_students: obj['תלמידים_מורשים'] || 'all',
         visible_categories: obj['קטגוריות_מורשות'] || 'all',
+        visible_classes: obj['כיתות_מורשות'] || 'all',
         full_name: obj['שם מלא'] || '',
         email: obj['אימייל'] || '',
         phone: obj['טלפון'] || '',
@@ -1006,6 +1032,7 @@ async function pullAllFromSheet() {
         permissions: u['הרשאות'],
         visible_students: u['תלמידים_מורשים'] || 'all',
         visible_categories: u['קטגוריות_מורשות'] || 'all',
+        visible_classes: u['כיתות_מורשות'] || 'all',
         full_name: u['שם מלא'] || '',
         email: u['אימייל'] || '',
         phone: u['טלפון'] || '',
