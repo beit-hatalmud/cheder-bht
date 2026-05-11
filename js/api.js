@@ -965,11 +965,18 @@ async function ensureSchemaOnce() {
 // without hitting URL length limits or NetFree's URL filter.
 async function postToProxy(params) {
   const form = new URLSearchParams(params);
-  const r = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST', mode: 'cors',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
-  });
+  // Round-15: 30-second timeout to prevent hanging requests
+  const ctl = new AbortController();
+  const timeoutId = setTimeout(() => ctl.abort(), 30000);
+  let r;
+  try {
+    r = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: form.toString(),
+      signal: ctl.signal,
+    });
+  } finally { clearTimeout(timeoutId); }
   if (!r.ok) return { ok: false, http: r.status };
   return await r.json();
 }
