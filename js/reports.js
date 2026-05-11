@@ -102,7 +102,7 @@ function reportFooter() {
 
 // Generates a comprehensive period report between two dates
 function genFullPeriodReport(from, to, title) {
-  const data = getData();
+  const data = getVisibleData();
   const fromTs = from.getTime();
   const toTs = to.getTime() + 24*3600*1000;
 
@@ -346,7 +346,7 @@ function doRangeReport() {
 }
 
 function genReportWeekly() {
-  const data = getData();
+  const data = getVisibleData();
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const events = (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > weekAgo)
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
@@ -419,7 +419,7 @@ function genReportWeekly() {
 }
 
 function genReportMonthly() {
-  const data = getData();
+  const data = getVisibleData();
   const monthAgo = Date.now() - 30 * 24 * 3600 * 1000;
   const events = (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > monthAgo);
   const funcAvg = data.functioning && data.functioning.length
@@ -452,7 +452,7 @@ function genReportMonthly() {
 }
 
 function genReportClass() {
-  const data = getData();
+  const data = getVisibleData();
   const classes = (data.classes||[]).map(c => c['שם']);
   const cls = prompt('כיתה (' + classes.join('/') + '):', classes[0] || '');
   if (!cls) return;
@@ -476,7 +476,7 @@ function genReportClass() {
 }
 
 function genReportFlags() {
-  const data = getData();
+  const data = getVisibleData();
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const counts = {};
   (data.behavior||[]).filter(e => new Date(e['תאריך']).getTime() > weekAgo && e['חומרה'] === 'גבוהה').forEach(e => {
@@ -500,7 +500,7 @@ function genReportFlags() {
 }
 
 function genReportTests() {
-  const data = getData();
+  const data = getVisibleData();
   const tests = data.tests || [];
   const byStu = {};
   tests.forEach(t => {
@@ -536,7 +536,7 @@ function genReportTests() {
 }
 
 async function genReportParent() {
-  const data = getData();
+  const data = getVisibleData();
   const activeStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
     String(a['מחזור']).localeCompare(String(b['מחזור'])) || (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
   const html = `<div class="modal fade" id="rp-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
@@ -571,7 +571,7 @@ async function genReportParent() {
 async function genParentPDF(sendEmail) {
   const sid = document.getElementById('rp-student').value;
   const email = document.getElementById('rp-email').value.trim();
-  const data = getData();
+  const data = getVisibleData();
   const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
   if (!stu) return alert('תלמיד לא נמצא');
   if (sendEmail && !email) return alert('הזן מייל');

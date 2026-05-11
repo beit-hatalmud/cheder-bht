@@ -12,7 +12,7 @@ async function renderClassView() {
     <div id="cv-grid" class="row g-3"></div>`;
   document.getElementById('page-classview').innerHTML = html;
 
-  const data = getData();
+  const data = getVisibleData();
   const classes = (data.classes || []).slice().sort((a,b) => parseInt(a['סדר']) - parseInt(b['סדר']));
   const sel = document.getElementById('cv-class');
   sel.innerHTML = classes.map(c => `<option value="${escHtml(c['שם'])}">כיתה ${escHtml(c['שם'])}</option>`).join('');
@@ -23,7 +23,7 @@ async function renderClassView() {
 }
 
 function refreshClassView() {
-  const data = getData();
+  const data = getVisibleData();
   const cls = _cvSelected;
   const students = (data.students || []).filter(s => s['מחזור'] === cls && (s['סטטוס']||'פעיל') !== 'סיים');
   const events = data.behavior || [];

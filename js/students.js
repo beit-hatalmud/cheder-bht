@@ -349,7 +349,7 @@ async function saveStudentProfile(studentId) {
 async function drawStudentTimeline(studentId) {
   const el = document.getElementById('stu-timeline-content');
   if (!el) return;
-  const data = getData();
+  const data = getVisibleData();
   const items = [];
   // Behavior
   (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(studentId)).forEach(e => {
@@ -779,7 +779,7 @@ function printStudentReport(id) {
   if (!s) return;
   const w = window.open('', '_blank');
   if (!w) { alert('הדפדפן חוסם חלונות פופ-אפ — אפשר חלון פופ-אפ לאתר ונסה שוב'); return; }
-  const data = getData();
+  const data = getVisibleData();
   const events = (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(id))
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   const fs = (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(id));

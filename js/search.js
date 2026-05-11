@@ -49,7 +49,7 @@ async function doGlobalSearch() {
     el.innerHTML = '<p class="text-muted text-center py-4">התחל להקליד...</p>';
     return;
   }
-  const data = getData();
+  const data = getVisibleData();
   const hits = [];
 
   // Students

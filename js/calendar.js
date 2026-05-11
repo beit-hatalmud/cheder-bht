@@ -224,7 +224,7 @@ function buildHebrewGrid(jsAnchor, byJsDateKey) {
 }
 
 function drawCalendar() {
-  const data = getData();
+  const data = getVisibleData();
   const events = data.behavior || [];
   const meetings = data.meetings || [];
 
@@ -369,7 +369,7 @@ function drawHolidaysPanel() {
 }
 
 function calShowDay(day, monthOverride, yearOverride) {
-  const data = getData();
+  const data = getVisibleData();
   const year = (typeof yearOverride === 'number') ? yearOverride : _calCurMonth.getFullYear();
   const month = (typeof monthOverride === 'number') ? monthOverride : _calCurMonth.getMonth();
   const jsDate = new Date(year, month, day);
@@ -454,7 +454,7 @@ function calShowDay(day, monthOverride, yearOverride) {
 
 async function calAddEventForDay(existingEvent) {
   const ctx = window._calDayContext || {};
-  const data = getData();
+  const data = getVisibleData();
   const sortedStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
     String(a['מחזור']).localeCompare(String(b['מחזור'])) ||
     (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
@@ -495,7 +495,7 @@ async function calAddEventForDay(existingEvent) {
 }
 
 function calEditEvent(eventId) {
-  const data = getData();
+  const data = getVisibleData();
   const ev = (data.behavior||[]).find(e => String(e['מזהה']) === String(eventId));
   if (!ev) return alert('האירוע לא נמצא');
   calAddEventForDay(ev);
@@ -515,7 +515,7 @@ async function calDeleteEvent(eventId) {
 }
 
 async function calSaveEvent(editId) {
-  const data = getData();
+  const data = getVisibleData();
   const sid = parseInt(document.getElementById('cev-student').value);
   const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');

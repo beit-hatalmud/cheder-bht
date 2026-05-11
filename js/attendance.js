@@ -3,7 +3,7 @@ let _attCurDate = new Date().toISOString().slice(0,10);
 let _attCurClass = '';
 
 async function renderAttendance() {
-  const data = getData();
+  const data = getVisibleData();
   const classes = (data.classes || []).slice().sort((a,b) => parseInt(a['סדר']) - parseInt(b['סדר']));
   if (!_attCurClass && classes.length) _attCurClass = classes[0]['שם'];
   const html = `
@@ -45,7 +45,7 @@ async function renderAttendance() {
 }
 
 async function refreshAttendance() {
-  const data = getData();
+  const data = getVisibleData();
   const students = (data.students||[]).filter(s => s['מחזור'] === _attCurClass && (s['סטטוס']||'פעיל') !== 'סיים')
     .sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
   const records = (data.attendance||[]).filter(r => r['תאריך'] === _attCurDate);
@@ -85,7 +85,7 @@ async function refreshAttendance() {
 }
 
 async function attMark(studentId, status) {
-  const data = getData();
+  const data = getVisibleData();
   const existing = (data.attendance||[]).find(r => String(r['תלמיד_מזהה']) === String(studentId) && r['תאריך'] === _attCurDate);
   const stu = (data.students||[]).find(s => String(s['מזהה']) === String(studentId));
   const obj = {
@@ -106,7 +106,7 @@ async function attMark(studentId, status) {
 
 async function attMarkAll(status) {
   if (!confirm(`לסמן את כל תלמידי כיתה ${_attCurClass} כ-${status}?`)) return;
-  const data = getData();
+  const data = getVisibleData();
   const students = (data.students||[]).filter(s => s['מחזור'] === _attCurClass && (s['סטטוס']||'פעיל') !== 'סיים');
   const records = (data.attendance||[]).filter(r => r['תאריך'] === _attCurDate);
   const byStu = {};

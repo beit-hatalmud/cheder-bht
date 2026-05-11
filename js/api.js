@@ -118,6 +118,47 @@ function getData() {
   return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [] };
 }
 
+// Returns _data filtered by current user's permissions. Use this in UI code.
+// Internal api() handlers should use getData() directly so they can mutate.
+function getVisibleData() {
+  const all = getData();
+  const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+  if (u.username === 'admin' || u.role === 'מנהל') return all;
+  const full = (all.users || []).find(x => x.username === u.username);
+  if (!full) return all;
+
+  // Compute allowed student IDs from visible_classes + visible_students
+  let allowedStudents = (all.students || []).slice();
+  if (full.visible_classes && full.visible_classes !== 'all') {
+    const cls = full.visible_classes.split(',').map(s => s.trim()).filter(Boolean);
+    allowedStudents = allowedStudents.filter(s => cls.includes(s['מחזור']));
+  }
+  if (full.visible_students && full.visible_students !== 'all') {
+    const ids = full.visible_students.split(',').map(s => s.trim()).filter(Boolean);
+    allowedStudents = allowedStudents.filter(s => ids.includes(String(s['מזהה'])));
+  }
+  const allowedSids = new Set(allowedStudents.map(s => String(s['מזהה'])));
+
+  const filterBySid = items => (items || []).filter(x => allowedSids.has(String(x['תלמיד_מזהה'])));
+  let behavior = filterBySid(all.behavior);
+  if (full.visible_categories && full.visible_categories !== 'all') {
+    const cats = full.visible_categories.split(',').map(s => s.trim()).filter(Boolean);
+    behavior = behavior.filter(e => cats.includes(e['קטגוריה']));
+  }
+
+  return {
+    ...all,
+    students: allowedStudents,
+    behavior,
+    functioning: filterBySid(all.functioning),
+    tests: filterBySid(all.tests),
+    medications: filterBySid(all.medications),
+    meetings: filterBySid(all.meetings),
+    attendance: filterBySid(all.attendance),
+  };
+}
+window.getVisibleData = getVisibleData;
+
 function saveData(part, value) {
   if (!_data) _data = { students:[], behavior:[], users:[], categories:[], classes:[], functioning:[], tests:[], medications:[] };
   _data[part] = value;
@@ -618,15 +659,15 @@ async function api(fn, args) {
       return { ok: true, data: fullUser.visible_categories.split(',').map(s => s.trim()).filter(Boolean) };
     }
     case 'listFunctioning':
-      return { ok: true, data: _data.functioning || [] };
+      return { ok: true, data: getVisibleData().functioning || [] };
     case 'listTests':
-      return { ok: true, data: _data.tests || [] };
+      return { ok: true, data: getVisibleData().tests || [] };
     case 'listMedications':
-      return { ok: true, data: _data.medications || [] };
+      return { ok: true, data: getVisibleData().medications || [] };
     case 'listMeetings':
-      return { ok: true, data: _data.meetings || [] };
+      return { ok: true, data: getVisibleData().meetings || [] };
     case 'listAttendance':
-      return { ok: true, data: _data.attendance || [] };
+      return { ok: true, data: getVisibleData().attendance || [] };
     case 'addMeeting': {
       const obj = args[0];
       const max = (_data.meetings || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
