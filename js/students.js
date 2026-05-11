@@ -135,9 +135,28 @@ async function viewStudent(id) {
   const eventsHtml = events.length ? events.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
     const dt = e['תאריך'] ? new Date(e['תאריך']).toLocaleDateString('he-IL') : '';
+    let hdate = e['תאריך_עברי'] || '';
+    let parsha = e['פרשה'] || '';
+    if ((!hdate || !parsha) && e['תאריך'] && typeof getHebrewInfo === 'function') {
+      const info = getHebrewInfo(new Date(e['תאריך']));
+      if (!hdate) hdate = info.hdate;
+      if (!parsha) parsha = info.parsha;
+    }
+    const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
+    const hdateBadge = hdate ? `<span class="badge bg-light text-dark border me-1">${escHtml(hdate)}</span>` : '';
     const reporter = e['דווח_עי'] || '';
     return `<div class="card p-2 mb-2 ${sev}">
-      <div class="d-flex justify-content-between"><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><small class="text-muted">${escHtml(dt)}</small></div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+        <div>
+          <span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>
+          ${parshaBadge}${hdateBadge}
+        </div>
+        <div class="d-flex align-items-center gap-1">
+          <small class="text-muted">${escHtml(dt)}</small>
+          <button class="btn btn-sm btn-outline-primary p-1" onclick="editEventInStudent(${e['מזהה']||0}, ${id})" title="עריכה"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-sm btn-outline-danger p-1" onclick="deleteEventInStudent(${e['מזהה']||0}, ${id})" title="מחיקה"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
       <p class="mb-0 mt-1 small">${escHtml(e['תיאור']||'')}</p>
       ${reporter ? `<div class="mt-1"><small class="text-muted"><i class="bi bi-person-fill"></i> ${escHtml(reporter)}</small></div>` : ''}
     </div>`;
@@ -159,7 +178,10 @@ async function viewStudent(id) {
         <tr><td><strong>כתובת</strong></td><td colspan="3">${escHtml(s['כתובת']||'-')}</td></tr>
         ${s['הערות'] ? `<tr><td><strong>הערות</strong></td><td colspan="3">${escHtml(s['הערות'])}</td></tr>` : ''}
       </table>
-      <h6 class="mt-3">היסטוריית התנהגות (${events.length})</h6>
+      <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+        <h6 class="mb-0">היסטוריית התנהגות (${events.length})</h6>
+        <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
+      </div>
       ${eventsHtml}
     </div>
     <div class="modal-footer">
@@ -207,6 +229,109 @@ async function deleteStudent(id) {
   if (!confirm('בטוח למחוק את התלמיד?')) return;
   await api('deleteStudent', [id]);
   renderStudents();
+  loadStats();
+}
+
+async function addEventForStudent(studentId, existingEvent) {
+  const s = _students.find(x => String(x['מזהה']) === String(studentId));
+  if (!s) return;
+  const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+  const cats = ((await api('listCategories', [])).data || []);
+  const e = existingEvent || {};
+  const html = `<div class="modal fade" id="stu-ev-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-clipboard-check"></i> ${existingEvent ? 'עריכת' : 'אירוע חדש —'} ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2"><label class="form-label">קטגוריה</label>
+        <select id="sev-cat" class="form-select">
+          ${cats.map(c => `<option ${c['קטגוריה']===e['קטגוריה']?'selected':''}>${escHtml(c['קטגוריה'])}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">תיאור</label><textarea id="sev-desc" class="form-control" rows="4">${escHtml(e['תיאור']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">חומרה</label>
+        <select id="sev-sev" class="form-select">
+          <option ${e['חומרה']==='נמוכה'?'selected':''}>נמוכה</option>
+          <option ${(!e['חומרה']||e['חומרה']==='בינונית')?'selected':''}>בינונית</option>
+          <option ${e['חומרה']==='גבוהה'?'selected':''}>גבוהה</option>
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">שיעור (אופציונלי)</label><input id="sev-lesson" class="form-control" value="${escHtml(e['שיעור']||'')}"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="saveEventForStudent(${studentId}, ${existingEvent ? e['מזהה'] : 'null'})"><i class="bi bi-check"></i> שמור</button>
+    </div>
+  </div></div></div>`;
+  const old = document.getElementById('stu-ev-modal');
+  if (old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  const m = new bootstrap.Modal(document.getElementById('stu-ev-modal'));
+  m.show();
+  document.getElementById('stu-ev-modal').addEventListener('hidden.bs.modal', ev => ev.target.remove());
+}
+
+async function editEventInStudent(eventId, studentId) {
+  const events = (await api('listBehavior', [])).data || [];
+  const ev = events.find(e => String(e['מזהה']) === String(eventId));
+  if (!ev) return alert('האירוע לא נמצא');
+  addEventForStudent(studentId, ev);
+}
+
+async function deleteEventInStudent(eventId, studentId) {
+  if (!confirm('בטוח למחוק את האירוע?')) return;
+  const r = await api('deleteBehavior', [eventId]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
+  if (typeof toast === 'function') toast('האירוע נמחק', 'success');
+  // Refresh the student card modal
+  const old = document.getElementById('viewStuModal');
+  if (old) bootstrap.Modal.getInstance(old).hide();
+  setTimeout(() => viewStudent(studentId), 250);
+  loadStats();
+}
+
+async function saveEventForStudent(studentId, editId) {
+  const s = _students.find(x => String(x['מזהה']) === String(studentId));
+  if (!s) return;
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const reporter = sess.username || 'admin';
+  const obj = {
+    'תלמיד_מזהה': studentId,
+    'שם תלמיד': (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''),
+    'קטגוריה': document.getElementById('sev-cat').value,
+    'תיאור': document.getElementById('sev-desc').value.trim(),
+    'חומרה': document.getElementById('sev-sev').value,
+    'שיעור': document.getElementById('sev-lesson').value.trim(),
+  };
+  if (!obj['קטגוריה'] || !obj['תיאור']) return alert('קטגוריה ותיאור חובה');
+  if (editId) {
+    obj['מזהה'] = parseInt(editId);
+    // Preserve original date & hebrew info
+    const events = (await api('listBehavior', [])).data || [];
+    const orig = events.find(e => String(e['מזהה']) === String(editId));
+    if (orig) {
+      if (orig['תאריך']) obj['תאריך'] = orig['תאריך'];
+      if (orig['תאריך_עברי']) obj['תאריך_עברי'] = orig['תאריך_עברי'];
+      if (orig['פרשה']) obj['פרשה'] = orig['פרשה'];
+    }
+    const r = await api('updateBehavior', [obj]);
+    if (!r.ok) return alert(r.error || 'שגיאה');
+  } else {
+    const now = new Date();
+    obj['תאריך'] = now.toISOString();
+    obj['דווח_עי'] = reporter;
+    if (typeof getHebrewInfo === 'function') {
+      const info = getHebrewInfo(now);
+      obj['תאריך_עברי'] = info.hdate;
+      obj['פרשה'] = info.parsha;
+    }
+    const r = await api('addBehavior', [obj]);
+    if (!r.ok) return alert(r.error || 'שגיאה');
+  }
+  bootstrap.Modal.getInstance(document.getElementById('stu-ev-modal')).hide();
+  if (typeof toast === 'function') toast(editId ? 'האירוע עודכן' : 'האירוע נוסף', 'success');
+  // Refresh the student card to show updated events
+  const oldModal = document.getElementById('viewStuModal');
+  if (oldModal) bootstrap.Modal.getInstance(oldModal).hide();
+  setTimeout(() => viewStudent(studentId), 250);
   loadStats();
 }
 
