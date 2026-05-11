@@ -151,6 +151,29 @@ async function api(fn, args) {
       }
       return { ok: true, data: events };
     }
+    case 'addCategory': {
+      const name = (args[0] || '').trim();
+      if (!name) return { ok: false, error: 'name required' };
+      _data.categories = _data.categories || [];
+      if (_data.categories.some(c => (c.name || c['קטגוריה']) === name)) {
+        return { ok: false, error: 'כבר קיימת' };
+      }
+      _data.categories.push({ name, 'קטגוריה': name, 'תיאור': '' });
+      saveStored(_data);
+      markLocalChange();
+      syncRowToSheet('קטגוריות', { 'קטגוריה': name, 'תיאור': '' }).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteCategory': {
+      const name = args[0];
+      const idx = (_data.categories || []).findIndex(c => (c.name || c['קטגוריה']) === name);
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.categories.splice(idx, 1);
+      saveStored(_data);
+      markLocalChange();
+      syncDeleteRow('קטגוריות', 'קטגוריה', name).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'listCategories': {
       // Filter by current user's visible_categories (admins see all)
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -691,6 +714,7 @@ function queueSync() {
 }
 
 async function syncToBackend() {
+  const wasOnline = _online;
   try {
     const r = await fetch(APPS_SCRIPT_URL + '?action=ping&token=' + AGENT_TOKEN, { method: 'GET', mode: 'cors' });
     _online = r.ok;
@@ -698,7 +722,19 @@ async function syncToBackend() {
   } catch {
     _online = false;
   }
+  // When going online and we have pending writes, flush them
+  if (_online && !wasOnline && _hasPending()) {
+    flushPending();
+  } else if (_online && _hasPending() && !_pendingFlushTimer) {
+    _pendingFlushTimer = setTimeout(flushPending, 1000);
+  }
   updateSyncIndicator();
+}
+
+// Listen to browser online/offline events
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => { _online = true; if (_hasPending()) flushPending(); updateSyncIndicator(); });
+  window.addEventListener('offline', () => { _online = false; updateSyncIndicator(); });
 }
 
 let _schemaEnsured = false;
@@ -713,42 +749,44 @@ async function ensureSchemaOnce() {
   } catch {}
 }
 
+// All writes go through POST (form-urlencoded) so payloads can be arbitrarily large
+// without hitting URL length limits or NetFree's URL filter.
+async function postToProxy(params) {
+  const form = new URLSearchParams(params);
+  const r = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST', mode: 'cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  });
+  if (!r.ok) return { ok: false, http: r.status };
+  return await r.json();
+}
+
 async function syncRowToSheet(tab, row) {
-  try {
-    const params = new URLSearchParams({
-      action: 'cheder_appendRow', token: AGENT_TOKEN, instance: INSTANCE,
-      tab, row: JSON.stringify(row),
-    });
-    const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
-    if (!r.ok) return false;
-    const d = await r.json();
-    return d.ok;
-  } catch { return false; }
+  return _enqueueOrSend({
+    kind: 'append', tab, row,
+    payload: { action: 'cheder_appendRow', token: AGENT_TOKEN, instance: INSTANCE, tab, row: JSON.stringify(row) },
+  });
 }
 
 async function syncUpdateRow(tab, row, matchKey, matchValue) {
-  try {
-    const params = new URLSearchParams({
-      action: 'cheder_updateRow', token: AGENT_TOKEN, instance: INSTANCE,
-      tab, row: JSON.stringify(row), matchKey, matchValue: String(matchValue),
-    });
-    const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
-    if (!r.ok) return false;
-    const d = await r.json();
-    return d.ok;
-  } catch { return false; }
+  return _enqueueOrSend({
+    kind: 'update', tab, row, matchKey, matchValue: String(matchValue),
+    payload: { action: 'cheder_updateRow', token: AGENT_TOKEN, instance: INSTANCE, tab, row: JSON.stringify(row), matchKey, matchValue: String(matchValue) },
+  });
 }
 
 async function syncDeleteRow(tab, matchKey, matchValue) {
+  return _enqueueOrSend({
+    kind: 'delete', tab, matchKey, matchValue: String(matchValue),
+    payload: { action: 'cheder_deleteRow', token: AGENT_TOKEN, instance: INSTANCE, tab, matchKey, matchValue: String(matchValue) },
+  });
+}
+
+async function _sendPayload(payload) {
   try {
-    const params = new URLSearchParams({
-      action: 'cheder_deleteRow', token: AGENT_TOKEN, instance: INSTANCE,
-      tab, matchKey, matchValue: String(matchValue),
-    });
-    const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
-    if (!r.ok) return false;
-    const d = await r.json();
-    return d.ok;
+    const d = await postToProxy(payload);
+    return d && d.ok === true;
   } catch { return false; }
 }
 
@@ -770,11 +808,81 @@ function markLocalChange() {
   _lastLocalChange = Date.now();
 }
 
+// =====================
+// Retry queue for failed writes — survives page reloads via localStorage
+// =====================
+const PENDING_KEY = 'cheder_pending_writes';
+let _pendingFlushTimer = null;
+
+function _loadPending() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+  catch { return []; }
+}
+function _savePending(list) {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch {}
+  updateSyncIndicator();
+}
+function _hasPending() { return _loadPending().length > 0; }
+
+// Try to send a payload; if it fails, queue it. Returns true on success.
+async function _enqueueOrSend(op) {
+  markLocalChange();
+  if (!_online) {
+    _queueWrite(op);
+    return false;
+  }
+  const ok = await _sendPayload(op.payload);
+  if (!ok) {
+    _queueWrite(op);
+    return false;
+  }
+  return true;
+}
+
+function _queueWrite(op) {
+  const pending = _loadPending();
+  // Coalesce duplicate updates on the same row (keep latest)
+  if (op.kind === 'update' && op.matchKey != null) {
+    const idx = pending.findIndex(p => p.kind === 'update' && p.tab === op.tab && p.matchKey === op.matchKey && p.matchValue === op.matchValue);
+    if (idx >= 0) pending.splice(idx, 1);
+  }
+  pending.push({ ...op, queuedAt: Date.now() });
+  _savePending(pending);
+  // Schedule a flush attempt
+  if (!_pendingFlushTimer) _pendingFlushTimer = setTimeout(flushPending, 5000);
+}
+
+async function flushPending() {
+  _pendingFlushTimer = null;
+  let pending = _loadPending();
+  if (!pending.length) { updateSyncIndicator(); return; }
+  const survivors = [];
+  for (const op of pending) {
+    const ok = await _sendPayload(op.payload);
+    if (!ok) survivors.push(op);
+  }
+  _savePending(survivors);
+  if (survivors.length) {
+    // Schedule next attempt with backoff
+    _pendingFlushTimer = setTimeout(flushPending, 30000);
+  } else if (typeof window !== 'undefined' && typeof window.notify === 'function') {
+    if (pending.length > 0) window.notify(`${pending.length} שינויים סונכרנו לשיטס`, 'success');
+  }
+  updateSyncIndicator();
+}
+
 // Bi-directional sync — pull latest from sheet on load
 async function pullAllFromSheet() {
   // Skip if user changed something in last 30 seconds (let local writes propagate)
   if (Date.now() - _lastLocalChange < 30000) {
     console.log('[sync] skipping pull — recent local change');
+    return;
+  }
+  // Skip pull if we have un-synced writes — pull would overwrite them
+  if (_hasPending()) {
+    console.log('[sync] skipping pull — pending writes still queued');
+    // Try to flush before next pull
+    flushPending();
     return;
   }
   const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows] = await Promise.all([
@@ -862,7 +970,10 @@ function updateSyncIndicator() {
     el.className = 'sync-indicator';
     document.body.appendChild(el);
   }
-  if (_online) {
+  const pendingCount = _loadPending().length;
+  if (pendingCount > 0) {
+    el.innerHTML = `<i class="bi bi-cloud-upload sync-warn" style="color:#f59e0b"></i> ${pendingCount} שינויים ממתינים לסנכרון`;
+  } else if (_online) {
     el.innerHTML = '<i class="bi bi-cloud-check-fill sync-online"></i> מסונכרן עם השיטס';
   } else {
     el.innerHTML = '<i class="bi bi-cloud-slash sync-offline"></i> אין חיבור — נתונים מ-cache';

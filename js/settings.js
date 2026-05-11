@@ -453,20 +453,11 @@ function renderCategories() {
 async function addCategory() {
   const name = document.getElementById('new-cat').value.trim();
   if (!name) return;
-  const data = getData();
-  data.categories = data.categories || [];
-  if (data.categories.some(c => (c.name || c['קטגוריה']) === name)) {
-    alert('הקטגוריה כבר קיימת');
-    return;
-  }
-  data.categories.push({ name, 'קטגוריה': name, 'תיאור': '' });
-  saveData('categories', data.categories);
+  const r = await api('addCategory', [name]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
   document.getElementById('new-cat').value = '';
-  if (typeof syncRowToSheet === 'function') {
-    syncRowToSheet('קטגוריות', { 'קטגוריה': name, 'תיאור': '' }).then(updateSyncIndicator);
-  }
   renderCategories();
-  notify('הקטגוריה נוספה ונשמרה בשיטס', 'success');
+  notify('הקטגוריה נוספה', 'success');
 }
 
 async function deleteCategory(idx) {
@@ -474,9 +465,8 @@ async function deleteCategory(idx) {
   const c = data.categories[idx];
   const name = c.name || c['קטגוריה'];
   if (!confirm(`למחוק את הקטגוריה "${name}"?`)) return;
-  data.categories.splice(idx, 1);
-  saveData('categories', data.categories);
-  if (typeof syncDeleteRow === 'function') syncDeleteRow('קטגוריות', 'קטגוריה', name);
+  const r = await api('deleteCategory', [name]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
   renderCategories();
   notify('נמחק', 'success');
 }
