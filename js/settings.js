@@ -641,19 +641,36 @@ function downloadBackup() {
 function restoreBackup(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (!confirm('שחזור יחליף את הנתונים הקיימים בדפדפן. הסנכרון לשרת ייעצר זמנית. להמשיך?')) return;
+  if (!confirm('שחזור יחליף את הנתונים בדפדפן וידחוף הכל לשיטס. פעולה כבדה — להמשיך?')) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const backup = JSON.parse(e.target.result);
+      const tabMap = {
+        students: 'תלמידים', behavior: 'מעקב_התנהגות',
+        functioning: 'תפקוד', tests: 'מבחנים',
+        medications: 'כדורים', meetings: 'אסיפות',
+        attendance: 'נוכחות', categories: 'קטגוריות',
+      };
       const d = getData();
-      ['students','behavior','functioning','tests','medications','meetings','attendance','users','categories','classes'].forEach(k => {
-        if (backup[k]) d[k] = backup[k];
-      });
-      saveData('students', d.students);
-      // Trigger full save
-      Object.keys(d).forEach(k => saveData(k, d[k]));
-      notify('הגיבוי שוחזר. רענן את הדף.', 'success');
+      let pushed = 0;
+      for (const [k, tabName] of Object.entries(tabMap)) {
+        const arr = backup[k];
+        if (!Array.isArray(arr) || !arr.length) continue;
+        d[k] = arr;
+        // Bulk push to sheet
+        try {
+          const body = btoa(unescape(encodeURIComponent(JSON.stringify({ tab: tabName, rows: arr, replace: true }))));
+          const form = new URLSearchParams({
+            action: 'cheder_bulkAppend', token: AGENT_TOKEN, instance: INSTANCE, body_b64: body,
+          });
+          await fetch(APPS_SCRIPT_URL, { method: 'POST', body: form.toString(), headers: {'Content-Type':'application/x-www-form-urlencoded'} });
+          pushed += arr.length;
+        } catch (err) { console.error('Restore push failed for', tabName, err); }
+      }
+      saveStored(d);
+      markLocalChange();
+      notify(`הגיבוי שוחזר — ${pushed} שורות נדחפו לשיטס. רענן את הדף.`, 'success');
     } catch (err) {
       alert('שגיאה בקריאת הגיבוי: ' + err.message);
     }

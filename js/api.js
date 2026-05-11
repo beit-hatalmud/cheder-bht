@@ -24,8 +24,18 @@ async function verifyPassword(stored, attempt) {
   if (stored.startsWith(PWD_PREFIX)) {
     return (await hashPassword(attempt)) === stored;
   }
-  // Backward compat: plain-text stored password (will be migrated on next login)
+  // Backward compat: plain-text stored password (will be migrated on next login).
+  // Refuse the auto-injected default admin/6742 unless online (sheet was reached at least once).
+  if (stored === '6742' && !_online && !_sheetEverReached) return false;
   return String(stored) === String(attempt);
+}
+
+let _sheetEverReached = false;
+
+// Generate a collision-resistant ID: timestamp (sec) * 1000 + random(0-999).
+// Across multiple offline devices, collision probability is ~0.1% per second.
+function genId() {
+  return Math.floor(Date.now() / 1000) * 1000 + Math.floor(Math.random() * 1000);
 }
 
 let _data = null;
@@ -44,13 +54,30 @@ function loadStored() {
 }
 
 function saveStored(d) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+  try {
+    // Bug #4 fix: strip large photo blobs from cache (they live in Sheet, not localStorage).
+    // The image will be re-fetched on next pull.
+    const lean = { ...d };
+    if (Array.isArray(lean.students)) {
+      lean.students = lean.students.map(s => {
+        if (!s['תמונה'] || s['תמונה'].length < 200) return s;
+        const { 'תמונה': _photo, ...rest } = s;
+        return rest;
+      });
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lean));
+  }
   catch (e) {
     // Quota exceeded or disabled — surface a one-time warning
     if (typeof window !== 'undefined' && !window._storageWarned && typeof window.notify === 'function') {
       window._storageWarned = true;
-      window.notify('שמירה מקומית נכשלה — בדוק שיש מקום בדפדפן', 'warn');
+      window.notify('שמירה מקומית נכשלה — תמונות גדולות עלולות לא להישמר', 'warn');
     }
+    // Try again without any photos at all
+    try {
+      const minimal = { ...d, students: (d.students || []).map(s => { const { 'תמונה': _, ...rest } = s; return rest; }) };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(minimal));
+    } catch {}
   }
 }
 
@@ -115,7 +142,9 @@ async function loadData() {
 }
 
 function getData() {
-  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [] };
+  // Trigger background load (but don't await — sync callers get whatever is loaded now)
+  if (!_loaded) ensureLoaded();
+  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
 }
 
 // Returns _data filtered by current user's permissions. Use this in UI code.
@@ -125,7 +154,10 @@ function getVisibleData() {
   const u = JSON.parse(sessionStorage.getItem('user') || '{}');
   if (u.username === 'admin' || u.role === 'מנהל') return all;
   const full = (all.users || []).find(x => x.username === u.username);
-  if (!full) return all;
+  if (!full) {
+    // SECURITY: stale session with no matching user → show nothing (not everything)
+    return { ...all, students: [], behavior: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
+  }
 
   // Compute allowed student IDs from visible_classes + visible_students
   let allowedStudents = (all.students || []).slice();
@@ -208,7 +240,7 @@ async function api(fn, args) {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
       if (u.username === 'admin' || u.role === 'מנהל') return { ok: true, data: _data.students };
       const full = _data.users.find(x => x.username === u.username);
-      if (!full) return { ok: true, data: _data.students };
+      if (!full) return { ok: true, data: [] };  // SECURITY: stale session
       let list = _data.students;
       // Filter by visible_classes if set
       if (full.visible_classes && full.visible_classes !== 'all') {
@@ -227,6 +259,7 @@ async function api(fn, args) {
       let events = _data.behavior;
       if (u.username !== 'admin' && u.role !== 'מנהל') {
         const full = _data.users.find(x => x.username === u.username);
+        if (!full) return { ok: true, data: [] };  // SECURITY: stale session
         if (full) {
           // Filter by visible_classes (lookup student to get class)
           if (full.visible_classes && full.visible_classes !== 'all') {
@@ -281,7 +314,8 @@ async function api(fn, args) {
       let cats = _data.categories.map(c => ({ 'קטגוריה': c.name }));
       if (!isAdmin) {
         const full = _data.users.find(x => x.username === u.username);
-        if (full && full.visible_categories && full.visible_categories !== 'all') {
+        if (!full) return { ok: true, data: [] };  // SECURITY: stale session
+        if (full.visible_categories && full.visible_categories !== 'all') {
           const allowed = full.visible_categories.split(',').map(s => s.trim()).filter(Boolean);
           cats = cats.filter(c => allowed.includes(c['קטגוריה']));
         }
@@ -469,11 +503,8 @@ async function api(fn, args) {
     case 'addBehavior': {
       const obj = args[0];
       if (!obj['תאריך']) obj['תאריך'] = new Date().toISOString();
-      // Auto-generate ID if missing
-      if (!obj['מזהה']) {
-        const max = _data.behavior.reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-        obj['מזהה'] = max + 1;
-      }
+      // Auto-generate ID if missing — timestamp+random for multi-device safety
+      if (!obj['מזהה']) obj['מזהה'] = genId();
       // Defense-in-depth: ensure reporter is set even if caller forgot
       if (!obj['דווח_עי']) {
         try {
@@ -670,8 +701,7 @@ async function api(fn, args) {
       return { ok: true, data: getVisibleData().attendance || [] };
     case 'addMeeting': {
       const obj = args[0];
-      const max = (_data.meetings || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-      obj['מזהה'] = max + 1;
+      obj['מזהה'] = genId();
       _data.meetings = _data.meetings || [];
       _data.meetings.push(obj);
       saveStored(_data); markLocalChange();
@@ -699,8 +729,7 @@ async function api(fn, args) {
     }
     case 'addAttendance': {
       const obj = args[0];
-      const max = (_data.attendance || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-      obj['מזהה'] = max + 1;
+      obj['מזהה'] = genId();
       _data.attendance = _data.attendance || [];
       _data.attendance.push(obj);
       saveStored(_data); markLocalChange();
@@ -728,8 +757,7 @@ async function api(fn, args) {
     }
     case 'addFunctioning': {
       const obj = args[0];
-      const max = (_data.functioning || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-      obj['מזהה'] = max + 1;
+      obj['מזהה'] = genId();
       _data.functioning = _data.functioning || [];
       _data.functioning.push(obj);
       saveStored(_data);
@@ -760,8 +788,7 @@ async function api(fn, args) {
     }
     case 'addTest': {
       const obj = args[0];
-      const max = (_data.tests || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-      obj['מזהה'] = max + 1;
+      obj['מזהה'] = genId();
       _data.tests = _data.tests || [];
       _data.tests.push(obj);
       saveStored(_data);
@@ -792,8 +819,7 @@ async function api(fn, args) {
     }
     case 'addMedication': {
       const obj = args[0];
-      const max = (_data.medications || []).reduce((m, e) => Math.max(m, parseInt(e['מזהה']) || 0), 0);
-      obj['מזהה'] = max + 1;
+      obj['מזהה'] = genId();
       _data.medications = _data.medications || [];
       _data.medications.push(obj);
       saveStored(_data);
@@ -849,7 +875,7 @@ async function syncToBackend() {
   try {
     const r = await fetch(APPS_SCRIPT_URL + '?action=ping&token=' + AGENT_TOKEN, { method: 'GET', mode: 'cors' });
     _online = r.ok;
-    if (_online) ensureSchemaOnce();
+    if (_online) { _sheetEverReached = true; ensureSchemaOnce(); }
   } catch {
     _online = false;
   }
@@ -1007,21 +1033,44 @@ function _queueWrite(op) {
   if (!_pendingFlushTimer) _pendingFlushTimer = setTimeout(flushPending, 5000);
 }
 
+const MAX_RETRY_ATTEMPTS = 10;
+const DEAD_LETTER_KEY = 'cheder_failed_writes';
+
 async function flushPending() {
   _pendingFlushTimer = null;
   let pending = _loadPending();
   if (!pending.length) { updateSyncIndicator(); return; }
   const survivors = [];
+  const deadLetters = [];
   for (const op of pending) {
     const ok = await _sendPayload(op.payload);
-    if (!ok) survivors.push(op);
+    if (!ok) {
+      op.attempts = (op.attempts || 0) + 1;
+      if (op.attempts >= MAX_RETRY_ATTEMPTS) {
+        deadLetters.push({ ...op, failedAt: Date.now() });
+      } else {
+        survivors.push(op);
+      }
+    }
   }
   _savePending(survivors);
+  if (deadLetters.length) {
+    try {
+      const existing = JSON.parse(localStorage.getItem(DEAD_LETTER_KEY) || '[]');
+      localStorage.setItem(DEAD_LETTER_KEY, JSON.stringify([...existing, ...deadLetters].slice(-50)));
+    } catch {}
+    if (typeof window !== 'undefined' && typeof window.notify === 'function') {
+      window.notify(`${deadLetters.length} שינויים נכשלו לאחר 10 ניסיונות — בדוק הגדרות`, 'error');
+    }
+  }
   if (survivors.length) {
-    // Schedule next attempt with backoff
-    _pendingFlushTimer = setTimeout(flushPending, 30000);
+    // Exponential-ish backoff capped at 5 minutes
+    const minAttempts = Math.min(...survivors.map(o => o.attempts || 1));
+    const delay = Math.min(30000 * minAttempts, 300000);
+    _pendingFlushTimer = setTimeout(flushPending, delay);
   } else if (typeof window !== 'undefined' && typeof window.notify === 'function') {
-    if (pending.length > 0) window.notify(`${pending.length} שינויים סונכרנו לשיטס`, 'success');
+    const synced = pending.length - deadLetters.length;
+    if (synced > 0) window.notify(`${synced} שינויים סונכרנו לשיטס`, 'success');
   }
   updateSyncIndicator();
 }

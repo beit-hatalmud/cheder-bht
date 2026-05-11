@@ -50,7 +50,7 @@ function applyStudentFilters() {
   let list = _students;
   if (_statusFilter === 'active') list = list.filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
   else if (_statusFilter === 'graduated') list = list.filter(s => s['סטטוס'] === 'סיים');
-  if (q) list = list.filter(s => Object.values(s).some(v => String(v).toLowerCase().includes(q)));
+  if (q) list = list.filter(s => Object.entries(s).some(([k, v]) => k !== 'תמונה' && String(v).toLowerCase().includes(q)));
   drawStudents(list);
 }
 

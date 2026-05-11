@@ -48,19 +48,24 @@ function calNav(dir) {
   if (_calMode === 'hebrew' && typeof hebcal !== 'undefined' && hebcal.HDate) {
     try {
       const hd = new hebcal.HDate(_calCurMonth);
-      const next = new hebcal.HDate(1, hd.getMonth(), hd.getFullYear()).onOrAfter(0);
-      // Advance/recede by adding/subtracting days until month changes
-      let candidate = _calCurMonth;
-      for (let i = 0; i < 50; i++) {
-        candidate = new Date(candidate);
-        candidate.setDate(candidate.getDate() + (dir * 7));
-        const nh = new hebcal.HDate(candidate);
-        if (nh.getMonth() !== hd.getMonth() || nh.getFullYear() !== hd.getFullYear()) {
-          _calCurMonth = candidate;
-          drawCalendar();
-          return;
-        }
+      // Anchor to 1st of current Hebrew month, then step exactly one month at a time
+      const firstOfMonth = new hebcal.HDate(1, hd.getMonth(), hd.getFullYear());
+      const monthLen = firstOfMonth.daysInMonth();
+      let nextJs;
+      if (dir > 0) {
+        // Jump to first day of next Hebrew month
+        const lastJs = new hebcal.HDate(monthLen, hd.getMonth(), hd.getFullYear()).greg();
+        nextJs = new Date(lastJs);
+        nextJs.setDate(nextJs.getDate() + 1);
+      } else {
+        // Jump back: 1 day before first day of current month
+        const firstJs = firstOfMonth.greg();
+        nextJs = new Date(firstJs);
+        nextJs.setDate(nextJs.getDate() - 1);
       }
+      _calCurMonth = nextJs;
+      drawCalendar();
+      return;
     } catch {}
   }
   _calCurMonth = new Date(_calCurMonth.getFullYear(), _calCurMonth.getMonth() + dir, 1);
@@ -72,7 +77,15 @@ function calToday() {
   drawCalendar();
 }
 
-// Hebrew month names
+// Hebrew month names — covers all hebcal getMonth() return values
+// hebcal months: Nisan=1..Adar=12 normal year; in leap year Adar I=12, Adar II=13
+function getHebMonthName(hd) {
+  const m = hd.getMonth();
+  const isLeap = hd.isLeapYear ? hd.isLeapYear() : (typeof hebcal !== 'undefined' && hebcal.HDate.isLeapYear(hd.getFullYear()));
+  const NORMAL = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר'];
+  const LEAP = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר א','אדר ב'];
+  return (isLeap ? LEAP : NORMAL)[m] || '';
+}
 const HEB_MONTHS_HE = ['ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר','אדר ב'];
 
 function getHebDayLetter(day) {
@@ -96,17 +109,7 @@ function holidaysForDate(jsDate) {
 }
 
 function parshaForDate(jsDate) {
-  if (typeof hebcal === 'undefined' || !hebcal.HDate || !hebcal.Sedra) return '';
-  try {
-    const hd = new hebcal.HDate(jsDate);
-    // Find upcoming Shabbat parsha
-    const sat = new Date(jsDate);
-    sat.setDate(sat.getDate() + ((6 - sat.getDay()) % 7));
-    const sedra = new hebcal.Sedra(hd.getFullYear(), false);
-    const p = sedra.lookup(new hebcal.HDate(sat));
-    if (p && p.parsha && p.parsha.length) return p.parsha.join(' ');
-  } catch {}
-  return '';
+  return (typeof getParshaFor === 'function') ? getParshaFor(jsDate) : '';
 }
 
 function buildGregorianGrid(year, month, byDay) {
@@ -140,7 +143,7 @@ function buildGregorianGrid(year, month, byDay) {
     try {
       if (typeof hebcal !== 'undefined' && hebcal.HDate) {
         const hd = new hebcal.HDate(jsDate);
-        const monthName = HEB_MONTHS_HE[hd.getMonth() - 1] || '';
+        const monthName = getHebMonthName(hd);
         hebDay = `<span class="small text-muted" style="font-size:.7rem">${getHebDayLetter(hd.getDate())}${d === 1 || hd.getDate() === 1 ? ' ' + monthName : ''}</span>`;
       }
     } catch {}
@@ -176,7 +179,7 @@ function buildHebrewGrid(jsAnchor, byJsDateKey) {
   // Length of Hebrew month
   const monthLen = first.daysInMonth();
   const days = ['א','ב','ג','ד','ה','ו','ש'];
-  const monthName = HEB_MONTHS_HE[hMonth - 1] || '';
+  const monthName = getHebMonthName(first);
   let html = `<table class="table table-bordered mb-0" style="text-align:center;table-layout:fixed"><thead><tr>`;
   days.forEach(d => html += `<th style="font-size:.85rem">${d}</th>`);
   html += '</tr></thead><tbody><tr>';
@@ -248,8 +251,13 @@ function drawCalendar() {
   let titleHtml = '';
   if (_calMode === 'hebrew' && typeof hebcal !== 'undefined' && hebcal.HDate) {
     const hd = new hebcal.HDate(_calCurMonth);
-    const mn = HEB_MONTHS_HE[hd.getMonth() - 1] || '';
-    titleHtml = `${mn} ${getHebDayLetter(hd.getFullYear()).replace(/^ה?/, '')}`;
+    const mn = getHebMonthName(hd);
+    // Format year: convert 5786 to תשפ"ו (strip leading 5000)
+    let yearStr;
+    try {
+      yearStr = hebcal.gematriya(hd.getFullYear() % 1000);
+    } catch { yearStr = String(hd.getFullYear()); }
+    titleHtml = `${mn} ${yearStr}`;
   } else {
     titleHtml = _calCurMonth.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
   }

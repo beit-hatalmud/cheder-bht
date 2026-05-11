@@ -1,28 +1,11 @@
 let _events = [], _categories = [], _allStudents = [];
 
-// Compute Hebrew date + parsha for a given JS Date
+// Compute Hebrew date + parsha for a given JS Date — delegates to dates.js for consistency
 function getHebrewInfo(jsDate) {
-  if (typeof hebcal === 'undefined' || !hebcal.HDate) {
-    return { hdate: '', parsha: '' };
-  }
-  try {
-    const hd = new hebcal.HDate(jsDate);
-    const hdate = hd.renderGematriya('he');
-    let parsha = '';
-    try {
-      // Find the parsha of the upcoming Shabbat
-      const sat = new Date(jsDate);
-      sat.setDate(sat.getDate() + ((6 - sat.getDay()) % 7 || 7));
-      const sedra = new hebcal.Sedra(hd.getFullYear(), false);
-      const p = sedra.lookup(new hebcal.HDate(sat));
-      if (p && p.parsha && p.parsha.length) {
-        parsha = p.parsha.join(' ');
-      }
-    } catch (e) {}
-    return { hdate, parsha };
-  } catch (e) {
-    return { hdate: '', parsha: '' };
-  }
+  return {
+    hdate: (typeof formatHebrew === 'function') ? formatHebrew(jsDate) : '',
+    parsha: (typeof getParshaFor === 'function') ? getParshaFor(jsDate) : '',
+  };
 }
 
 async function renderBehavior() {

@@ -72,21 +72,27 @@ function formatHebrewShort(v) {
   try {
     const hd = new hebcal.HDate(d);
     const dayGem = hebcal.gematriya(hd.getDate());
-    const monthName = HEB_MONTHS[hd.getMonth() - 1] || '';
+    const m = hd.getMonth();
+    const isLeap = hebcal.HDate.isLeapYear ? hebcal.HDate.isLeapYear(hd.getFullYear()) : false;
+    const NORMAL = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר'];
+    const LEAP = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר א','אדר ב'];
+    const monthName = (isLeap ? LEAP : NORMAL)[m] || '';
     return `${dayGem} ${monthName}`;
   } catch { return ''; }
 }
 
-// Get parsha for a given date
+// Get parsha for a given date — the parsha of the upcoming Shabbat
+// (on Shabbat itself, returns that Shabbat's parsha)
 function getParshaFor(v) {
   const d = parseAnyDate(v);
   if (!d || typeof hebcal === 'undefined' || !hebcal.HDate || !hebcal.Sedra) return '';
   try {
-    const hd = new hebcal.HDate(d);
     const sat = new Date(d);
-    sat.setDate(sat.getDate() + ((6 - sat.getDay()) % 7));
+    // If it's Saturday, use this Saturday; otherwise advance to next Saturday
+    if (sat.getDay() !== 6) sat.setDate(sat.getDate() + ((6 - sat.getDay()) % 7));
+    const hd = new hebcal.HDate(sat);
     const sedra = new hebcal.Sedra(hd.getFullYear(), false);
-    const p = sedra.lookup(new hebcal.HDate(sat));
+    const p = sedra.lookup(hd);
     if (p && p.parsha && p.parsha.length) return p.parsha.join(' ');
   } catch {}
   return '';
@@ -99,7 +105,11 @@ function hebrewBirthday(v) {
   try {
     const hd = new hebcal.HDate(d);
     const dayGem = hebcal.gematriya(hd.getDate());
-    const monthName = HEB_MONTHS[hd.getMonth() - 1] || '';
+    const m = hd.getMonth();
+    const isLeap = hebcal.HDate.isLeapYear ? hebcal.HDate.isLeapYear(hd.getFullYear()) : false;
+    const NORMAL = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר'];
+    const LEAP = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר א','אדר ב'];
+    const monthName = (isLeap ? LEAP : NORMAL)[m] || '';
     const yearGem = hebcal.gematriya(hd.getFullYear() % 1000);
     return `${dayGem} ${monthName} ה'${yearGem}`;
   } catch { return ''; }
