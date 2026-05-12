@@ -178,10 +178,33 @@ async function doGlobalSearch() {
   _gsItems.forEach((item, i) => item.onclick = hits[i].action);
 }
 
+// Quick-open by student ID or ת.ז. — Ctrl+G
+async function quickOpenStudent() {
+  const q = prompt('פתח תלמיד לפי מזהה / ת.ז.:');
+  if (!q) return;
+  const tq = String(q).trim();
+  const data = getVisibleData();
+  let stu = (data.students||[]).find(s => String(s['מזהה']) === tq);
+  if (!stu) stu = (data.students||[]).find(s => String(s['מספר זהות']||'') === tq);
+  if (!stu) {
+    // Last resort: name match
+    const lower = tq.toLowerCase();
+    stu = (data.students||[]).find(s => `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(lower));
+  }
+  if (!stu) { alert('לא נמצא תלמיד'); return; }
+  goto('students');
+  setTimeout(() => { if (typeof viewStudent === 'function') viewStudent(stu['מזהה']); }, 300);
+}
+window.quickOpenStudent = quickOpenStudent;
+
 // Global hotkey
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
     if (typeof currentUser !== 'undefined' && currentUser) openGlobalSearch();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+    e.preventDefault();
+    if (typeof currentUser !== 'undefined' && currentUser) quickOpenStudent();
   }
 });

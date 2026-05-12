@@ -19,6 +19,7 @@
     </span>
     <div class="d-flex align-items-center gap-2">
       <button class="btn btn-sm btn-outline-light" onclick="if(typeof openGlobalSearch==='function')openGlobalSearch()" title="חיפוש (Ctrl+K)"><i class="bi bi-search"></i></button>
+      <button class="btn btn-sm btn-outline-light" id="theme-toggle" onclick="if(typeof toggleTheme==='function')toggleTheme()" title="מצב תאורה"><i class="bi bi-moon-stars"></i></button>
       <span class="text-white-50" id="user-info">לא מחובר</span>
     </div>
   </div>
@@ -169,6 +170,10 @@
           <div id="alerts-list"></div>
         </div>
       </div>
+    </div>
+    <div class="card p-3 mt-3" id="my-day-card">
+      <h6><i class="bi bi-person-badge"></i> <span id="my-day-title">הפעילות שלי</span></h6>
+      <div id="my-day-content" class="row g-2"></div>
     </div>
     <div class="row g-3 mt-3">
       <div class="col-md-6">

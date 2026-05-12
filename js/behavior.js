@@ -79,12 +79,20 @@ function drawEvents(list) {
     const lessonBadge = lesson ? `<small class="text-muted ms-2"><i class="bi bi-book"></i> ${escHtml(lesson)}</small>` : '';
     const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
+    const isHigh = e['חומרה'] === 'גבוהה';
+    const handled = String(e['טופל']||'').toLowerCase() === 'true' || e['טופל'] === true || e['טופל'] === 'כן';
+    const followBadge = isHigh ? (handled
+      ? '<span class="badge bg-success-subtle text-success-emphasis border me-1"><i class="bi bi-check-circle"></i> טופל</span>'
+      : '<span class="badge bg-danger-subtle text-danger-emphasis border me-1"><i class="bi bi-exclamation-triangle"></i> נדרשת שיחה</span>') : '';
+    const handleBtn = isHigh && !handled
+      ? `<button class="btn btn-sm btn-outline-success" onclick="markEventHandled(${e['מזהה']||0})" title="סמן כטופל"><i class="bi bi-check2-circle"></i></button>` : '';
     return `<div class="card p-3 mb-2 ${sev}">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
+        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>${followBadge}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${escHtml(date)}</small>
+          ${handleBtn}
           <button class="btn btn-sm btn-outline-primary" onclick="editEvent(${e['מזהה']||0})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>
@@ -118,6 +126,18 @@ async function deleteEvent(id) {
   renderBehavior();
   loadStats();
 }
+
+// Mark a high-severity event as handled (follow-up done)
+async function markEventHandled(id) {
+  const ev = _events.find(x => String(x['מזהה']) === String(id));
+  if (!ev) return;
+  ev['טופל'] = 'כן';
+  const r = await api('updateBehavior', [ev]);
+  if (r && !r.ok) return alert(r.error || 'שגיאה');
+  if (typeof toast === 'function') toast('סומן כטופל', 'success');
+  renderBehavior();
+}
+window.markEventHandled = markEventHandled;
 
 function addEventModal() {
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">

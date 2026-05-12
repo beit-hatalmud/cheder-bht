@@ -15,19 +15,41 @@ async function renderStudents() {
     </div>
     <div class="card p-3">
       <div class="row g-2 mb-3">
-        <div class="col-md-8"><input id="s-search" class="form-control" placeholder="חיפוש תלמיד..."></div>
-        <div class="col-md-4">
+        <div class="col-md-4"><input id="s-search" class="form-control" placeholder="חיפוש תלמיד..."></div>
+        <div class="col-md-2">
           <select id="s-status" class="form-select">
             <option value="active">פעילים</option>
             <option value="graduated">סיימו</option>
             <option value="all">הכל</option>
           </select>
         </div>
+        <div class="col-md-2"><select id="s-class" class="form-select"><option value="">כל הכיתות</option></select></div>
+        <div class="col-md-2"><select id="s-mood" class="form-select">
+          <option value="">כל המצבים</option>
+          <option value="🚨">🚨 בעייתי</option>
+          <option value="⚠️">⚠️ מודאג</option>
+          <option value="🟡">🟡 בסדר</option>
+          <option value="👍">👍 טוב</option>
+          <option value="✅">✅ מצוין</option>
+        </select></div>
+        <div class="col-md-2"><select id="s-quick" class="form-select">
+          <option value="">— מסנן מהיר —</option>
+          <option value="bd_week">ימי הולדת השבוע</option>
+          <option value="attention">תלמידים לתשומת לב</option>
+          <option value="no_recent_conv">בלי שיחה 30+ ימים</option>
+        </select></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <div class="small text-muted"><span id="s-count">0</span> תלמידים נמצאו · בחר מספר תלמידים לפעולה משותפת</div>
+        <div id="bulk-actions" class="d-none">
+          <button class="btn btn-sm btn-warning" onclick="bulkAddEvent()"><i class="bi bi-clipboard-check"></i> אירוע משותף (<span id="bulk-count">0</span>)</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="bulkClearSel()">נקה</button>
+        </div>
       </div>
       <div class="table-responsive">
         <table class="table table-hover">
           <thead>
-            <tr><th>מזהה</th><th>שם מלא</th><th>גיל</th><th>כיתה</th><th>טלפון אם</th><th>סטטוס</th><th>פעולות</th></tr>
+            <tr><th style="width:30px"><input type="checkbox" id="s-checkall" onclick="bulkToggleAll(this)"></th><th>מזהה</th><th>שם מלא</th><th>גיל</th><th>כיתה</th><th>מצב</th><th>טלפון אם</th><th>סטטוס</th><th>פעולות</th></tr>
           </thead>
           <tbody id="students-tbody"></tbody>
         </table>
@@ -39,20 +61,168 @@ async function renderStudents() {
   const r = await api('listStudents', []);
   _students = r.data || [];
   document.getElementById('s-status').value = _statusFilter;
+  // Populate class dropdown
+  const classes = [...new Set(_students.map(s => s['מחזור']).filter(Boolean))].sort();
+  document.getElementById('s-class').innerHTML = '<option value="">כל הכיתות</option>' +
+    classes.map(c => `<option>${escHtml(c)}</option>`).join('');
   // Round-11: debounce search input
   let _sDeb;
   document.getElementById('s-search').oninput = () => { clearTimeout(_sDeb); _sDeb = setTimeout(applyStudentFilters, 150); };
-  document.getElementById('s-status').onchange = applyStudentFilters;
+  ['s-status','s-class','s-mood','s-quick'].forEach(id => { const el = document.getElementById(id); if (el) el.onchange = applyStudentFilters; });
   applyStudentFilters();
 }
+
+const STU_BULK_SEL = new Set();
+function bulkClearSel() {
+  STU_BULK_SEL.clear();
+  document.querySelectorAll('.s-row-cb').forEach(cb => cb.checked = false);
+  const ca = document.getElementById('s-checkall'); if (ca) ca.checked = false;
+  updateBulkUI();
+}
+function bulkToggleAll(cb) {
+  document.querySelectorAll('.s-row-cb').forEach(rcb => {
+    rcb.checked = cb.checked;
+    const sid = rcb.dataset.sid;
+    if (cb.checked) STU_BULK_SEL.add(sid); else STU_BULK_SEL.delete(sid);
+  });
+  updateBulkUI();
+}
+function bulkToggleRow(cb) {
+  const sid = cb.dataset.sid;
+  if (cb.checked) STU_BULK_SEL.add(sid); else STU_BULK_SEL.delete(sid);
+  updateBulkUI();
+}
+window.bulkClearSel = bulkClearSel;
+window.bulkToggleAll = bulkToggleAll;
+window.bulkToggleRow = bulkToggleRow;
+function updateBulkUI() {
+  const bar = document.getElementById('bulk-actions');
+  const cnt = document.getElementById('bulk-count');
+  if (!bar) return;
+  if (STU_BULK_SEL.size > 0) {
+    bar.classList.remove('d-none');
+    if (cnt) cnt.textContent = STU_BULK_SEL.size;
+  } else bar.classList.add('d-none');
+}
+
+async function bulkAddEvent() {
+  if (!STU_BULK_SEL.size) return;
+  const sids = Array.from(STU_BULK_SEL);
+  const cats = ((await api('listCategories', [])).data || []);
+  const stuNames = sids.map(sid => {
+    const s = _students.find(x => String(x['מזהה']) === sid);
+    return s ? `${s['שם פרטי']||''} ${s['שם משפחה']||''}` : sid;
+  }).join(', ');
+  const html = `<div class="modal fade" id="bulk-ev-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-clipboard-check"></i> אירוע משותף ל-${sids.length} תלמידים</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="small text-muted mb-2">${escHtml(stuNames)}</div>
+      <div class="mb-2"><label class="form-label">קטגוריה</label>
+        <select id="be-cat" class="form-select">${cats.map(c => `<option>${escHtml(c['קטגוריה'])}</option>`).join('')}</select>
+      </div>
+      <div class="mb-2"><label class="form-label">תיאור</label><textarea id="be-desc" class="form-control" rows="3"></textarea></div>
+      <div class="mb-2"><label class="form-label">חומרה</label>
+        <select id="be-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="bulkSaveEvent()">שמור לכולם</button>
+    </div>
+  </div></div></div>`;
+  cleanupModal('bulk-ev-modal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('bulk-ev-modal')).show();
+  document.getElementById('bulk-ev-modal').addEventListener('hidden.bs.modal', () => cleanupModal('bulk-ev-modal'), { once: true });
+}
+window.bulkAddEvent = bulkAddEvent;
+
+async function bulkSaveEvent() {
+  const cat = document.getElementById('be-cat').value;
+  const desc = document.getElementById('be-desc').value.trim();
+  const sev = document.getElementById('be-sev').value;
+  if (!desc) return alert('חובה לכתוב תיאור');
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const reporter = sess.username || 'admin';
+  let ok = 0, fail = 0;
+  for (const sid of STU_BULK_SEL) {
+    const s = _students.find(x => String(x['מזהה']) === sid);
+    if (!s) { fail++; continue; }
+    const now = new Date();
+    const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(now) : { hdate:'', parsha:'' };
+    const obj = {
+      'תלמיד_מזהה': sid,
+      'שם תלמיד': `${s['שם פרטי']||''} ${s['שם משפחה']||''}`,
+      'קטגוריה': cat,
+      'תיאור': desc,
+      'חומרה': sev,
+      'תאריך': now.toISOString(),
+      'תאריך_עברי': info.hdate,
+      'פרשה': info.parsha,
+      'דווח_עי': reporter,
+    };
+    const r = await api('addBehavior', [obj]);
+    if (r && r.ok) ok++; else fail++;
+  }
+  hideModal('bulk-ev-modal');
+  if (typeof toast === 'function') toast(`נשמרו ${ok} אירועים${fail?', '+fail+' נכשלו':''}`, fail ? 'warn' : 'success');
+  bulkClearSel();
+  loadStats();
+}
+window.bulkSaveEvent = bulkSaveEvent;
+
+const MOOD_META = {
+  '✅': { color: 'success',   text: 'מצוין'  },
+  '👍': { color: 'primary',   text: 'טוב'    },
+  '🟡': { color: 'warning',   text: 'בסדר'   },
+  '⚠️': { color: 'warning',   text: 'מודאג' },
+  '🚨': { color: 'danger',    text: 'בעייתי'},
+};
+
+async function setStudentMood(id, mood) {
+  const r = await api('updateStudent', [{ 'מזהה': id, 'מצב_כללי': mood }]);
+  if (r && !r.ok) return alert(r.error || 'שגיאה');
+  const stu = _students.find(x => String(x['מזהה']) === String(id));
+  if (stu) stu['מצב_כללי'] = mood;
+  applyStudentFilters();
+}
+window.setStudentMood = setStudentMood;
 
 function applyStudentFilters() {
   const q = (document.getElementById('s-search')?.value || '').toLowerCase();
   _statusFilter = document.getElementById('s-status')?.value || 'active';
+  const cls = document.getElementById('s-class')?.value || '';
+  const mood = document.getElementById('s-mood')?.value || '';
+  const quick = document.getElementById('s-quick')?.value || '';
   let list = _students;
   if (_statusFilter === 'active') list = list.filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
   else if (_statusFilter === 'graduated') list = list.filter(s => s['סטטוס'] === 'סיים');
+  if (cls) list = list.filter(s => s['מחזור'] === cls);
+  if (mood) list = list.filter(s => s['מצב_כללי'] === mood);
+  if (quick === 'bd_week') {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const in7 = new Date(today.getTime() + 7 * 24 * 3600 * 1000);
+    list = list.filter(s => {
+      const d = parseAnyDate(s['תאריך לידה']);
+      if (!d) return false;
+      const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+      if (next < today) next.setFullYear(today.getFullYear() + 1);
+      return next >= today && next <= in7;
+    });
+  } else if (quick === 'attention') {
+    list = list.filter(s => s['מצב_כללי'] === '⚠️' || s['מצב_כללי'] === '🚨');
+  } else if (quick === 'no_recent_conv') {
+    const data = getVisibleData();
+    const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+    const last = {};
+    (data.conversations||[]).forEach(c => {
+      const ms = dateMs(c['תאריך']); const sid = String(c['תלמיד_מזהה']);
+      if (!last[sid] || ms > last[sid]) last[sid] = ms;
+    });
+    list = list.filter(s => !last[String(s['מזהה'])] || last[String(s['מזהה'])] < cutoff);
+  }
   if (q) list = list.filter(s => Object.entries(s).some(([k, v]) => k !== 'תמונה' && String(v).toLowerCase().includes(q)));
+  const cnt = document.getElementById('s-count'); if (cnt) cnt.textContent = list.length;
   drawStudents(list);
 }
 
@@ -76,11 +246,22 @@ function drawStudents(list) {
       : `<button class="btn btn-sm btn-outline-warning me-1" onclick="promoteStudent(${s['מזהה']})" title="העלה כיתה"><i class="bi bi-arrow-up"></i></button>
          <button class="btn btn-sm btn-outline-secondary me-1" onclick="deactivateStudent(${s['מזהה']})" title="הוצא מהמוסד"><i class="bi bi-box-arrow-right"></i></button>`;
     const grayed = isGrad ? 'style="opacity:.65"' : '';
+    const mood = s['מצב_כללי'] || '';
+    const moodCell = `<div class="dropdown">
+      <button class="btn btn-sm btn-light dropdown-toggle" data-bs-toggle="dropdown" title="${escHtml((MOOD_META[mood]||{}).text||'הגדר מצב')}">${mood || '—'}</button>
+      <ul class="dropdown-menu">
+        ${['✅','👍','🟡','⚠️','🚨'].map(m => `<li><a class="dropdown-item" href="#" onclick="event.preventDefault();setStudentMood(${s['מזהה']},'${m}')">${m} ${escHtml(MOOD_META[m].text)}</a></li>`).join('')}
+        ${mood ? `<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-muted" href="#" onclick="event.preventDefault();setStudentMood(${s['מזהה']},'')">נקה</a></li>` : ''}
+      </ul>
+    </div>`;
+    const checked = STU_BULK_SEL.has(String(s['מזהה'])) ? ' checked' : '';
     return `<tr ${grayed}>
+      <td><input type="checkbox" class="s-row-cb" data-sid="${s['מזהה']}" onclick="bulkToggleRow(this)"${checked}></td>
       <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['מזהה']||'')}</td>
       <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer"><span class="avatar">${escHtml(initials)}</span>${escHtml(fullName)}</td>
       <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['גיל']||'')}</td>
       <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['מחזור']||'')}</td>
+      <td>${moodCell}</td>
       <td onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">${escHtml(s['טלפון אם']||'')}</td>
       <td>${statusBadge}</td>
       <td>
@@ -91,6 +272,7 @@ function drawStudents(list) {
       </td>
     </tr>`;
   }).join('');
+  updateBulkUI();
 }
 
 async function promoteStudent(id) {
@@ -507,20 +689,42 @@ async function drawStudentTimeline(studentId) {
 function drawStudentTrendChart(studentId, events) {
   const el = document.getElementById('stu-trend-chart');
   if (!el || typeof Chart === 'undefined') return;
-  const labels = [], counts = [];
-  for (let i = 13; i >= 0; i--) {
+  const data = getVisibleData();
+  const tests = (data.tests||[]).filter(t => String(t['תלמיד_מזהה']) === String(studentId));
+  const funcs = (data.functioning||[]).filter(f => String(f['תלמיד_מזהה']) === String(studentId));
+  // 90-day rolling window of all 3 datasets
+  const DAYS = 60;
+  const labels = [], evCounts = [], testScores = [], funcScores = [];
+  for (let i = DAYS - 1; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 3600 * 1000);
     labels.push(d.toLocaleDateString('he-IL', {day:'numeric', month:'numeric'}));
-    counts.push(events.filter(e => {
-      const ed = new Date(e['תאריך']);
-      return ed.toDateString() === d.toDateString();
+    evCounts.push(events.filter(e => {
+      const ed = new Date(e['תאריך']); return ed.toDateString() === d.toDateString();
     }).length);
+    const tToday = tests.filter(t => { const td = new Date(t['תאריך']||0); return td.toDateString() === d.toDateString(); });
+    testScores.push(tToday.length ? tToday.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / tToday.length : null);
+    const fToday = funcs.filter(f => { const fd = new Date(f['תאריך']||0); return fd.toDateString() === d.toDateString(); });
+    funcScores.push(fToday.length ? fToday.reduce((a,b) => a + (parseFloat(b['ציון'])||0), 0) / fToday.length * 20 : null);  // scale 1-5 → 20-100
   }
   if (window._stuChart) window._stuChart.destroy();
   window._stuChart = new Chart(el, {
-    type: 'bar',
-    data: { labels, datasets: [{ data: counts, backgroundColor: '#0066cc' }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'אירועי התנהגות', data: evCounts, backgroundColor: 'rgba(220,38,38,0.6)', yAxisID: 'yLeft' },
+        { type: 'line', label: 'מבחנים', data: testScores, borderColor: '#0066cc', backgroundColor: 'rgba(0,102,204,0.1)', yAxisID: 'yRight', spanGaps: true, tension: 0.3 },
+        { type: 'line', label: 'תפקוד (×20)', data: funcScores, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.1)', yAxisID: 'yRight', spanGaps: true, tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: {
+        yLeft: { type: 'linear', position: 'right', beginAtZero: true, ticks: { stepSize: 1, font: { size: 9 } }, title: { display: false } },
+        yRight: { type: 'linear', position: 'left', beginAtZero: true, max: 100, ticks: { font: { size: 9 } }, grid: { drawOnChartArea: false } },
+        x: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      },
+    },
   });
 }
 

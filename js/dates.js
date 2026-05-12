@@ -120,6 +120,32 @@ function dateMs(v) {
   const d = parseAnyDate(v);
   return d ? d.getTime() : 0;
 }
+// Attach a live "Hebrew date" caption next to every <input type="date">
+// inside a freshly-rendered modal. Idempotent — safe to call repeatedly.
+function attachHebrewCaptions(rootEl) {
+  const root = rootEl || document;
+  root.querySelectorAll('input[type="date"]').forEach(inp => {
+    if (inp.dataset.hebCap) return;
+    inp.dataset.hebCap = '1';
+    const cap = document.createElement('div');
+    cap.className = 'small text-muted mt-1 heb-cap';
+    cap.style.minHeight = '1em';
+    const update = () => {
+      const h = formatHebrew(inp.value);
+      cap.textContent = h ? '— ' + h : '';
+    };
+    inp.addEventListener('input', update);
+    inp.addEventListener('change', update);
+    inp.parentNode.insertBefore(cap, inp.nextSibling);
+    update();
+  });
+}
+// Whenever a Bootstrap modal is shown, attach Hebrew captions automatically.
+document.addEventListener('shown.bs.modal', e => {
+  try { attachHebrewCaptions(e.target); } catch {}
+});
+window.attachHebrewCaptions = attachHebrewCaptions;
+
 window.dateMs = dateMs;
 window.parseAnyDate = parseAnyDate;
 window.formatGreg = formatGreg;

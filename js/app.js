@@ -1,5 +1,22 @@
 // Main app router & login
 
+// Theme toggle (light/dark) — persists in localStorage
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('cheder_theme', theme); } catch {}
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = theme === 'dark' ? '<i class="bi bi-sun"></i>' : '<i class="bi bi-moon-stars"></i>';
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+window.toggleTheme = toggleTheme;
+try {
+  const stored = localStorage.getItem('cheder_theme');
+  if (stored === 'dark') applyTheme('dark');
+} catch {}
+
 // Round-5 fix: auto-add static backdrop to all modals (prevents dismiss during async save)
 document.addEventListener('show.bs.modal', (ev) => {
   const m = ev.target;
@@ -188,9 +205,35 @@ async function loadStats() {
   drawAlerts(students, events);
   drawSilentStudents(students, conversations);
   drawRabbiStats(conversations);
+  drawMyDay(events, conversations);
   drawRecentActivity(events);
   // Show toast reminders for meetings in the next 0-2 days (once per day)
   if (typeof showMeetingReminders === 'function') setTimeout(showMeetingReminders, 1500);
+}
+
+// "My day" widget — recent activity filtered to the logged-in user
+function drawMyDay(events, conversations) {
+  const card = document.getElementById('my-day-card');
+  const titleEl = document.getElementById('my-day-title');
+  const contentEl = document.getElementById('my-day-content');
+  if (!card || !contentEl) return;
+  const u = (currentUser && currentUser.username) || '';
+  if (!u || u === 'admin') { card.classList.add('d-none'); return; }
+  card.classList.remove('d-none');
+  titleEl.textContent = `הפעילות שלי — ${u}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime();
+  const todayMs = today.getTime();
+  const myConvsToday = conversations.filter(c => c['רב'] === u && dateMs(c['תאריך']) >= todayMs);
+  const myConvsMonth = conversations.filter(c => c['רב'] === u && dateMs(c['תאריך']) >= monthStart);
+  const myEventsToday = events.filter(e => e['דווח_עי'] === u && dateMs(e['תאריך']) >= todayMs);
+  const myEventsMonth = events.filter(e => e['דווח_עי'] === u && dateMs(e['תאריך']) >= monthStart);
+  contentEl.innerHTML = `
+    <div class="col-6 col-md-3"><div class="p-2 text-center border rounded"><div class="h4 mb-0 text-info">${myConvsToday.length}</div><div class="small text-muted">שיחות היום</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-2 text-center border rounded"><div class="h4 mb-0 text-info">${myConvsMonth.length}</div><div class="small text-muted">שיחות החודש</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-2 text-center border rounded"><div class="h4 mb-0 text-success">${myEventsToday.length}</div><div class="small text-muted">אירועים היום</div></div></div>
+    <div class="col-6 col-md-3"><div class="p-2 text-center border rounded"><div class="h4 mb-0 text-success">${myEventsMonth.length}</div><div class="small text-muted">אירועים החודש</div></div></div>
+  `;
 }
 
 // Students with no conversation logged in the last 30 days (or never).
