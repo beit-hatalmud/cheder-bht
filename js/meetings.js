@@ -69,6 +69,7 @@ function meetingsRefresh() {
           <strong>${escHtml(stuName)}</strong>
           ${stu ? `<span class="text-muted ms-2">כיתה ${escHtml(stu['מחזור']||'')}</span>` : ''}
           ${m['תקופה'] ? `<span class="badge bg-light text-dark me-2">${escHtml(m['תקופה'])}</span>` : ''}
+          ${m['רב'] ? `<span class="badge bg-info-subtle text-info-emphasis border me-1"><i class="bi bi-person-fill"></i> ${escHtml(m['רב'])}</span>` : ''}
         </div>
         <div class="d-flex gap-1 align-items-center">
           <small class="text-muted">${escHtml(dt)}</small>
@@ -76,9 +77,9 @@ function meetingsRefresh() {
           <button class="btn btn-sm btn-outline-danger p-1" onclick="meetDelete(${m['מזהה']})"><i class="bi bi-trash"></i></button>
         </div>
       </div>
-      ${m['נושא'] ? `<div class="mt-2 small"><strong>נושא:</strong> ${escHtml(m['נושא'])}</div>` : ''}
+      ${m['נושא'] ? `<div class="mt-2"><strong>נושא:</strong> ${escHtml(m['נושא'])}</div>` : ''}
       ${m['משתתפים'] ? `<div class="small"><strong>משתתפים:</strong> ${escHtml(m['משתתפים'])}</div>` : ''}
-      ${m['סיכום'] ? `<div class="mt-2">${escHtml(m['סיכום'])}</div>` : ''}
+      ${m['סיכום'] ? `<div class="mt-2 meeting-summary" style="white-space:pre-wrap;line-height:1.7">${escHtml(m['סיכום'])}</div>` : ''}
       ${m['הערות'] ? `<div class="mt-2 small text-muted">${escHtml(m['הערות'])}</div>` : ''}
     </div>`;
   }).join('');
@@ -99,11 +100,12 @@ function meetAddModal(existing) {
         <div class="col-md-5"><label class="form-label">תאריך</label><input id="mea-date" type="date" class="form-control" value="${e['תאריך'] || new Date().toISOString().slice(0,10)}"></div>
       </div>
       <div class="row g-2 mb-2">
-        <div class="col-md-6"><label class="form-label">תקופה</label><input id="mea-period" class="form-control" value="${escHtml(e['תקופה']||'')}" placeholder="אייר תשפ&quot;ו"></div>
-        <div class="col-md-6"><label class="form-label">משתתפים</label><input id="mea-parents" class="form-control" value="${escHtml(e['משתתפים']||'')}" placeholder="אבא, אמא, רב..."></div>
+        <div class="col-md-4"><label class="form-label">תקופה</label><input id="mea-period" class="form-control" value="${escHtml(e['תקופה']||'')}" placeholder="אייר תשפ&quot;ו"></div>
+        <div class="col-md-4"><label class="form-label">רב מדווח</label><input id="mea-rabbi" class="form-control" value="${escHtml(e['רב'] || (function(){ try { return JSON.parse(sessionStorage.getItem('user')||'{}').username || ''; } catch(_) { return ''; } })())}" placeholder="מי כתב את הדיווח"></div>
+        <div class="col-md-4"><label class="form-label">משתתפים</label><input id="mea-parents" class="form-control" value="${escHtml(e['משתתפים']||'')}" placeholder="אבא, אמא..."></div>
       </div>
       <div class="mb-2"><label class="form-label">נושא</label><input id="mea-topic" class="form-control" value="${escHtml(e['נושא']||'')}"></div>
-      <div class="mb-2"><label class="form-label">סיכום</label><textarea id="mea-summary" class="form-control" rows="5">${escHtml(e['סיכום']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">סיכום</label><textarea id="mea-summary" class="form-control" rows="8" style="white-space:pre-wrap">${escHtml(e['סיכום']||'')}</textarea></div>
       <div class="mb-2"><label class="form-label">הערות</label><textarea id="mea-notes" class="form-control" rows="2">${escHtml(e['הערות']||'')}</textarea></div>
     </div>
     <div class="modal-footer">
@@ -128,6 +130,7 @@ async function meetSave(editId) {
     'תלמיד_מזהה': parseInt(document.getElementById('mea-student').value),
     'תאריך': document.getElementById('mea-date').value,
     'תקופה': document.getElementById('mea-period').value.trim(),
+    'רב': document.getElementById('mea-rabbi').value.trim(),
     'משתתפים': document.getElementById('mea-parents').value.trim(),
     'נושא': document.getElementById('mea-topic').value.trim(),
     'סיכום': document.getElementById('mea-summary').value.trim(),

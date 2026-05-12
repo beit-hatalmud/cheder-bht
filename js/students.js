@@ -422,6 +422,9 @@ async function drawStudentTimeline(studentId) {
   });
   // Meetings
   (data.meetings||[]).filter(m => String(m['תלמיד_מזהה']) === String(studentId)).forEach(m => {
+    const extras = [];
+    if (m['רב']) extras.push(`רב: ${m['רב']}`);
+    if (m['משתתפים']) extras.push(`משתתפים: ${m['משתתפים']}`);
     items.push({
       date: m['תאריך'],
       type: 'אסיפה',
@@ -429,7 +432,7 @@ async function drawStudentTimeline(studentId) {
       color: 'primary',
       title: m['נושא'] || 'אסיפת הורים',
       body: m['סיכום'] || '',
-      extra: m['משתתפים'] ? `משתתפים: ${m['משתתפים']}` : '',
+      extra: extras.join(' · '),
     });
   });
   // Conversations with student
@@ -484,7 +487,7 @@ async function drawStudentTimeline(studentId) {
           <strong>${escHtml(item.title)}</strong>
           <small class="text-muted">${escHtml(dt)} · ${escHtml(item.type)}</small>
         </div>
-        ${item.body ? `<div class="small mt-1">${escHtml(item.body)}</div>` : ''}
+        ${item.body ? `<div class="small mt-1" style="white-space:pre-wrap">${escHtml(item.body)}</div>` : ''}
         ${item.extra ? `<div class="small text-muted mt-1">${escHtml(item.extra)}</div>` : ''}
       </div>
     </div>`;
