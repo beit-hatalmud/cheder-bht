@@ -104,6 +104,7 @@ async function loadData() {
     medications: Array.isArray(stored.medications) ? stored.medications : [],
     meetings: Array.isArray(stored.meetings) ? stored.meetings : [],
     attendance: Array.isArray(stored.attendance) ? stored.attendance : [],
+    conversations: Array.isArray(stored.conversations) ? stored.conversations : [],
   };
   // If cache is empty (first visit), pull from the Sheet synchronously
   const hasAnyData = _data.students.length || _data.behavior.length;
@@ -148,7 +149,7 @@ function getData() {
       try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
     });
   }
-  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
+  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
 }
 
 // Bug #34 fix: check if current user can mutate a given student's data
@@ -180,7 +181,7 @@ function getVisibleData() {
   const full = (all.users || []).find(x => x.username === u.username);
   if (!full) {
     // SECURITY: stale session with no matching user → show nothing (not everything)
-    return { ...all, students: [], behavior: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
+    return { ...all, students: [], behavior: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
   }
 
   // Compute allowed student IDs from visible_classes + visible_students
@@ -215,6 +216,7 @@ function getVisibleData() {
     medications: filterBySid(all.medications),
     meetings: filterBySid(all.meetings),
     attendance: filterBySid(all.attendance),
+    conversations: filterBySid(all.conversations),
   };
 }
 window.getVisibleData = getVisibleData;
@@ -241,7 +243,7 @@ async function api(fn, args) {
   await ensureLoaded();
   args = args || [];
   // Round-13 guard: ensure _data exists before any mutation
-  if (!_data) _data = { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [] };
+  if (!_data) _data = { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
@@ -768,6 +770,44 @@ async function api(fn, args) {
       syncDeleteRow('אסיפות', 'מזהה', id).then(updateSyncIndicator);
       return { ok: true };
     }
+    case 'listConversations':
+      return { ok: true, data: getVisibleData().conversations || [] };
+    case 'addConversation': {
+      const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      obj['מזהה'] = genId();
+      if (!obj['רב']) {
+        const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+        obj['רב'] = sess.username || 'לא ידוע';
+      }
+      _data.conversations = _data.conversations || [];
+      _data.conversations.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('שיחות', obj).then(updateSyncIndicator);
+      _auditLog('הוספה', 'שיחות', obj['מזהה'], `שיחה עם תלמיד ${obj['תלמיד_מזהה']} ע"י ${obj['רב']}`);
+      return { ok: true };
+    }
+    case 'updateConversation': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.conversations || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.conversations[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.conversations[idx] = Object.assign({}, _data.conversations[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('שיחות', _data.conversations[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteConversation': {
+      const id = args[0];
+      const idx = (_data.conversations || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.conversations[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.conversations.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('שיחות', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'addAttendance': {
       const obj = args[0];
       if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
@@ -1158,7 +1198,7 @@ async function pullAllFromSheet() {
   }
   _pullInProgress = true;
   try {
-  const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows] = await Promise.all([
+  const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows, conversations] = await Promise.all([
     pullFromSheet('תלמידים'),
     pullFromSheet('מעקב_התנהגות'),
     pullFromSheet('משתמשים'),
@@ -1169,6 +1209,7 @@ async function pullAllFromSheet() {
     pullFromSheet('אסיפות'),
     pullFromSheet('נוכחות'),
     pullFromSheet('קטגוריות'),
+    pullFromSheet('שיחות'),
   ]);
   // Don't overwrite local with empty if local has data (avoid silent wipe)
   const safeReplace = (cur, fresh) => {
@@ -1208,6 +1249,7 @@ async function pullAllFromSheet() {
   _data.medications = safeReplace(_data.medications, medications);
   _data.meetings = safeReplace(_data.meetings, meetings);
   _data.attendance = safeReplace(_data.attendance, attendance);
+  _data.conversations = safeReplace(_data.conversations, conversations);
   // Bug #14 fix: notify pages that data was refreshed so they can re-render
   try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
   if (Array.isArray(categoriesRows) && categoriesRows.length) {

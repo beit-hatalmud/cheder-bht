@@ -65,7 +65,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','functioning','tests','medications','classview','attendance','calendar','meetings','settings','reports'];
+const PAGES = ['login','home','students','behavior','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','settings','reports'];
 
 function showPage(name) {
   PAGES.forEach(p => {
@@ -80,6 +80,7 @@ function showPage(name) {
   if (name === 'attendance' && typeof renderAttendance === 'function') renderAttendance();
   if (name === 'calendar' && typeof renderCalendar === 'function') renderCalendar();
   if (name === 'meetings' && typeof renderMeetings === 'function') renderMeetings();
+  if (name === 'conversations' && typeof renderConversations === 'function') renderConversations();
   if (name === 'settings' && typeof renderSettings === 'function') renderSettings();
   if (name === 'reports' && typeof renderReports === 'function') renderReports();
 }
@@ -336,6 +337,7 @@ function filterByPermissions(){
     'attendance': ['attendance','all'],
     'calendar': ['calendar','all'],
     'meetings': ['meetings','all'],
+    'conversations': ['conversations','all'],
     'settings': ['settings','all'],
     'reports': ['reports','all'],
   };

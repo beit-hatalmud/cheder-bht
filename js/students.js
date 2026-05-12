@@ -404,6 +404,18 @@ async function drawStudentTimeline(studentId) {
       extra: m['משתתפים'] ? `משתתפים: ${m['משתתפים']}` : '',
     });
   });
+  // Conversations with student
+  (data.conversations||[]).filter(c => String(c['תלמיד_מזהה']) === String(studentId)).forEach(c => {
+    items.push({
+      date: c['תאריך'],
+      type: 'שיחה',
+      icon: 'bi-chat-dots',
+      color: 'info',
+      title: c['נושא'] || 'שיחה עם תלמיד',
+      body: c['תוכן'] || '',
+      extra: c['רב'] ? `רב: ${c['רב']}` : '',
+    });
+  });
   // Attendance
   (data.attendance||[]).filter(a => String(a['תלמיד_מזהה']) === String(studentId)).slice(0, 50).forEach(a => {
     if (!a['תאריך']) return;

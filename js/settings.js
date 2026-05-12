@@ -280,6 +280,7 @@ const PERMISSION_AREAS = [
   { key: 'medications', label: 'כדורים ורפואי', icon: 'bi-capsule', desc: 'מעקב תרופות' },
   { key: 'attendance', label: 'נוכחות', icon: 'bi-check2-square', desc: 'נוכחות יומית' },
   { key: 'meetings', label: 'אסיפות הורים', icon: 'bi-people-fill', desc: 'תיעוד פגישות' },
+  { key: 'conversations', label: 'שיחות עם תלמידים', icon: 'bi-chat-dots', desc: 'תיעוד שיחות אישיות עם תלמידים' },
   { key: 'calendar', label: 'לוח שנה', icon: 'bi-calendar3', desc: 'תצוגה חודשית' },
   { key: 'classview', label: 'תצוגת כיתה', icon: 'bi-grid-3x3-gap', desc: 'מבט-על על כיתה' },
   { key: 'reports', label: 'דוחות וייצוא', icon: 'bi-file-earmark-pdf', desc: 'דוחות, PDF, מייל להורים' },
@@ -287,9 +288,9 @@ const PERMISSION_AREAS = [
 ];
 
 const ROLE_DEFAULTS = {
-  'מנהל': ['students','behavior','functioning','tests','medications','attendance','meetings','calendar','classview','reports','settings'],
-  'רב': ['students','behavior','functioning','tests','medications','attendance','meetings','calendar','classview','reports'],
-  'מורה': ['students','behavior','functioning','attendance','classview','calendar'],
+  'מנהל': ['students','behavior','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','reports','settings'],
+  'רב': ['students','behavior','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','reports'],
+  'מורה': ['students','behavior','functioning','attendance','conversations','classview','calendar'],
   'מזכירות': ['students','meetings','reports','attendance','calendar'],
   'קריאה בלבד': ['students','classview','calendar'],
   'מותאם אישית': [],
