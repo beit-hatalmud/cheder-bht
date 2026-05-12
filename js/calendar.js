@@ -315,11 +315,45 @@ function drawCalendar() {
       return d.getFullYear() === year && d.getMonth() === month;
     });
   }
+  // Also include meetings in the month list
+  let monthMeetings;
+  if (_calMode === 'hebrew' && typeof hebcal !== 'undefined' && hebcal.HDate) {
+    const hd = new hebcal.HDate(_calCurMonth);
+    const hMonth = hd.getMonth(); const hYear = hd.getFullYear();
+    monthMeetings = meetings.filter(m => {
+      if (!m['תאריך']) return false;
+      try {
+        const mhd = new hebcal.HDate(new Date(m['תאריך']));
+        return mhd.getMonth() === hMonth && mhd.getFullYear() === hYear;
+      } catch { return false; }
+    });
+  } else {
+    const year = _calCurMonth.getFullYear();
+    const month = _calCurMonth.getMonth();
+    monthMeetings = meetings.filter(m => {
+      if (!m['תאריך']) return false;
+      const d = new Date(m['תאריך']);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+  }
   monthEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
-  if (!monthEvents.length) {
+  monthMeetings.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  const totalRows = monthEvents.length + monthMeetings.length;
+  if (!totalRows) {
     listEl.innerHTML = '<p class="text-muted small mb-0">אין אירועים בחודש</p>';
   } else {
-    listEl.innerHTML = monthEvents.slice(0, 30).map(e => {
+    const stuById = {};
+    (data.students||[]).forEach(s => stuById[s['מזהה']] = s);
+    const meetRows = monthMeetings.slice(0, 10).map(m => {
+      const dt = formatDateBoth(m['תאריך']);
+      const stu = stuById[m['תלמיד_מזהה']];
+      const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '';
+      return `<div class="d-flex justify-content-between border-bottom py-1 small">
+        <div><i class="bi bi-people-fill text-primary"></i> <strong>${escHtml(stuName)}</strong> · ${escHtml(m['נושא']||'אסיפה')}${m['רב']?' · '+escHtml(m['רב']):''}</div>
+        <div class="text-muted">${escHtml(dt)}</div>
+      </div>`;
+    }).join('');
+    const evRows = monthEvents.slice(0, 30).map(e => {
       const dt = formatDateBoth(e['תאריך']);
       const sev = e['חומרה']==='גבוהה'?'text-danger':e['חומרה']==='נמוכה'?'text-success':'text-warning';
       return `<div class="d-flex justify-content-between border-bottom py-1 small">
@@ -327,8 +361,45 @@ function drawCalendar() {
         <div class="text-muted">${escHtml(dt)}</div>
       </div>`;
     }).join('');
+    listEl.innerHTML = meetRows + evRows;
   }
 }
+
+// Show a one-time toast for meetings happening today / tomorrow / day-after.
+// Called once after login (from loadStats) to remind staff.
+function showMeetingReminders() {
+  try {
+    const data = getVisibleData();
+    const meetings = (data.meetings || []);
+    const students = data.students || [];
+    const stuById = {};
+    students.forEach(s => stuById[s['מזהה']] = s);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const upcoming = meetings.map(m => {
+      if (!m['תאריך']) return null;
+      const d = new Date(m['תאריך']);
+      const dKey = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const daysAhead = Math.round((dKey - today) / (24*3600*1000));
+      if (daysAhead < 0 || daysAhead > 2) return null;
+      return { m, daysAhead };
+    }).filter(Boolean).slice(0, 5);
+    if (!upcoming.length) return;
+    // Skip if we already showed today
+    const lastShown = sessionStorage.getItem('cheder_meet_reminder_day');
+    const todayKey = String(today);
+    if (lastShown === todayKey) return;
+    sessionStorage.setItem('cheder_meet_reminder_day', todayKey);
+    upcoming.forEach(({ m, daysAhead }) => {
+      const stu = stuById[m['תלמיד_מזהה']];
+      const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '';
+      const when = daysAhead === 0 ? 'היום' : daysAhead === 1 ? 'מחר' : 'בעוד יומיים';
+      const text = `אסיפה ${when}: ${stuName} · ${m['נושא']||''}`;
+      if (typeof notify === 'function') notify(text, 'warn');
+    });
+  } catch (e) { /* never crash on reminders */ }
+}
+window.showMeetingReminders = showMeetingReminders;
 
 function drawHolidaysPanel() {
   const el = document.getElementById('cal-holidays');

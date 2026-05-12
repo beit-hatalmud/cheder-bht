@@ -73,6 +73,9 @@ function meetingsRefresh() {
         </div>
         <div class="d-flex gap-1 align-items-center">
           <small class="text-muted">${escHtml(dt)}</small>
+          <button class="btn btn-sm btn-outline-success p-1" onclick="meetPrint(${m['מזהה']})" title="הדפסה / PDF"><i class="bi bi-printer"></i></button>
+          <button class="btn btn-sm btn-outline-info p-1" onclick="meetEmailParents(${m['מזהה']})" title="שלח להורים"><i class="bi bi-envelope"></i></button>
+          <button class="btn btn-sm btn-outline-warning p-1" onclick="meetShareLink(${m['מזהה']})" title="קישור להורים"><i class="bi bi-link-45deg"></i></button>
           <button class="btn btn-sm btn-outline-primary p-1" onclick="meetEdit(${m['מזהה']})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger p-1" onclick="meetDelete(${m['מזהה']})"><i class="bi bi-trash"></i></button>
         </div>
@@ -150,4 +153,113 @@ async function meetDelete(id) {
   if (!confirm('למחוק את הפגישה?')) return;
   const r = await api('deleteMeeting', [id]);
   if (r.ok) { notify('נמחק', 'success'); renderMeetings(); } else alert(r.error || 'שגיאה במחיקה');
+}
+
+function meetReportHtml(m, stu) {
+  const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '';
+  const dt = m['תאריך'] ? formatDateBoth(m['תאריך']) : '';
+  const lines = String(m['סיכום']||'').split('\n').map(l => {
+    if (l.startsWith('▸')) return `<h3 style="color:#0066cc;margin-top:14pt;margin-bottom:6pt">${escHtml(l.replace('▸','').trim())}</h3>`;
+    if (l.match(/^─+$/)) return '';
+    return l.trim() ? `<p style="margin:6pt 0">${escHtml(l)}</p>` : '';
+  }).filter(Boolean).join('');
+  const title = `${m['נושא'] || 'אסיפת הורים'} — ${stuName}`;
+  return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>${escHtml(title)}</title>
+<style>
+@page{size:A4;margin:1.5cm}
+body{font-family:Arial,Heebo,sans-serif;direction:rtl;color:#1f2937;line-height:1.65}
+h1{color:#0066cc;border-bottom:3px solid #0066cc;padding-bottom:8pt;margin:0 0 4pt 0;font-size:20pt}
+h3{color:#1e40af;font-size:13pt}
+.meta{color:#6b7280;margin:6pt 0 12pt 0;font-size:10.5pt}
+.meta span{margin-left:12pt}
+.notes{margin-top:18pt;padding:10pt;background:#fffbeb;border-right:4px solid #f59e0b;font-size:10pt;color:#78350f}
+@media print{.no-print{display:none}}
+</style></head><body>
+<button class="no-print" onclick="window.print()" style="background:#0066cc;color:#fff;border:none;padding:10pt 20pt;border-radius:6px;cursor:pointer;font-size:14pt">🖨 הדפס / שמור כ-PDF</button>
+<h1>${escHtml(title)}</h1>
+<div class="meta">
+  ${stu ? `<span><b>תלמיד:</b> ${escHtml(stuName)} (כיתה ${escHtml(stu['מחזור']||'')})</span>` : ''}
+  ${dt ? `<span><b>תאריך:</b> ${escHtml(dt)}</span>` : ''}
+  ${m['תקופה'] ? `<span><b>תקופה:</b> ${escHtml(m['תקופה'])}</span>` : ''}
+  ${m['רב'] ? `<span><b>רב מדווח:</b> ${escHtml(m['רב'])}</span>` : ''}
+  ${m['משתתפים'] ? `<span><b>משתתפים:</b> ${escHtml(m['משתתפים'])}</span>` : ''}
+</div>
+${lines}
+${m['הערות'] ? `<div class="notes"><b>הערות:</b> ${escHtml(m['הערות'])}</div>` : ''}
+<script>
+const _doPrint = () => window.print();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => setTimeout(_doPrint, 200));
+else window.addEventListener('load', () => setTimeout(_doPrint, 800));
+</script>
+</body></html>`;
+}
+
+function _findMeeting(id) {
+  return _meetingsData.find(x => String(x['מזהה']) === String(id));
+}
+function _findStu(sid) {
+  return _meetingsStudents.find(x => String(x['מזהה']) === String(sid));
+}
+
+function meetPrint(id) {
+  const m = _findMeeting(id);
+  if (!m) return alert('הפגישה לא נמצאה');
+  const stu = _findStu(m['תלמיד_מזהה']);
+  const html = meetReportHtml(m, stu);
+  const w = window.open('', '_blank');
+  if (!w) return alert('הדפדפן חוסם פופ-אפ — אפשר אותו ונסה שוב');
+  w.document.write(html);
+  w.document.close();
+}
+
+async function meetEmailParents(id) {
+  const m = _findMeeting(id);
+  if (!m) return alert('הפגישה לא נמצאה');
+  const stu = _findStu(m['תלמיד_מזהה']);
+  if (!stu) return alert('התלמיד לא נמצא');
+  const fullName = `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim();
+  // Prefer father email/phone; ask user for the recipient
+  const subject = encodeURIComponent(`${m['נושא'] || 'הכנה לאסיפת הורים'} — ${fullName}`);
+  const summary = String(m['סיכום']||'').replace(/▸/g, '').trim();
+  const body = encodeURIComponent(
+    `שלום,\n\nמצורף סיכום ההכנה לאסיפת הורים — ${fullName}.\n` +
+    (m['רב'] ? `נכתב ע"י: ${m['רב']}\n` : '') +
+    (m['תאריך'] ? `תאריך: ${formatGreg(m['תאריך'])}\n` : '') +
+    `\n${summary}\n\nבברכה,\nבית התלמוד · בית שמש`
+  );
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=&su=${subject}&body=${body}`, '_blank');
+  notify('Gmail נפתח', 'success');
+}
+
+async function meetShareLink(id) {
+  const m = _findMeeting(id);
+  if (!m) return alert('הפגישה לא נמצאה');
+  const stu = _findStu(m['תלמיד_מזהה']);
+  if (!stu) return alert('התלמיד לא נמצא');
+  // Same token scheme as shareParentPortal (parent.html validates this)
+  const msg = String(stu['מזהה']) + '|BHT2026';
+  const buf = new TextEncoder().encode(msg);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+  const token = hex.slice(0, 12);
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const url = `${base}parent.html?s=${stu['מזהה']}&t=${token}&m=${m['מזהה']}`;
+  const fullName = `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim();
+  const phone = (stu['טלפון אם']||'').replace(/\D/g,'');
+  const waUrl = phone ? `https://wa.me/${phone.startsWith('0') ? '972'+phone.slice(1) : phone}?text=${encodeURIComponent(`שלום, קישור לסיכום הכנה לאסיפת הורים של ${fullName}: ${url}`)}` : '';
+  const html = `<div class="modal fade" id="meet-link-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5>קישור להורים — ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <p class="small text-muted">הקישור מציג להורים את פרטי ההכנה לאסיפה.</p>
+      <div class="input-group mb-2">
+        <input id="meet-link-url" class="form-control" value="${escHtml(url)}" readonly>
+        <button class="btn btn-outline-primary" onclick="navigator.clipboard.writeText(document.getElementById('meet-link-url').value); notify('הקישור הועתק','success')"><i class="bi bi-clipboard"></i></button>
+      </div>
+      ${waUrl ? `<a href="${escHtml(waUrl)}" target="_blank" class="btn btn-success w-100"><i class="bi bi-whatsapp"></i> שלח ב-WhatsApp לאמא</a>` : '<p class="text-muted small">אין מספר אמא בכרטיס התלמיד</p>'}
+    </div>
+  </div></div></div>`;
+  cleanupModal('meet-link-modal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  new bootstrap.Modal(document.getElementById('meet-link-modal')).show();
+  document.getElementById('meet-link-modal').addEventListener('hidden.bs.modal', () => cleanupModal('meet-link-modal'), { once: true });
 }

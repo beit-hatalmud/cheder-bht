@@ -189,6 +189,8 @@ async function loadStats() {
   drawSilentStudents(students, conversations);
   drawRabbiStats(conversations);
   drawRecentActivity(events);
+  // Show toast reminders for meetings in the next 0-2 days (once per day)
+  if (typeof showMeetingReminders === 'function') setTimeout(showMeetingReminders, 1500);
 }
 
 // Students with no conversation logged in the last 30 days (or never).
