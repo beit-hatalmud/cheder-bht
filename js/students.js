@@ -288,19 +288,25 @@ async function viewStudent(id) {
           </div>
           <div id="stu-conv-list">${conversations.length ? conversations.map(c => {
             const dt = c['תאריך'] ? formatDateBoth(c['תאריך']) : '';
+            let hdate = c['תאריך_עברי'] || ((typeof formatHebrewShort === 'function' && c['תאריך']) ? formatHebrewShort(c['תאריך']) : '');
+            let parsha = c['פרשה'] || ((typeof getParshaFor === 'function' && c['תאריך']) ? getParshaFor(c['תאריך']) : '');
             return `<div class="card p-2 mb-2 border-info">
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                 <div>
                   ${c['רב'] ? `<span class="badge bg-info-subtle text-info-emphasis border me-1"><i class="bi bi-person-fill"></i> ${escHtml(c['רב'])}</span>` : ''}
+                  ${c['קטגוריה'] ? `<span class="badge bg-primary-subtle text-primary-emphasis border me-1">${escHtml(c['קטגוריה'])}</span>` : ''}
+                  ${c['אירוע_מקושר'] ? `<span class="badge bg-warning-subtle text-warning-emphasis border me-1"><i class="bi bi-link"></i> אירוע #${escHtml(c['אירוע_מקושר'])}</span>` : ''}
                   ${c['נושא'] ? `<strong>${escHtml(c['נושא'])}</strong>` : ''}
                 </div>
-                <div class="d-flex align-items-center gap-1">
+                <div class="d-flex align-items-center gap-1 flex-wrap">
+                  ${parsha ? `<span class="badge bg-light text-dark border">פר' ${escHtml(parsha)}</span>` : ''}
+                  ${hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : ''}
                   <small class="text-muted">${escHtml(dt)}</small>
                   <button class="btn btn-sm btn-outline-primary p-1" onclick="editConvInStudent(${c['מזהה']}, ${id})" title="עריכה"><i class="bi bi-pencil"></i></button>
                   <button class="btn btn-sm btn-outline-danger p-1" onclick="deleteConvInStudent(${c['מזהה']}, ${id})" title="מחיקה"><i class="bi bi-trash"></i></button>
                 </div>
               </div>
-              ${c['תוכן'] ? `<p class="mb-0 mt-1 small" style="white-space:pre-wrap">${escHtml(c['תוכן'])}</p>` : ''}
+              ${c['תוכן'] ? `<p class="mb-0 mt-1 small" style="white-space:pre-wrap;line-height:1.6">${escHtml(c['תוכן'])}</p>` : ''}
               ${c['הערות'] ? `<div class="mt-1 small text-muted">${escHtml(c['הערות'])}</div>` : ''}
             </div>`;
           }).join('') : '<p class="text-muted">אין שיחות מתועדות</p>'}</div>
@@ -437,6 +443,10 @@ async function drawStudentTimeline(studentId) {
   });
   // Conversations with student
   (data.conversations||[]).filter(c => String(c['תלמיד_מזהה']) === String(studentId)).forEach(c => {
+    const tags = [];
+    if (c['רב']) tags.push(`רב: ${c['רב']}`);
+    if (c['קטגוריה']) tags.push(c['קטגוריה']);
+    if (c['אירוע_מקושר']) tags.push(`אירוע #${c['אירוע_מקושר']}`);
     items.push({
       date: c['תאריך'],
       type: 'שיחה',
@@ -444,7 +454,7 @@ async function drawStudentTimeline(studentId) {
       color: 'info',
       title: c['נושא'] || 'שיחה עם תלמיד',
       body: c['תוכן'] || '',
-      extra: c['רב'] ? `רב: ${c['רב']}` : '',
+      extra: tags.join(' · '),
     });
   });
   // Attendance
@@ -627,15 +637,57 @@ async function addConversationForStudent(studentId, existingConv) {
   const c = existingConv || {};
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const defaultRabbi = c['רב'] || sess.username || '';
+  // Load this student's recent behavior events for the "linked event" dropdown
+  const allEvents = (await api('listBehavior', [])).data || [];
+  const studentEvents = allEvents
+    .filter(e => String(e['תלמיד_מזהה']) === String(studentId))
+    .sort((a,b) => new Date(b['תאריך']||0) - new Date(a['תאריך']||0))
+    .slice(0, 30);
+  const cats = (typeof CONV_CATEGORIES !== 'undefined') ? CONV_CATEGORIES : ['שיחה אישית','חיזוק','מעקב','גבולות','רגשי','לימודי','התנהגותי','חברתי','מצב משפחתי','אחר'];
+  const templates = (typeof CONV_TEMPLATES !== 'undefined') ? CONV_TEMPLATES : [
+    ['חיזוק חיובי','חיזוק','שיחה לחיזוק על '],
+    ['שיחה אישית','שיחה אישית',''],
+    ['מעקב אחרי אירוע','מעקב','בעקבות האירוע: '],
+    ['קביעת גבולות','גבולות','שיחה בנושא גבולות: '],
+  ];
   const html = `<div class="modal fade" id="stu-conv-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5><i class="bi bi-chat-dots"></i> ${existingConv ? 'עריכת שיחה —' : 'שיחה חדשה עם'} ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="row g-2 mb-2">
-        <div class="col-md-6"><label class="form-label">תאריך</label><input id="scv-date" type="date" class="form-control" value="${c['תאריך'] ? String(c['תאריך']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
-        <div class="col-md-6"><label class="form-label">רב (מי שעשה את השיחה)</label><input id="scv-rabbi" class="form-control" value="${escHtml(defaultRabbi)}"></div>
+        <div class="col-md-4"><label class="form-label">תאריך</label><input id="scv-date" type="date" class="form-control" value="${c['תאריך'] ? String(c['תאריך']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
+        <div class="col-md-4"><label class="form-label">רב</label><input id="scv-rabbi" class="form-control" value="${escHtml(defaultRabbi)}"></div>
+        <div class="col-md-4"><label class="form-label">קטגוריה</label>
+          <select id="scv-cat" class="form-select">
+            <option value="">—</option>
+            ${cats.map(cat => `<option ${c['קטגוריה']===cat?'selected':''}>${escHtml(cat)}</option>`).join('')}
+          </select>
+        </div>
       </div>
-      <div class="mb-2"><label class="form-label">נושא</label><input id="scv-topic" class="form-control" value="${escHtml(c['נושא']||'')}" placeholder="למשל: שיחה אישית, חיזוק, מעקב..."></div>
-      <div class="mb-2"><label class="form-label">תוכן השיחה</label><textarea id="scv-content" class="form-control" rows="6">${escHtml(c['תוכן']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">אירוע התנהגות מקושר (אופציונלי)</label>
+        <select id="scv-linked" class="form-select">
+          <option value="">— ללא —</option>
+          ${studentEvents.map(ev => {
+            const dt = ev['תאריך'] ? formatGreg(ev['תאריך']) : '';
+            const txt = `${dt} · ${ev['קטגוריה']||''}${ev['חומרה']?' ('+ev['חומרה']+')':''}`;
+            const sel = String(c['אירוע_מקושר']||'') === String(ev['מזהה']) ? ' selected' : '';
+            return `<option value="${ev['מזהה']}"${sel}>${escHtml(txt)}</option>`;
+          }).join('')}
+        </select>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">תבניות מהירות</label>
+        <div class="d-flex flex-wrap gap-1">
+          ${templates.map(([lbl, cat, txt]) => `<button type="button" class="btn btn-sm btn-outline-secondary" onclick="stuConvApplyTemplate('${escHtml(lbl)}','${escHtml(cat)}','${escHtml(txt)}')">${escHtml(lbl)}</button>`).join('')}
+        </div>
+      </div>
+      <div class="mb-2"><label class="form-label">נושא</label><input id="scv-topic" class="form-control" value="${escHtml(c['נושא']||'')}" placeholder="כותרת קצרה"></div>
+      <div class="mb-2">
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label">תוכן השיחה</label>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="scv-mic-btn" onclick="stuConvToggleMic()" title="הכתבה קולית"><i class="bi bi-mic"></i> הכתבה</button>
+        </div>
+        <textarea id="scv-content" class="form-control" rows="6">${escHtml(c['תוכן']||'')}</textarea>
+      </div>
       <div class="mb-2"><label class="form-label">הערות</label><textarea id="scv-notes" class="form-control" rows="2">${escHtml(c['הערות']||'')}</textarea></div>
     </div>
     <div class="modal-footer">
@@ -647,28 +699,88 @@ async function addConversationForStudent(studentId, existingConv) {
   document.body.insertAdjacentHTML('beforeend', html);
   const m = new bootstrap.Modal(document.getElementById('stu-conv-modal'));
   m.show();
-  document.getElementById('stu-conv-modal').addEventListener('hidden.bs.modal', () => cleanupModal('stu-conv-modal'), { once: true });
+  document.getElementById('stu-conv-modal').addEventListener('hidden.bs.modal', () => { stuConvStopMic(); cleanupModal('stu-conv-modal'); }, { once: true });
+}
+
+function stuConvApplyTemplate(label, category, text) {
+  const catSel = document.getElementById('scv-cat');
+  if (catSel && category) catSel.value = category;
+  const topic = document.getElementById('scv-topic');
+  if (topic && !topic.value.trim()) topic.value = label;
+  const content = document.getElementById('scv-content');
+  if (content && text) {
+    if (content.value.trim()) content.value = content.value + '\n' + text;
+    else content.value = text;
+    content.focus();
+    content.selectionStart = content.selectionEnd = content.value.length;
+  }
+}
+
+let _stuConvRecog = null;
+let _stuConvRecogActive = false;
+
+function stuConvToggleMic() {
+  if (_stuConvRecogActive) return stuConvStopMic();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { notify('הדפדפן לא תומך בהכתבה קולית — נסה Chrome', 'warn'); return; }
+  const recog = new SR();
+  recog.lang = 'he-IL';
+  recog.continuous = true;
+  recog.interimResults = true;
+  const ta = document.getElementById('scv-content');
+  const baseText = ta.value;
+  let finalSoFar = '';
+  recog.onresult = ev => {
+    let interim = '';
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const r = ev.results[i];
+      if (r.isFinal) finalSoFar += r[0].transcript + ' ';
+      else interim += r[0].transcript;
+    }
+    ta.value = (baseText ? baseText + (baseText.endsWith(' ')||baseText.endsWith('\n')?'':' ') : '') + finalSoFar + interim;
+  };
+  recog.onerror = e => { notify('שגיאה בהכתבה: ' + e.error, 'error'); stuConvStopMic(); };
+  recog.onend = () => { if (_stuConvRecogActive) { try { recog.start(); } catch {} } };
+  try { recog.start(); } catch { notify('לא ניתן להפעיל מיקרופון', 'error'); return; }
+  _stuConvRecog = recog;
+  _stuConvRecogActive = true;
+  const btn = document.getElementById('scv-mic-btn');
+  if (btn) { btn.classList.remove('btn-outline-primary'); btn.classList.add('btn-danger'); btn.innerHTML = '<i class="bi bi-mic-fill"></i> עצור'; }
+}
+
+function stuConvStopMic() {
+  _stuConvRecogActive = false;
+  if (_stuConvRecog) { try { _stuConvRecog.stop(); } catch {} _stuConvRecog = null; }
+  const btn = document.getElementById('scv-mic-btn');
+  if (btn) { btn.classList.remove('btn-danger'); btn.classList.add('btn-outline-primary'); btn.innerHTML = '<i class="bi bi-mic"></i> הכתבה'; }
 }
 
 async function saveConversationForStudent(studentId, editId) {
+  stuConvStopMic();
+  const dateStr = document.getElementById('scv-date').value;
   const obj = {
     'תלמיד_מזהה': parseInt(studentId),
-    'תאריך': document.getElementById('scv-date').value,
+    'תאריך': dateStr,
     'רב': document.getElementById('scv-rabbi').value.trim(),
+    'קטגוריה': document.getElementById('scv-cat').value,
     'נושא': document.getElementById('scv-topic').value.trim(),
     'תוכן': document.getElementById('scv-content').value.trim(),
     'הערות': document.getElementById('scv-notes').value.trim(),
+    'אירוע_מקושר': document.getElementById('scv-linked').value,
   };
   if (!obj['רב']) {
     const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
     obj['רב'] = sess.username || 'לא ידוע';
+  }
+  if (dateStr) {
+    if (typeof formatHebrewShort === 'function') obj['תאריך_עברי'] = formatHebrewShort(dateStr);
+    if (typeof getParshaFor === 'function') obj['פרשה'] = getParshaFor(dateStr);
   }
   if (editId) obj['מזהה'] = editId;
   const r = await api(editId ? 'updateConversation' : 'addConversation', [obj]);
   if (!r.ok) return alert(r.error || 'שגיאה');
   if (typeof toast === 'function') toast(editId ? 'השיחה עודכנה' : 'השיחה נשמרה', 'success');
   hideModal('stu-conv-modal');
-  // Refresh the student profile modal
   const old = document.getElementById('viewStuModal');
   if (old) bootstrap.Modal.getInstance(old)?.hide();
   setTimeout(() => viewStudent(studentId), 250);
