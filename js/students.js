@@ -195,6 +195,9 @@ async function viewStudent(id) {
   const events = ((await api('listBehavior', [])).data || [])
     .filter(e => String(e['תלמיד_מזהה']) === String(id))
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  const conversations = ((await api('listConversations', [])).data || [])
+    .filter(c => String(c['תלמיד_מזהה']) === String(id))
+    .sort((a,b) => new Date(b['תאריך']||0) - new Date(a['תאריך']||0));
   const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
   const hebBd = getHebrewBirthday(s);
   const waButtons = (phone, name, parent) => {
@@ -266,6 +269,7 @@ async function viewStudent(id) {
       </div>
       <ul class="nav nav-tabs mt-3" id="stu-tabs">
         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#stu-tab-behavior">התנהגות (${events.length})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-conversations">שיחות (${conversations.length})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-profile">פרופיל אישי</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-timeline">טיים-ליין</a></li>
       </ul>
@@ -276,6 +280,30 @@ async function viewStudent(id) {
             <button class="btn btn-sm btn-success" onclick="addEventForStudent(${id})"><i class="bi bi-plus"></i> אירוע חדש</button>
           </div>
           ${eventsHtml}
+        </div>
+        <div class="tab-pane fade" id="stu-tab-conversations">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span></span>
+            <button class="btn btn-sm btn-success" onclick="addConversationForStudent(${id})"><i class="bi bi-plus"></i> שיחה חדשה</button>
+          </div>
+          <div id="stu-conv-list">${conversations.length ? conversations.map(c => {
+            const dt = c['תאריך'] ? formatDateBoth(c['תאריך']) : '';
+            return `<div class="card p-2 mb-2 border-info">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                <div>
+                  ${c['רב'] ? `<span class="badge bg-info-subtle text-info-emphasis border me-1"><i class="bi bi-person-fill"></i> ${escHtml(c['רב'])}</span>` : ''}
+                  ${c['נושא'] ? `<strong>${escHtml(c['נושא'])}</strong>` : ''}
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                  <small class="text-muted">${escHtml(dt)}</small>
+                  <button class="btn btn-sm btn-outline-primary p-1" onclick="editConvInStudent(${c['מזהה']}, ${id})" title="עריכה"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-sm btn-outline-danger p-1" onclick="deleteConvInStudent(${c['מזהה']}, ${id})" title="מחיקה"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+              ${c['תוכן'] ? `<p class="mb-0 mt-1 small" style="white-space:pre-wrap">${escHtml(c['תוכן'])}</p>` : ''}
+              ${c['הערות'] ? `<div class="mt-1 small text-muted">${escHtml(c['הערות'])}</div>` : ''}
+            </div>`;
+          }).join('') : '<p class="text-muted">אין שיחות מתועדות</p>'}</div>
         </div>
         <div class="tab-pane fade" id="stu-tab-profile">
           <div class="d-flex justify-content-end mb-2">
@@ -587,6 +615,77 @@ async function deleteEventInStudent(eventId, studentId) {
   if (old) bootstrap.Modal.getInstance(old).hide();
   setTimeout(() => viewStudent(studentId), 250);
   loadStats();
+}
+
+async function addConversationForStudent(studentId, existingConv) {
+  const s = _students.find(x => String(x['מזהה']) === String(studentId));
+  if (!s) return;
+  const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+  const c = existingConv || {};
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const defaultRabbi = c['רב'] || sess.username || '';
+  const html = `<div class="modal fade" id="stu-conv-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-chat-dots"></i> ${existingConv ? 'עריכת שיחה —' : 'שיחה חדשה עם'} ${escHtml(fullName)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2 mb-2">
+        <div class="col-md-6"><label class="form-label">תאריך</label><input id="scv-date" type="date" class="form-control" value="${c['תאריך'] ? String(c['תאריך']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
+        <div class="col-md-6"><label class="form-label">רב (מי שעשה את השיחה)</label><input id="scv-rabbi" class="form-control" value="${escHtml(defaultRabbi)}"></div>
+      </div>
+      <div class="mb-2"><label class="form-label">נושא</label><input id="scv-topic" class="form-control" value="${escHtml(c['נושא']||'')}" placeholder="למשל: שיחה אישית, חיזוק, מעקב..."></div>
+      <div class="mb-2"><label class="form-label">תוכן השיחה</label><textarea id="scv-content" class="form-control" rows="6">${escHtml(c['תוכן']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">הערות</label><textarea id="scv-notes" class="form-control" rows="2">${escHtml(c['הערות']||'')}</textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="saveConversationForStudent(${studentId}, ${existingConv ? c['מזהה'] : 'null'})"><i class="bi bi-check"></i> שמור</button>
+    </div>
+  </div></div></div>`;
+  cleanupModal('stu-conv-modal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  const m = new bootstrap.Modal(document.getElementById('stu-conv-modal'));
+  m.show();
+  document.getElementById('stu-conv-modal').addEventListener('hidden.bs.modal', () => cleanupModal('stu-conv-modal'), { once: true });
+}
+
+async function saveConversationForStudent(studentId, editId) {
+  const obj = {
+    'תלמיד_מזהה': parseInt(studentId),
+    'תאריך': document.getElementById('scv-date').value,
+    'רב': document.getElementById('scv-rabbi').value.trim(),
+    'נושא': document.getElementById('scv-topic').value.trim(),
+    'תוכן': document.getElementById('scv-content').value.trim(),
+    'הערות': document.getElementById('scv-notes').value.trim(),
+  };
+  if (!obj['רב']) {
+    const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+    obj['רב'] = sess.username || 'לא ידוע';
+  }
+  if (editId) obj['מזהה'] = editId;
+  const r = await api(editId ? 'updateConversation' : 'addConversation', [obj]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
+  if (typeof toast === 'function') toast(editId ? 'השיחה עודכנה' : 'השיחה נשמרה', 'success');
+  hideModal('stu-conv-modal');
+  // Refresh the student profile modal
+  const old = document.getElementById('viewStuModal');
+  if (old) bootstrap.Modal.getInstance(old)?.hide();
+  setTimeout(() => viewStudent(studentId), 250);
+}
+
+async function editConvInStudent(convId, studentId) {
+  const list = (await api('listConversations', [])).data || [];
+  const c = list.find(x => String(x['מזהה']) === String(convId));
+  if (!c) return alert('השיחה לא נמצאה');
+  addConversationForStudent(studentId, c);
+}
+
+async function deleteConvInStudent(convId, studentId) {
+  if (!confirm('בטוח למחוק את השיחה?')) return;
+  const r = await api('deleteConversation', [convId]);
+  if (!r.ok) return alert(r.error || 'שגיאה');
+  if (typeof toast === 'function') toast('השיחה נמחקה', 'success');
+  const old = document.getElementById('viewStuModal');
+  if (old) bootstrap.Modal.getInstance(old)?.hide();
+  setTimeout(() => viewStudent(studentId), 250);
 }
 
 function applyQuickTemplate(text, cat, sev) {
