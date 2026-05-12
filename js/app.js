@@ -172,8 +172,10 @@ function hideLoadingOverlay() {
 async function loadStats() {
   const s = await api('listStudents', []);
   const b = await api('listBehavior', []);
+  const c = await api('listConversations', []);
   const students = (s.data || []).filter(x => (x['סטטוס']||'פעיל') !== 'סיים');
   const events = b.data || [];
+  const conversations = c.data || [];
   document.getElementById('stat-students').textContent = students.length;
   document.getElementById('stat-events').textContent = events.length;
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
@@ -184,7 +186,75 @@ async function loadStats() {
   drawTrendChart(events);
   drawBirthdays(students);
   drawAlerts(students, events);
+  drawSilentStudents(students, conversations);
+  drawRabbiStats(conversations);
   drawRecentActivity(events);
+}
+
+// Students with no conversation logged in the last 30 days (or never).
+// Click to open the student's card.
+function drawSilentStudents(students, conversations) {
+  const el = document.getElementById('silent-students');
+  if (!el) return;
+  const THRESHOLD_DAYS = 30;
+  const cutoff = Date.now() - THRESHOLD_DAYS * 24 * 3600 * 1000;
+  const lastConvBySid = {};
+  conversations.forEach(c => {
+    const ms = dateMs(c['תאריך']);
+    const sid = String(c['תלמיד_מזהה']);
+    if (!lastConvBySid[sid] || ms > lastConvBySid[sid]) lastConvBySid[sid] = ms;
+  });
+  const flagged = students.map(s => {
+    const last = lastConvBySid[String(s['מזהה'])] || 0;
+    const daysSince = last ? Math.floor((Date.now() - last) / (24 * 3600 * 1000)) : null;
+    return { s, last, daysSince };
+  }).filter(x => x.last === 0 || x.last < cutoff)
+    .sort((a,b) => a.last - b.last)
+    .slice(0, 10);
+  if (!flagged.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">דיברו עם כל התלמידים החודש 👍</p>';
+    return;
+  }
+  el.innerHTML = flagged.map(x => {
+    const fullName = (x.s['שם פרטי']||'') + ' ' + (x.s['שם משפחה']||'');
+    const badge = x.last === 0
+      ? '<span class="badge bg-danger">אף פעם</span>'
+      : `<span class="badge bg-warning text-dark">${x.daysSince} ימים</span>`;
+    return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${x.s['מזהה']})" style="cursor:pointer">
+      <div><i class="bi bi-chat-text text-warning"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(${escHtml(x.s['מחזור']||'')})</span></div>
+      <div>${badge}</div>
+    </div>`;
+  }).join('');
+}
+
+// Conversation count per rabbi for the current Gregorian month.
+function drawRabbiStats(conversations) {
+  const el = document.getElementById('rabbi-stats');
+  if (!el) return;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const counts = {};
+  conversations.forEach(c => {
+    if (dateMs(c['תאריך']) < monthStart) return;
+    const r = (c['רב'] || 'לא ידוע').trim();
+    counts[r] = (counts[r] || 0) + 1;
+  });
+  const entries = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+  if (!entries.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">לא נרשמו שיחות החודש</p>';
+    return;
+  }
+  const max = entries[0][1] || 1;
+  el.innerHTML = entries.map(([rabbi, n]) => {
+    const pct = Math.round(n / max * 100);
+    return `<div class="py-2 border-bottom small">
+      <div class="d-flex justify-content-between">
+        <div><i class="bi bi-person-fill text-info"></i> <strong>${escHtml(rabbi)}</strong></div>
+        <div class="text-muted">${n} שיחות</div>
+      </div>
+      <div class="progress mt-1" style="height:6px"><div class="progress-bar bg-info" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
 }
 
 function drawClassBanner(students) {
@@ -201,13 +271,63 @@ function drawClassBanner(students) {
 function drawBirthdays(students) {
   const el = document.getElementById('birthdays');
   if (!el) return;
+  const heading = el.closest('.card')?.querySelector('h6');
+  if (heading) heading.innerHTML = '<i class="bi bi-cake2"></i> ימי הולדת החודש (עברי)';
+  // Use Hebrew dates: convert each student's birth date to Hebrew and match
+  // by Hebrew month + Hebrew day. Age is computed in Hebrew years.
+  const hebcalReady = typeof hebcal !== 'undefined' && hebcal.HDate;
+  if (!hebcalReady) {
+    // Fallback to Gregorian if hebcal hasn't loaded yet
+    return drawBirthdaysGreg(students, el);
+  }
+  const todayHd = new hebcal.HDate(new Date());
+  const todayMonth = todayHd.getMonth();
+  const todayYear = todayHd.getFullYear();
+  const isLeap = hebcal.HDate.isLeapYear ? hebcal.HDate.isLeapYear(todayYear) : false;
+  const NORMAL = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר'];
+  const LEAP = ['','ניסן','אייר','סיון','תמוז','אב','אלול','תשרי','חשון','כסלו','טבת','שבט','אדר א','אדר ב'];
+  const monthNames = isLeap ? LEAP : NORMAL;
+
+  const list = students.map(s => {
+    const d = (typeof parseAnyDate === 'function') ? parseAnyDate(s['תאריך לידה']) : null;
+    if (!d) return null;
+    let bhd;
+    try { bhd = new hebcal.HDate(d); } catch { return null; }
+    // Match by current Hebrew month; handle Adar in non-leap years by treating
+    // both Adar I & II of leap birth years as Adar of regular years.
+    let birthMonth = bhd.getMonth();
+    if (!isLeap && (birthMonth === 12 || birthMonth === 13)) birthMonth = 12;  // Adar A/B → אדר
+    if (birthMonth !== todayMonth) return null;
+    const birthDay = bhd.getDate();
+    const age = todayYear - bhd.getFullYear();
+    return { ...s, _hday: birthDay, _hmonth: monthNames[todayMonth] || '', _hage: age, _bhd: bhd };
+  }).filter(Boolean).sort((a,b) => a._hday - b._hday);
+
+  if (!list.length) {
+    el.innerHTML = '<p class="text-muted small mb-0">אין ימי הולדת בחודש ' + (monthNames[todayMonth]||'') + '</p>';
+    return;
+  }
+  const todayDay = todayHd.getDate();
+  el.innerHTML = list.map(s => {
+    const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+    const dayGem = hebcal.gematriya(s._hday);
+    const isTodayBirthday = s._hday === todayDay;
+    const flag = isTodayBirthday ? '<span class="badge bg-warning text-dark me-1">היום!</span>' : '';
+    return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${s['מזהה']})" style="cursor:pointer">
+      <div>${flag}<i class="bi bi-cake2 text-warning"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(כיתה ${escHtml(s['מחזור']||'')})</span></div>
+      <div class="text-muted">${escHtml(dayGem)} ${escHtml(s._hmonth)} · גיל ${s._hage}</div>
+    </div>`;
+  }).join('');
+}
+
+function drawBirthdaysGreg(students, el) {
   const today = new Date();
   const thisMonth = today.getMonth() + 1;
   const list = students.map(s => {
     const d = (typeof parseAnyDate === 'function') ? parseAnyDate(s['תאריך לידה']) : null;
     if (!d) return null;
     if (d.getMonth() + 1 !== thisMonth) return null;
-    return { ...s, _day: d.getDate(), _bd: d };
+    return { ...s, _day: d.getDate() };
   }).filter(Boolean).sort((a,b) => a._day - b._day);
   if (!list.length) {
     el.innerHTML = '<p class="text-muted small mb-0">אין ימי הולדת החודש</p>';

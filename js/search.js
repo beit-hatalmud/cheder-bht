@@ -85,6 +85,38 @@ async function doGlobalSearch() {
     }
   });
 
+  // Conversations
+  (data.conversations || []).forEach(c => {
+    const stu = (data.students||[]).find(s => String(s['מזהה']) === String(c['תלמיד_מזהה']));
+    const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '';
+    const text = [stuName, c['נושא'], c['תוכן'], c['רב'], c['קטגוריה'], c['הערות']]
+      .filter(Boolean).join(' ').toLowerCase();
+    if (text.includes(q)) {
+      hits.push({
+        type: 'שיחה', icon: 'bi-chat-dots',
+        title: stuName || '?',
+        subtitle: `${c['נושא']||'שיחה'}${c['רב']?' · רב: '+c['רב']:''}${c['קטגוריה']?' · '+c['קטגוריה']:''}`,
+        action: () => { hideModal('gs-modal'); goto('conversations'); },
+      });
+    }
+  });
+
+  // Meetings (parent meetings)
+  (data.meetings || []).forEach(m => {
+    const stu = (data.students||[]).find(s => String(s['מזהה']) === String(m['תלמיד_מזהה']));
+    const stuName = stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '';
+    const text = [stuName, m['נושא'], m['סיכום'], m['רב'], m['משתתפים'], m['תקופה']]
+      .filter(Boolean).join(' ').toLowerCase();
+    if (text.includes(q)) {
+      hits.push({
+        type: 'אסיפה', icon: 'bi-people-fill',
+        title: stuName || '?',
+        subtitle: `${m['נושא']||'אסיפה'}${m['רב']?' · רב: '+m['רב']:''}${m['תקופה']?' · '+m['תקופה']:''}`,
+        action: () => { hideModal('gs-modal'); goto('meetings'); },
+      });
+    }
+  });
+
   // Tests
   (data.tests || []).forEach(t => {
     const stu = (data.students||[]).find(s => String(s['מזהה']) === String(t['תלמיד_מזהה']));
