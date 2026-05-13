@@ -132,6 +132,20 @@
           <p class="text-muted small mb-0">ייצוא PDF מעוצב</p>
         </div>
       </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-tile" onclick="goto('cameras')">
+          <i class="bi bi-camera-video fs-1 text-primary"></i>
+          <h5 class="mt-2">מצלמות AI</h5>
+          <p class="text-muted small mb-0">ניטור 24/7 + סיכום יומי</p>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-tile" onclick="goto('agents')">
+          <i class="bi bi-robot fs-1 text-info"></i>
+          <h5 class="mt-2">צוות סוכנים</h5>
+          <p class="text-muted small mb-0">שיחות AI אוטונומיות</p>
+        </div>
+      </div>
     </div>
 
     <div class="card p-3 mt-4">
@@ -207,6 +221,86 @@
   <div id="page-calendar" class="d-none"></div>
   <div id="page-settings" class="d-none"></div>
   <div id="page-reports" class="d-none"></div>
+
+  <div id="page-cameras" class="d-none">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h3><i class="bi bi-camera-video"></i> ניטור מצלמות AI</h3>
+      <div>
+        <button class="btn btn-sm btn-outline-primary" onclick="loadCameraReports()"><i class="bi bi-arrow-clockwise"></i> רענן</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="goto('home')">חזרה</button>
+      </div>
+    </div>
+    <div class="alert alert-info">
+      <strong>12 מצלמות במכינה:</strong> שער וגינה, חדר רמ, לובי, שביל סיני, מחסן יוסף, מדרכה וחניה, חדר שיעור, חדר מפגש, מזכירות, משרד, בית מדרש.
+      <br>סריקה אוטומטית מדי שעה. דו"ח יומי ב-02:00 לילה.
+    </div>
+    <div id="camera-reports-list" class="row g-3"></div>
+    <div id="camera-latest-content" class="card p-3 mt-3"></div>
+  </div>
+
+  <div id="page-agents" class="d-none">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h3><i class="bi bi-robot"></i> צוות סוכני AI</h3>
+      <button class="btn btn-sm btn-outline-secondary" onclick="goto('home')">חזרה</button>
+    </div>
+    <div class="alert alert-info">
+      <strong>4 סוכנים פעילים:</strong> claude-main, claude-voice, claude-bot, claw.
+      <br>השיחה ביניהם נשמרת ב-team_chat.jsonl ועדכון אוטומטי כל 5 דקות.
+    </div>
+    <div class="mb-2">
+      <a class="btn btn-sm btn-primary" href="https://yossi6742853.github.io/team-chat-log/" target="_blank"><i class="bi bi-box-arrow-up-right"></i> פתח בלייב</a>
+      <a class="btn btn-sm btn-secondary" href="https://yossi6742853.github.io/maale-knowledge-base/" target="_blank"><i class="bi bi-database"></i> Knowledge Base</a>
+    </div>
+    <iframe id="agents-iframe" src="https://yossi6742853.github.io/team-chat-log/" style="width:100%;height:600px;border:1px solid #ddd;border-radius:8px"></iframe>
+  </div>
+
+  <script>
+  async function loadCameraReports() {
+    const list = document.getElementById('camera-reports-list');
+    list.innerHTML = '<div class="col-12 text-muted">טוען...</div>';
+    try {
+      const r = await fetch('https://api.github.com/repos/yossi6742853/team-chat-log/contents/camera_reports?t=' + Date.now());
+      const items = await r.json();
+      if (!Array.isArray(items)) {
+        list.innerHTML = '<div class="col-12 text-muted">אין דו"חות עדיין. ייווצרו אוטומטית מדי יום ב-02:00.</div>';
+        return;
+      }
+      const reports = items.filter(i => i.name.endsWith('.md'));
+      if (!reports.length) {
+        list.innerHTML = '<div class="col-12 text-muted">אין דו"חות עדיין.</div>';
+        return;
+      }
+      list.innerHTML = reports.map(r =>
+        `<div class="col-md-6 col-lg-4"><div class="card p-3"><h6>${r.name}</h6><a class="btn btn-sm btn-outline-primary" onclick="loadReport('${r.download_url}')">צפה</a></div></div>`
+      ).join('');
+    } catch (e) {
+      list.innerHTML = '<div class="col-12 text-danger">שגיאה: ' + e.message + '</div>';
+    }
+  }
+  async function loadReport(url) {
+    const c = document.getElementById('camera-latest-content');
+    c.innerHTML = '<div class="text-muted">טוען...</div>';
+    try {
+      const r = await fetch(url);
+      const text = await r.text();
+      c.innerHTML = '<pre style="white-space:pre-wrap;font-family:inherit">' + text.replace(/</g,'&lt;') + '</pre>';
+    } catch (e) {
+      c.innerHTML = '<div class="text-danger">שגיאה: ' + e.message + '</div>';
+    }
+  }
+  // Hook into existing goto() function (if loaded)
+  if (typeof window.goto !== 'undefined') {
+    const origGoto = window.goto;
+    window.goto = function(p) { origGoto(p); if (p === 'cameras') loadCameraReports(); };
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof window.goto !== 'undefined') {
+        const origGoto = window.goto;
+        window.goto = function(p) { origGoto(p); if (p === 'cameras') loadCameraReports(); };
+      }
+    });
+  }
+  </script>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
