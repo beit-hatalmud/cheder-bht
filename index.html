@@ -139,13 +139,6 @@
           <p class="text-muted small mb-0">ניטור 24/7 + סיכום יומי</p>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3">
-        <div class="card card-tile" onclick="goto('agents')">
-          <i class="bi bi-robot fs-1 text-info"></i>
-          <h5 class="mt-2">צוות סוכנים</h5>
-          <p class="text-muted small mb-0">שיחות AI אוטונומיות</p>
-        </div>
-      </div>
     </div>
 
     <div class="card p-3 mt-4">
@@ -236,22 +229,6 @@
     </div>
     <div id="camera-reports-list" class="row g-3"></div>
     <div id="camera-latest-content" class="card p-3 mt-3"></div>
-  </div>
-
-  <div id="page-agents" class="d-none">
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <h3><i class="bi bi-robot"></i> צוות סוכני AI</h3>
-      <button class="btn btn-sm btn-outline-secondary" onclick="goto('home')">חזרה</button>
-    </div>
-    <div class="alert alert-info">
-      <strong>4 סוכנים פעילים:</strong> claude-main, claude-voice, claude-bot, claw.
-      <br>השיחה ביניהם נשמרת ב-team_chat.jsonl ועדכון אוטומטי כל 5 דקות.
-    </div>
-    <div class="mb-2">
-      <a class="btn btn-sm btn-primary" href="https://yossi6742853.github.io/team-chat-log/" target="_blank"><i class="bi bi-box-arrow-up-right"></i> פתח בלייב</a>
-      <a class="btn btn-sm btn-secondary" href="https://yossi6742853.github.io/maale-knowledge-base/" target="_blank"><i class="bi bi-database"></i> Knowledge Base</a>
-    </div>
-    <iframe id="agents-iframe" src="https://yossi6742853.github.io/team-chat-log/" style="width:100%;height:600px;border:1px solid #ddd;border-radius:8px"></iframe>
   </div>
 
   <script>
