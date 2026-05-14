@@ -82,7 +82,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','settings','reports'];
+const PAGES = ['login','home','students','behavior','reading','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','settings','reports'];
 
 function showPage(name) {
   PAGES.forEach(p => {
@@ -90,6 +90,7 @@ function showPage(name) {
   });
   if (name === 'students' && typeof renderStudents === 'function') renderStudents();
   if (name === 'behavior' && typeof renderBehavior === 'function') renderBehavior();
+  if (name === 'reading' && typeof renderReading === 'function') renderReading();
   if (name === 'functioning' && typeof renderFunctioning === 'function') renderFunctioning();
   if (name === 'tests' && typeof renderTests === 'function') renderTests();
   if (name === 'medications' && typeof renderMedications === 'function') renderMedications();
@@ -495,6 +496,7 @@ function filterByPermissions(){
   const permissions = {
     'students': ['students','all'],
     'behavior': ['behavior','all'],
+    'reading': ['reading','behavior','all'],
     'functioning': ['functioning','all'],
     'tests': ['tests','all'],
     'medications': ['medications','all'],
