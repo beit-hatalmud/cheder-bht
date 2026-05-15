@@ -3,7 +3,7 @@
 // קטגוריה קבועה: "קידום קריאה".
 
 const LESSONSKLEIN_CAT = 'שיעור פרטני קליין';
-let _lvents = [], _lllStudents = [];
+let _lEvents = [], _lAllStudents = [];
 
 async function renderLessonsKlein() {
   document.getElementById('page-lessonsKlein').innerHTML = `
@@ -23,31 +23,31 @@ async function renderLessonsKlein() {
     api('listStudents', []),
     api('listBehavior', []),
   ]);
-  _lllStudents = stRes.data || [];
-  _lvents = (evRes.data || []).filter(e => e['קטגוריה'] === LESSONSKLEIN_CAT);
-  _lvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  _lAllStudents = stRes.data || [];
+  _lEvents = (evRes.data || []).filter(e => e['קטגוריה'] === LESSONSKLEIN_CAT);
+  _lEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   fillLessonsKleinFilters();
-  drawLessonsKleinEvents(_lvents);
-  document.getElementById('r-fstudent').onchange = applyLessonsKleinFilters;
+  drawLessonsKleinEvents(_lEvents);
+  document.getElementById('l-fstudent').onchange = applyReadingFilters;
 }
 
 function fillLessonsKleinFilters() {
-  const stSel = document.getElementById('r-fstudent');
-  _lllStudents.forEach(s => {
+  const stSel = document.getElementById('l-fstudent');
+  _lAllStudents.forEach(s => {
     const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
     stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
   });
 }
 
-function applyLessonsKleinFilters() {
-  let f = _lvents;
-  const s = document.getElementById('r-fstudent').value;
+function applyReadingFilters() {
+  let f = _lEvents;
+  const s = document.getElementById('l-fstudent').value;
   if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
   drawLessonsKleinEvents(f);
 }
 
 function drawLessonsKleinEvents(list) {
-  const el = document.getElementById('r-list');
+  const el = document.getElementById('l-list');
   if (!list.length) {
     el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-book fs-1"></i><p>אין דיווחי קריאה</p></div>';
     return;
@@ -85,7 +85,7 @@ function addLessonsKleinModal() {
   const html = `<div class="modal fade" id="addLessonsKleinModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>דיווח קידום קריאה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_lllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_lAllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveLessonsKlein(event)">שמור</button></div>
@@ -105,7 +105,7 @@ async function saveLessonsKlein(event) {
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
   const sid = document.getElementById('nr-student').value;
-  const stu = _lllStudents.find(s => String(s['מזהה']) === sid);
+  const stu = _lAllStudents.find(s => String(s['מזהה']) === sid);
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const desc = document.getElementById('nr-desc').value;

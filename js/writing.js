@@ -3,7 +3,7 @@
 // קטגוריה קבועה: "קידום קריאה".
 
 const WRITING_CAT = 'קידום כתיבה';
-let _wvents = [], _wllStudents = [];
+let _wEvents = [], _wAllStudents = [];
 
 async function renderWriting() {
   document.getElementById('page-writing').innerHTML = `
@@ -23,31 +23,31 @@ async function renderWriting() {
     api('listStudents', []),
     api('listBehavior', []),
   ]);
-  _wllStudents = stRes.data || [];
-  _wvents = (evRes.data || []).filter(e => e['קטגוריה'] === WRITING_CAT);
-  _wvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  _wAllStudents = stRes.data || [];
+  _wEvents = (evRes.data || []).filter(e => e['קטגוריה'] === WRITING_CAT);
+  _wEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   fillWritingFilters();
-  drawWritingEvents(_wvents);
-  document.getElementById('r-fstudent').onchange = applyWritingFilters;
+  drawWritingEvents(_wEvents);
+  document.getElementById('w-fstudent').onchange = applyReadingFilters;
 }
 
 function fillWritingFilters() {
-  const stSel = document.getElementById('r-fstudent');
-  _wllStudents.forEach(s => {
+  const stSel = document.getElementById('w-fstudent');
+  _wAllStudents.forEach(s => {
     const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
     stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
   });
 }
 
-function applyWritingFilters() {
-  let f = _wvents;
-  const s = document.getElementById('r-fstudent').value;
+function applyReadingFilters() {
+  let f = _wEvents;
+  const s = document.getElementById('w-fstudent').value;
   if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
   drawWritingEvents(f);
 }
 
 function drawWritingEvents(list) {
-  const el = document.getElementById('r-list');
+  const el = document.getElementById('w-list');
   if (!list.length) {
     el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-book fs-1"></i><p>אין דיווחי קריאה</p></div>';
     return;
@@ -85,7 +85,7 @@ function addWritingModal() {
   const html = `<div class="modal fade" id="addWritingModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>דיווח קידום קריאה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_wllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_wAllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveWriting(event)">שמור</button></div>
@@ -105,7 +105,7 @@ async function saveWriting(event) {
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
   const sid = document.getElementById('nr-student').value;
-  const stu = _wllStudents.find(s => String(s['מזהה']) === sid);
+  const stu = _wAllStudents.find(s => String(s['מזהה']) === sid);
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const desc = document.getElementById('nr-desc').value;
