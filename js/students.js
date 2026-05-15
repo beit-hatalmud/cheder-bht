@@ -451,10 +451,22 @@ async function viewStudent(id) {
         <h6><i class="bi bi-graph-up"></i> מגמת התנהגות (14 ימים)</h6>
         <canvas id="stu-trend-chart" style="max-height:120px"></canvas>
       </div>
-      <ul class="nav nav-tabs mt-3" id="stu-tabs">
+      ${(() => {
+        const reading = events.filter(e => e['קטגוריה'] === 'קידום קריאה');
+        const writing = events.filter(e => e['קטגוריה'] === 'קידום כתיבה');
+        const klein   = events.filter(e => e['קטגוריה'] === 'שיעור פרטני קליין');
+        const yodlov  = events.filter(e => e['קטגוריה'] === 'שיעור פרטני יודלוב');
+        window._stuExtraSections = {reading, writing, klein, yodlov};
+        return '';
+      })()}
+      <ul class="nav nav-tabs mt-3 small" id="stu-tabs">
         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#stu-tab-behavior">התנהגות (${events.length})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-conversations">שיחות (${conversations.length})</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-profile">פרופיל אישי</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-reading">📖 קריאה (${(window._stuExtraSections||{}).reading?.length||0})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-writing">✏️ כתיבה (${(window._stuExtraSections||{}).writing?.length||0})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-klein">🎓 קליין (${(window._stuExtraSections||{}).klein?.length||0})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-yodlov">🎓 יודלוב (${(window._stuExtraSections||{}).yodlov?.length||0})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-profile">פרופיל</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-timeline">טיים-ליין</a></li>
       </ul>
       <div class="tab-content pt-2">
@@ -520,6 +532,15 @@ async function viewStudent(id) {
             <textarea id="sp-learning" class="form-control" rows="3" placeholder="הישגים, קשיים, מוטיבציה...">${escHtml(s['פרופיל_לימודי']||'')}</textarea>
           </div>
         </div>
+        ${['reading','writing','klein','yodlov'].map(key => {
+          const labelMap = {reading:'📖 קידום קריאה', writing:'✏️ קידום כתיבה', klein:'🎓 שיעורים פרטניים — הרב קליין', yodlov:'🎓 שיעורים פרטניים — הרב יודלוב'};
+          const items = (window._stuExtraSections||{})[key] || [];
+          const itemsHtml = items.length ? items.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך'])).map(e => {
+            const dt = e['תאריך'] ? formatDateBoth(e['תאריך']) : '';
+            return `<div class="card p-2 mb-2"><div class="d-flex justify-content-between align-items-center flex-wrap"><div><strong>${escHtml(e['תיאור']||'')}</strong></div><small class="text-muted">${escHtml(dt)} · ${escHtml(e['דווח_עי']||'')}</small></div>${e['פירוט']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(e['פירוט'])}</div>`:''}</div>`;
+          }).join('') : `<p class="text-muted">אין רשומות ${labelMap[key]}.</p>`;
+          return `<div class="tab-pane fade" id="stu-tab-${key}"><h6 class="mt-2">${labelMap[key]}</h6>${itemsHtml}</div>`;
+        }).join('')}
         <div class="tab-pane fade" id="stu-tab-timeline">
           <div id="stu-timeline-content"><div class="text-center py-3 text-muted"><i class="bi bi-hourglass"></i> טוען...</div></div>
         </div>
