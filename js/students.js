@@ -454,9 +454,24 @@ async function viewStudent(id) {
       ${(() => {
         const reading = events.filter(e => e['קטגוריה'] === 'קידום קריאה');
         const writing = events.filter(e => e['קטגוריה'] === 'קידום כתיבה');
-        const klein   = events.filter(e => e['קטגוריה'] === 'שיעור פרטני קליין');
-        const yodlov  = events.filter(e => e['קטגוריה'] === 'שיעור פרטני יודלוב');
-        window._stuExtraSections = {reading, writing, klein, yodlov};
+        // Lessons live in dedicated tab (loaded separately on tab open) — show 0 count for now
+        window._stuExtraSections = {reading, writing, klein: [], yodlov: []};
+        // Async fetch lessons for this student to populate Klein/Yodlov tabs after render
+        if (typeof fetchLessons === 'function') {
+          fetchLessons(false).then(all => {
+            const k = all.filter(l => String(l['רב']||'') === 'הרב קליין' && String(l['תלמיד_מזהה']) === String(id));
+            const y = all.filter(l => String(l['רב']||'') === 'הרב יודלוב' && String(l['תלמיד_מזהה']) === String(id));
+            const kc = document.querySelector('a[href="#stu-tab-klein"]');
+            const yc = document.querySelector('a[href="#stu-tab-yodlov"]');
+            if (kc) kc.textContent = `🎓 קליין (${k.length})`;
+            if (yc) yc.textContent = `🎓 יודלוב (${y.length})`;
+            const kp = document.getElementById('stu-tab-klein');
+            const yp = document.getElementById('stu-tab-yodlov');
+            const renderL = (items, title) => items.length ? items.sort((a,b)=>new Date(b['תאריך'])-new Date(a['תאריך'])).map(l => `<div class="card p-2 mb-2"><div class="d-flex justify-content-between flex-wrap"><div><strong>${escHtml(l['נושא']||'')}</strong></div><small class="text-muted">${escHtml(new Date(l['תאריך']).toLocaleDateString('he-IL'))}${l['משך']?` · ${escHtml(l['משך'])} דק'`:''}</small></div>${l['תוכן']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(l['תוכן'])}</div>`:''}${l['שיעורי_בית']?`<div class="small mt-1 text-warning">📝 שיעורי בית: ${escHtml(l['שיעורי_בית'])}</div>`:''}${l['רושם']?`<div class="small text-muted">😊 ${escHtml(l['רושם'])}</div>`:''}</div>`).join('') : `<p class="text-muted">אין סיכומי שיעור ${title}.</p>`;
+            if (kp) kp.innerHTML = `<h6 class="mt-2">🎓 שיעורים — הרב קליין</h6>` + renderL(k, 'הרב קליין');
+            if (yp) yp.innerHTML = `<h6 class="mt-2">🎓 שיעורים — הרב יודלוב</h6>` + renderL(y, 'הרב יודלוב');
+          });
+        }
         return '';
       })()}
       <ul class="nav nav-tabs mt-3 small" id="stu-tabs">
