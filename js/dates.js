@@ -108,8 +108,14 @@ const _PARSHA_HE = {
 function _parshaToHebrew(name) {
   if (!name) return name;
   if (/[֐-׿]/.test(name)) return name; // already Hebrew
+  // Support combined names ("Tazria-Metzora") even if stored that way
+  if (name.includes('-')) {
+    return name.split('-').map(p => _PARSHA_HE[p.trim()] || p.trim()).join('-');
+  }
   return _PARSHA_HE[name] || name;
 }
+// Global helper — use this anywhere a parsha string is displayed
+function parshaHebrew(name) { return _parshaToHebrew(name); }
 
 function getParshaFor(v) {
   const d = parseAnyDate(v);

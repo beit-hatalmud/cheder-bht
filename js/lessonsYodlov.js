@@ -54,12 +54,13 @@ function drawLessonsYodlovEvents(list) {
   }
   el.innerHTML = list.map(e => {
     const date = e['תאריך'] ? formatGreg(e['תאריך']) : '';
+    const rel = (typeof formatRelative === 'function' && e['תאריך']) ? formatRelative(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
-    let parsha = e['פרשה'] || '';
+    let parsha = parshaHebrew(e['פרשה']) || '';
     if ((!hdate || !parsha) && e['תאריך']) {
       const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(new Date(e['תאריך'])) : {hdate:'',parsha:''};
       if (!hdate) hdate = info.hdate;
-      if (!parsha) parsha = info.parsha;
+      if (!parsha) parsha = parshaHebrew(info.parsha);
     }
     const reporter = e['דווח_עי'] || '';
     const reporterBadge = reporter ? `<small class="text-muted"><i class="bi bi-person-fill"></i> ${escHtml(reporter)}</small>` : '';
@@ -70,7 +71,7 @@ function drawLessonsYodlovEvents(list) {
         <div><span class="badge bg-warning text-dark">קידום קריאה</span> <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
-          <small class="text-muted">${escHtml(date)}</small>
+          <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
           <button class="btn btn-sm btn-outline-primary" onclick="editEvent(${e['מזהה']||0})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>

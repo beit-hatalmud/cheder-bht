@@ -394,11 +394,11 @@ async function viewStudent(id) {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
     const dt = e['תאריך'] ? formatDateBoth(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
-    let parsha = e['פרשה'] || '';
+    let parsha = parshaHebrew(e['פרשה']) || '';
     if ((!hdate || !parsha) && e['תאריך'] && typeof getHebrewInfo === 'function') {
       const info = getHebrewInfo(new Date(e['תאריך']));
       if (!hdate) hdate = info.hdate;
-      if (!parsha) parsha = info.parsha;
+      if (!parsha) parsha = parshaHebrew(info.parsha);
     }
     const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border me-1">${escHtml(hdate)}</span>` : '';

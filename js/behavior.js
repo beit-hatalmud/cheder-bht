@@ -67,12 +67,12 @@ function drawEvents(list) {
     const date = e['תאריך'] ? formatGreg(e['תאריך']) : '';
     const rel = (typeof formatRelative === 'function' && e['תאריך']) ? formatRelative(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
-    let parsha = e['פרשה'] || '';
+    let parsha = parshaHebrew(e['פרשה']) || '';
     // Backfill from JS date if missing
     if ((!hdate || !parsha) && e['תאריך']) {
       const info = getHebrewInfo(new Date(e['תאריך']));
       if (!hdate) hdate = info.hdate;
-      if (!parsha) parsha = info.parsha;
+      if (!parsha) parsha = parshaHebrew(info.parsha);
     }
     const reporter = e['דווח_עי'] || '';
     const lesson = e['שיעור'] || '';

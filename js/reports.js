@@ -285,7 +285,7 @@ function genFullPeriodReport(from, to, title) {
       const c = e['חומרה']==='גבוהה'?'high':e['חומרה']==='נמוכה'?'low':'mid';
       const dt = formatDateBoth(e['תאריך']);
       const reporter = e['דווח_עי'] ? ` · ${e['דווח_עי']}` : '';
-      const parsha = e['פרשה'] ? ` · פר' ${e['פרשה']}` : '';
+      const parsha = parshaHebrew(e['פרשה']) ? ` · פר' ${parshaHebrew(e['פרשה'])}` : '';
       html += `<div class="event ${c}"><strong>${escHtml(e['שם תלמיד']||'')}</strong> · ${escHtml(e['קטגוריה']||'')} · ${escHtml(dt)}${parsha} · חומרה ${escHtml(e['חומרה']||'')}${reporter}<br>${escHtml(e['תיאור']||'')}${e['הערות']?`<br><em style="color:#6b7280">הערה: ${escHtml(e['הערות'])}</em>`:''}</div>`;
     });
   }
