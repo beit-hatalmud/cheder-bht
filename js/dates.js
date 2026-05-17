@@ -83,6 +83,34 @@ function formatHebrewShort(v) {
 
 // Get parsha for a given date — the parsha of the upcoming Shabbat
 // (on Shabbat itself, returns that Shabbat's parsha)
+//
+// hebcal.Sedra.lookup() returns ENGLISH parsha names ("Vayikra", "Tazria-Metzora").
+// We translate them to Hebrew so the UI never shows English.
+const _PARSHA_HE = {
+  'Bereshit':'בראשית','Noach':'נח','Lech-Lecha':'לך לך','Vayera':'וירא',
+  'Chayei Sara':'חיי שרה','Toldot':'תולדות','Vayetzei':'ויצא','Vayishlach':'וישלח',
+  'Vayeshev':'וישב','Miketz':'מקץ','Vayigash':'ויגש','Vayechi':'ויחי',
+  'Shemot':'שמות','Vaera':'וארא','Bo':'בא','Beshalach':'בשלח','Yitro':'יתרו',
+  'Mishpatim':'משפטים','Terumah':'תרומה','Tetzaveh':'תצוה','Ki Tisa':'כי תשא',
+  'Vayakhel':'ויקהל','Pekudei':'פקודי','Vayakhel-Pekudei':'ויקהל-פקודי',
+  'Vayikra':'ויקרא','Tzav':'צו','Shmini':'שמיני','Tazria':'תזריע','Metzora':'מצורע',
+  'Tazria-Metzora':'תזריע-מצורע','Achrei Mot':'אחרי מות','Kedoshim':'קדושים',
+  'Achrei Mot-Kedoshim':'אחרי מות-קדושים','Emor':'אמור','Behar':'בהר','Bechukotai':'בחקתי',
+  'Behar-Bechukotai':'בהר-בחקתי',
+  'Bamidbar':'במדבר','Nasso':'נשא','Beha\'alotcha':'בהעלתך','Sh\'lach':'שלח לך',
+  'Korach':'קרח','Chukat':'חקת','Balak':'בלק','Chukat-Balak':'חקת-בלק',
+  'Pinchas':'פנחס','Matot':'מטות','Masei':'מסעי','Matot-Masei':'מטות-מסעי',
+  'Devarim':'דברים','Vaetchanan':'ואתחנן','Eikev':'עקב','Re\'eh':'ראה',
+  'Shoftim':'שופטים','Ki Teitzei':'כי תצא','Ki Tavo':'כי תבוא','Nitzavim':'נצבים',
+  'Vayeilech':'וילך','Nitzavim-Vayeilech':'נצבים-וילך','Ha\'azinu':'האזינו',
+  'Vezot Haberakhah':'וזאת הברכה'
+};
+function _parshaToHebrew(name) {
+  if (!name) return name;
+  if (/[֐-׿]/.test(name)) return name; // already Hebrew
+  return _PARSHA_HE[name] || name;
+}
+
 function getParshaFor(v) {
   const d = parseAnyDate(v);
   if (!d || typeof hebcal === 'undefined' || !hebcal.HDate || !hebcal.Sedra) return '';
@@ -93,9 +121,42 @@ function getParshaFor(v) {
     const hd = new hebcal.HDate(sat);
     const sedra = new hebcal.Sedra(hd.getFullYear(), false);
     const p = sedra.lookup(hd);
-    if (p && p.parsha && p.parsha.length) return p.parsha.join(' ');
+    if (p && p.parsha && p.parsha.length) {
+      return p.parsha.map(_parshaToHebrew).join('-');
+    }
   } catch {}
   return '';
+}
+
+// Relative date — "היום / אתמול / שלשום / לפני N ימים / בעוד N ימים"
+function formatRelative(v) {
+  const d = parseAnyDate(v);
+  if (!d) return '';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(d); target.setHours(0,0,0,0);
+  const diff = Math.round((target - today) / 86400000);
+  if (diff === 0) return 'היום';
+  if (diff === -1) return 'אתמול';
+  if (diff === 1) return 'מחר';
+  if (diff === -2) return 'שלשום';
+  if (diff < 0 && diff >= -7) return `לפני ${-diff} ימים`;
+  if (diff > 0 && diff <= 7) return `בעוד ${diff} ימים`;
+  if (diff < 0 && diff >= -30) return `לפני ${Math.round(-diff/7)} שבועות`;
+  if (diff > 0 && diff <= 30) return `בעוד ${Math.round(diff/7)} שבועות`;
+  if (diff < 0) return `לפני ${Math.round(-diff/30)} חודשים`;
+  return `בעוד ${Math.round(diff/30)} חודשים`;
+}
+
+// Combined: "אתמול · 16/05/2026 · ה' אב תשפ"ו"
+function formatDateFull(v) {
+  const rel = formatRelative(v);
+  const greg = formatGreg(v);
+  const heb = formatHebrew(v);
+  const parts = [];
+  if (rel) parts.push(rel);
+  if (greg) parts.push(greg);
+  if (heb) parts.push(heb);
+  return parts.join(' · ');
 }
 
 // For pure Hebrew date object (e.g., birthday — Hebrew year of birth)

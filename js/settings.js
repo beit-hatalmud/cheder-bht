@@ -120,6 +120,7 @@ async function editUser(username) {
     if (document.getElementById('nu-email')) document.getElementById('nu-email').value = u['אימייל'] || u.email || '';
     if (document.getElementById('nu-phone')) document.getElementById('nu-phone').value = u['טלפון'] || u.phone || '';
     if (document.getElementById('nu-notes')) document.getElementById('nu-notes').value = u['הערות_משתמש'] || u.notes || '';
+    if (document.getElementById('nu-landing')) document.getElementById('nu-landing').value = u['דף_כניסה'] || u.landingPage || '';
     document.getElementById('nu-role').value = u.role || 'מורה';
     document.getElementById('nu-role').dispatchEvent(new Event('change'));
     const perms = (u.permissions || '').split(',').map(s=>s.trim());
@@ -383,6 +384,28 @@ function addUserModal() {
           <label class="form-label">הערות</label>
           <textarea id="nu-notes" class="form-control" rows="2" placeholder="הערות אופציונליות..."></textarea>
         </div>
+        <div class="col-md-6">
+          <label class="form-label">דף ברירת מחדל בכניסה</label>
+          <select id="nu-landing" class="form-select">
+            <option value="">דף הבית (תפריט מלא)</option>
+            <option value="students">תלמידים</option>
+            <option value="behavior">מעקב התנהגות</option>
+            <option value="reading">קידום קריאה</option>
+            <option value="writing">קידום כתיבה</option>
+            <option value="lessonsKlein">שיעורים פרטניים — קליין</option>
+            <option value="lessonsYodlov">שיעורים פרטניים — יודלוב</option>
+            <option value="functioning">ציוני תפקוד</option>
+            <option value="tests">מבחנים</option>
+            <option value="medications">רפואי</option>
+            <option value="classview">תצוגת כיתה</option>
+            <option value="attendance">נוכחות</option>
+            <option value="calendar">לוח שנה</option>
+            <option value="meetings">פגישות</option>
+            <option value="conversations">שיחות</option>
+            <option value="reports">דוחות</option>
+          </select>
+          <div class="form-text small">הרב יודלוב? בחר "שיעורים פרטניים — יודלוב" כדי שלא יראה את דף הבית</div>
+        </div>
         <div class="col-12">
           <h6 class="mt-2"><i class="bi bi-shield-check"></i> מסכים שיוכל לראות:</h6>
           ${checkboxes}
@@ -496,6 +519,7 @@ async function saveUser() {
     'אימייל': (document.getElementById('nu-email')?.value || '').trim(),
     'טלפון': (document.getElementById('nu-phone')?.value || '').trim(),
     'הערות_משתמש': (document.getElementById('nu-notes')?.value || '').trim(),
+    'דף_כניסה': (document.getElementById('nu-landing')?.value || '').trim(),
     'הרשאות': checked.length === PERMISSION_AREAS.length ? 'all' : checked.join(','),
     'תלמידים_מורשים': visibleStudents,
     'קטגוריות_מורשות': visibleCats,

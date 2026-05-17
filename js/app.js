@@ -159,11 +159,24 @@ async function doLogin(){
     currentUser = r.data.user;
     // Augment with permissions from users array
     const userRow = (await api('listUsers',[])).data.find(x=>x['שם משתמש']===u);
-    if (userRow) currentUser.permissions = userRow['הרשאות'] || '';
+    if (userRow) {
+      currentUser.permissions = userRow['הרשאות'] || '';
+      currentUser.landingPage = userRow['דף_כניסה'] || '';
+    }
     sessionStorage.setItem('user', JSON.stringify(currentUser));
     document.getElementById('user-info').innerHTML = escHtml(currentUser.username) + ' (' + escHtml(currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
-    showPage('home');
-    loadStats();
+    // Landing page: if user has a "דף_כניסה" column, go there.
+    // Otherwise admin → home; single-permission user → that page; others → home.
+    let landing = 'home';
+    const isAdmin = currentUser.role === 'מנהל' || currentUser.permissions === 'all';
+    if (currentUser.landingPage) {
+      landing = currentUser.landingPage;
+    } else if (!isAdmin && currentUser.permissions) {
+      const allowed = currentUser.permissions.split(',').map(s=>s.trim()).filter(Boolean);
+      if (allowed.length === 1) landing = allowed[0];
+    }
+    showPage(landing);
+    if (landing === 'home') loadStats();
     filterByPermissions();
   } else {
     const err = document.getElementById('login-error');
@@ -469,8 +482,17 @@ const urlPass = urlParams.get('p');
 if (saved) {
   currentUser = JSON.parse(saved);
   document.getElementById('user-info').innerHTML = currentUser.username + ' (' + currentUser.role + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
-  showPage('home');
-  setTimeout(loadStats, 500);
+  // Honor user's landingPage / single-permission rule on session restore as well.
+  let landing = 'home';
+  const isAdmin = currentUser.role === 'מנהל' || currentUser.permissions === 'all';
+  if (currentUser.landingPage) {
+    landing = currentUser.landingPage;
+  } else if (!isAdmin && currentUser.permissions) {
+    const allowed = currentUser.permissions.split(',').map(s=>s.trim()).filter(Boolean);
+    if (allowed.length === 1) landing = allowed[0];
+  }
+  showPage(landing);
+  if (landing === 'home') setTimeout(loadStats, 500);
   filterByPermissions();
 } else if (urlUser && urlPass) {
   showPage('login');
