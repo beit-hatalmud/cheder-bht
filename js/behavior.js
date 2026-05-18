@@ -64,6 +64,19 @@ function drawBehaviorStats() {
     <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--warning)"><div style="font-size:1.6rem;font-weight:700;color:var(--warning)">${pendingHigh}</div><div class="small text-muted">חמורים שלא טופלו</div></div></div>`;
 }
 
+// Keyboard shortcut: N (English) or 'נ' (Hebrew) opens "new event" modal — only while on behavior page
+function _behaviorKeyHandler(e) {
+  if (e.target.matches('input,textarea,select')) return;  // don't hijack typing
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const pageVisible = document.getElementById('page-behavior')?.offsetParent !== null;
+  if (!pageVisible) return;
+  if (e.key === 'n' || e.key === 'N' || e.key === 'נ') {
+    e.preventDefault();
+    if (typeof addEventModal === 'function') addEventModal();
+  }
+}
+document.addEventListener('keydown', _behaviorKeyHandler);
+
 function fillFilters() {
   document.getElementById('b-fstudent-list').innerHTML = studentsDatalistOptions(_allStudents, false);
   const catSel = document.getElementById('b-fcat');
