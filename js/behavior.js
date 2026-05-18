@@ -27,7 +27,7 @@ async function renderBehavior() {
       </div>
       <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
     </div>
-    <div id="b-list"></div>`;
+    <div id="b-list"><div class="text-center py-5 text-muted"><div class="spinner-border text-primary" role="status" style="width:2rem;height:2rem"></div><p class="mt-2 small">טוען אירועים...</p></div></div>`;
   const [stRes, evRes, catRes] = await Promise.all([
     api('listStudents', []),
     api('listBehavior', []),
