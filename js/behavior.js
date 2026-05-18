@@ -18,6 +18,7 @@ async function renderBehavior() {
         <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
       </div>
     </div>
+    <div id="b-stats" class="row g-2 mb-3"></div>
     <div class="row g-2 mb-3">
       <div class="col-md-4">
         <input id="b-fstudent" class="form-control" list="b-fstudent-list" placeholder="חפש תלמיד...">
@@ -36,12 +37,30 @@ async function renderBehavior() {
   _categories = catRes.data || [];
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   activateViewMode('behavior');
+  drawBehaviorStats();
   fillFilters();
   drawEvents(_events);
   const stEl = document.getElementById('b-fstudent');
   stEl.oninput = applyFilters;
   stEl.onchange = applyFilters;
   document.getElementById('b-fcat').onchange = applyFilters;
+}
+
+function drawBehaviorStats() {
+  const el = document.getElementById('b-stats');
+  if (!el) return;
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7*24*3600*1000);
+  const inWeek = _events.filter(e => e['תאריך'] && new Date(e['תאריך']) >= weekAgo);
+  const highWeek = inWeek.filter(e => e['חומרה'] === 'גבוהה').length;
+  const handled = _events.filter(e => e['חומרה']==='גבוהה' && (String(e['טופל']||'').toLowerCase()==='true' || e['טופל']==='כן' || e['טופל']===true)).length;
+  const totalHigh = _events.filter(e => e['חומרה']==='גבוהה').length;
+  const pendingHigh = totalHigh - handled;
+  el.innerHTML = `
+    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--primary)"><div style="font-size:1.6rem;font-weight:700;color:var(--primary-dark)">${_events.length}</div><div class="small text-muted">סך אירועים</div></div></div>
+    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--accent)"><div style="font-size:1.6rem;font-weight:700;color:var(--accent)">${inWeek.length}</div><div class="small text-muted">בשבוע האחרון</div></div></div>
+    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--danger)"><div style="font-size:1.6rem;font-weight:700;color:var(--danger)">${highWeek}</div><div class="small text-muted">חמורים השבוע</div></div></div>
+    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--warning)"><div style="font-size:1.6rem;font-weight:700;color:var(--warning)">${pendingHigh}</div><div class="small text-muted">חמורים שלא טופלו</div></div></div>`;
 }
 
 function fillFilters() {
