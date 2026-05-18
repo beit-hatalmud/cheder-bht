@@ -179,7 +179,21 @@ async function deleteEvent(id) {
   if (!confirm('בטוח למחוק את האירוע?')) return;
   const r = await api('deleteBehavior', [id]);
   if (r && !r.ok) return alert(r.error || 'מחיקה נכשלה');
-  renderBehavior();
+  // Re-render whichever page is currently visible — fixes stale-list on writing/reading/lessons pages
+  const map = {
+    'page-writing': 'renderWriting',
+    'page-reading': 'renderReading',
+    'page-lessonsKlein': 'renderLessonsKlein',
+    'page-lessonsYodlov': 'renderLessonsYodlov',
+    'page-behavior': 'renderBehavior',
+  };
+  for (const id in map) {
+    const el = document.getElementById(id);
+    if (el && el.offsetParent !== null && typeof window[map[id]] === 'function') {
+      window[map[id]]();
+      break;
+    }
+  }
   if (typeof loadStats === 'function') loadStats();
 }
 
