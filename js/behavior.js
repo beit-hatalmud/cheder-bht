@@ -105,9 +105,15 @@ function applyFilters() {
 function drawEvents(list) {
   const el = document.getElementById('b-list');
   if (!list.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-clipboard fs-1"></i><p>אין אירועים</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-clipboard fs-1"></i><p class="mt-2">אין אירועים תואמים</p><p class="small">נקה מסננים כדי לראות הכל</p></div>';
     return;
   }
+  // Precompute per-student event counts (over the unfiltered set)
+  const stuCounts = {};
+  _events.forEach(ev => {
+    const sid = ev['תלמיד_מזהה'];
+    if (sid) stuCounts[sid] = (stuCounts[sid] || 0) + 1;
+  });
   el.innerHTML = list.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
     const date = e['תאריך'] ? formatGreg(e['תאריך']) : '';
@@ -134,7 +140,9 @@ function drawEvents(list) {
     const handleBtn = isHigh && !handled
       ? `<button class="btn btn-sm btn-outline-success" onclick="markEventHandled(${e['מזהה']||0})" title="סמן כטופל"><i class="bi bi-check2-circle"></i></button>` : '';
     const stuId = e['תלמיד_מזהה'] || 0;
-    const studentLink = stuId ? `<a href="#" onclick="event.preventDefault(); viewStudent(${stuId})" class="text-decoration-none" title="פתח כרטיס תלמיד"><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></a>` : `<strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>`;
+    const totalForStu = stuId ? (stuCounts[stuId] || 0) : 0;
+    const countBadge = totalForStu > 3 ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1" title="סך אירועים לתלמיד" style="font-size:.65rem">${totalForStu}×</span>` : '';
+    const studentLink = stuId ? `<a href="#" onclick="event.preventDefault(); viewStudent(${stuId})" class="text-decoration-none" title="פתח כרטיס תלמיד"><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></a>${countBadge}` : `<strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>`;
     // "חדש" badge for events from today
     const evDate = e['תאריך'] ? new Date(e['תאריך']) : null;
     const today = new Date();
