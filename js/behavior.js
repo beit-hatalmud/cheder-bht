@@ -239,6 +239,10 @@ function addEventModal() {
   document.body.insertAdjacentHTML('beforeend', html);
   const modalEl = document.getElementById('addEvModal');
   new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('shown.bs.modal', () => {
+    const stuField = document.getElementById('ne-student');
+    if (stuField && !stuField.value) stuField.focus();
+  }, { once: true });
   modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addEvModal'), { once: true });
 }
 
