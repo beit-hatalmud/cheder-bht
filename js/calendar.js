@@ -534,19 +534,20 @@ function calShowDay(day, monthOverride, yearOverride) {
 async function calAddEventForDay(existingEvent) {
   const ctx = window._calDayContext || {};
   const data = getVisibleData();
-  const sortedStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
-    String(a['מחזור']).localeCompare(String(b['מחזור'])) ||
-    (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const activeStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
+  // Cache for resolve/save
+  window._calStudents = activeStu;
   const cats = data.categories || [];
   const e = existingEvent || {};
+  const preStu = e['תלמיד_מזהה'] ? activeStu.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) : null;
+  const preStuLabel = preStu ? studentDisplay(preStu) : '';
   const dateStr = ctx.isoDate || new Date().toISOString().slice(0,10);
   const html = `<div class="modal fade" id="cal-ev-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>${existingEvent ? 'עריכת אירוע' : 'אירוע חדש'} · ${escHtml(new Date(dateStr).toLocaleDateString('he-IL'))}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="mb-2"><label class="form-label">תלמיד</label>
-        <select id="cev-student" class="form-select">
-          ${sortedStu.map(s => `<option value="${s['מזהה']}" ${String(e['תלמיד_מזהה'])===String(s['מזהה'])?'selected':''}>${escHtml((s['מחזור']||'')+' · '+(s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
-        </select>
+        <input id="cev-student" class="form-control" list="cev-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escHtml(preStuLabel)}">
+        <datalist id="cev-student-list">${studentsDatalistOptions(activeStu, true)}</datalist>
       </div>
       <div class="mb-2"><label class="form-label">קטגוריה</label>
         <select id="cev-cat" class="form-select">
@@ -595,10 +596,12 @@ async function calDeleteEvent(eventId) {
 
 async function calSaveEvent(editId) {
   const data = getVisibleData();
-  // Bug #7 fix: don't parseInt — use raw value (string IDs from external imports are valid)
-  const sidRaw = document.getElementById('cev-student').value;
-  const sid = /^\d+$/.test(sidRaw) ? parseInt(sidRaw) : sidRaw;
-  const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
+  const typedLabel = document.getElementById('cev-student').value.trim();
+  const studentsCache = window._calStudents || (data.students||[]);
+  const stu = resolveStudent(typedLabel, studentsCache);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
+  const sidRaw = stu ? stu['מזהה'] : '';
+  const sid = /^\d+$/.test(String(sidRaw)) ? parseInt(sidRaw) : sidRaw;
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const isoDate = document.getElementById('cev-date').value;  // YYYY-MM-DD
