@@ -16,7 +16,10 @@ async function renderLessonsKlein() {
       <i class="bi bi-info-circle"></i> דיווחי קריאה מופיעים גם במסך "מעקב התנהגות" הכללי, אבל זה המסך הייעודי לסינון מהיר.
     </div>
     <div class="row g-2 mb-3">
-      <div class="col-md-6"><select id="l-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
+      <div class="col-md-6">
+        <input id="l-fstudent" class="form-control" list="l-fstudent-list" placeholder="חפש תלמיד...">
+        <datalist id="l-fstudent-list"></datalist>
+      </div>
     </div>
     <div id="l-list"></div>`;
   const [stRes, evRes] = await Promise.all([
@@ -28,21 +31,27 @@ async function renderLessonsKlein() {
   _lEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   fillLessonsKleinFilters();
   drawLessonsKleinEvents(_lEvents);
-  document.getElementById('l-fstudent').onchange = applyReadingFilters;
+  const stEl = document.getElementById('l-fstudent');
+  stEl.oninput = applyReadingFilters;
+  stEl.onchange = applyReadingFilters;
 }
 
 function fillLessonsKleinFilters() {
-  const stSel = document.getElementById('l-fstudent');
-  _lAllStudents.forEach(s => {
-    const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
-    stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
-  });
+  document.getElementById('l-fstudent-list').innerHTML = studentsDatalistOptions(_lAllStudents, false);
 }
 
 function applyReadingFilters() {
   let f = _lEvents;
-  const s = document.getElementById('l-fstudent').value;
-  if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
+  const sLabel = document.getElementById('l-fstudent').value.trim();
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _lAllStudents);
+    if (stu) {
+      f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
+    }
+  }
   drawLessonsKleinEvents(f);
 }
 
@@ -86,7 +95,10 @@ function addLessonsKleinModal() {
   const html = `<div class="modal fade" id="addLessonsKleinModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>דיווח קידום קריאה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_lAllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label>
+        <input id="nr-student" class="form-control" list="nr-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+        <datalist id="nr-student-list">${studentsDatalistOptions(_lAllStudents, true)}</datalist>
+      </div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveLessonsKlein(event)">שמור</button></div>
@@ -105,8 +117,10 @@ async function saveLessonsKlein(event) {
     btn.disabled = true;
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
-  const sid = document.getElementById('nr-student').value;
-  const stu = _lAllStudents.find(s => String(s['מזהה']) === sid);
+  const typedLabel = document.getElementById('nr-student').value.trim();
+  const stu = resolveStudent(typedLabel, _lAllStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
+  const sid = stu ? stu['מזהה'] : '';
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const desc = document.getElementById('nr-desc').value;
