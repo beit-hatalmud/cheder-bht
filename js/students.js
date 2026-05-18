@@ -330,12 +330,12 @@ function uploadStudentPhoto(studentId) {
         ctx.drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         const r = await api('updateStudent', [{ 'מזהה': studentId, 'תמונה': dataUrl }]);
-        if (r.ok) {
+        if (r && r.ok) {
           notify('התמונה הועלתה', 'success');
           const old = document.getElementById('viewStuModal');
           if (old) bootstrap.Modal.getInstance(old).hide();
           setTimeout(() => viewStudent(studentId), 250);
-        } else alert(r.error || 'שגיאה');
+        } else alert((r && r.error) || 'שגיאה בעדכון התמונה');
       };
       img.src = ev.target.result;
     };
