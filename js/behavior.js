@@ -119,9 +119,11 @@ function drawEvents(list) {
       : '<span class="badge bg-danger-subtle text-danger-emphasis border me-1"><i class="bi bi-exclamation-triangle"></i> נדרשת שיחה</span>') : '';
     const handleBtn = isHigh && !handled
       ? `<button class="btn btn-sm btn-outline-success" onclick="markEventHandled(${e['מזהה']||0})" title="סמן כטופל"><i class="bi bi-check2-circle"></i></button>` : '';
+    const stuId = e['תלמיד_מזהה'] || 0;
+    const studentLink = stuId ? `<a href="#" onclick="event.preventDefault(); viewStudent(${stuId})" class="text-decoration-none" title="פתח כרטיס תלמיד"><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></a>` : `<strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>`;
     return `<div class="card p-3 mb-2 ${sev}">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>${followBadge}</div>
+        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>${studentLink}${followBadge}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
