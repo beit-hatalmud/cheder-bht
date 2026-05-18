@@ -75,15 +75,15 @@ function medsRefresh() {
 }
 
 function medAddModal(existing) {
-  const sortedStu = _medsStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
   const e = existing || {};
+  const preStu = e['תלמיד_מזהה'] ? _medsStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) : null;
+  const preStuLabel = preStu ? studentDisplay(preStu) : '';
   const html = `<div class="modal fade" id="m-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">${existing ? 'עריכת' : 'רישום'} רפואי</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="mb-2"><label class="form-label">תלמיד</label>
-        <select id="ma-student" class="form-select" ${existing ? 'disabled' : ''}>
-          ${sortedStu.map(s => `<option value="${s['מזהה']}" ${String(e['תלמיד_מזהה'])===String(s['מזהה'])?'selected':''}>${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
-        </select>
+        <input id="ma-student" class="form-control" list="ma-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escHtml(preStuLabel)}" ${existing ? 'readonly' : ''}>
+        <datalist id="ma-student-list">${studentsDatalistOptions(_medsStudents, true)}</datalist>
       </div>
       <div class="mb-2"><label class="form-label">סוג</label>
         <select id="ma-type" class="form-select">
@@ -115,8 +115,11 @@ function medEdit(id) {
 }
 
 async function medSave(editId) {
+  const typedLabel = document.getElementById('ma-student').value.trim();
+  const stu = resolveStudent(typedLabel, _medsStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const obj = {
-    'תלמיד_מזהה': parseInt(document.getElementById('ma-student').value),
+    'תלמיד_מזהה': stu ? parseInt(stu['מזהה']) : 0,
     'סוג': (document.getElementById('ma-type')||{}).value || 'תרופה',
     'תרופה': document.getElementById('ma-drug').value.trim(),
     'מצב_כיום': document.getElementById('ma-state').value.trim(),
