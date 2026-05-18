@@ -379,6 +379,19 @@ html[data-theme="dark"] .card.severity-high{background:rgba(220,38,38,.08)}
 html[data-theme="dark"] .card.severity-mid{background:rgba(217,119,6,.06)}
 html[data-theme="dark"] .card.severity-low{background:rgba(21,128,61,.06)}
 
+/* Print styles — hide chrome, keep content */
+@media print {
+  .navbar, .nav-tabs, .btn, .modal, .toast,
+  .view-mode-toggle, #b-fstudent, #b-fcat, #b-fstudent-list, #b-fcat-list,
+  button, .form-control, .form-select, .view-site-btn,
+  #b-filter-status, .stu-hero-actions, .stu-hero-nav, .modal-footer,
+  .btn-close { display: none !important; }
+  body { background: #fff !important; color: #000 !important; padding: 8mm; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; page-break-inside: avoid; }
+  a { color: #000 !important; text-decoration: none !important; }
+  h3 { page-break-after: avoid; }
+}
+
 /* Smooth scrollbar */
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:#f1f5f9}
