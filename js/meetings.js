@@ -17,7 +17,8 @@ async function renderMeetings() {
           <select id="me-period" class="form-select"><option value="">כל התקופות</option></select>
         </div>
         <div class="col-md-3">
-          <select id="me-student" class="form-select"><option value="">כל התלמידים</option></select>
+          <input id="me-student" class="form-control" list="me-student-list" placeholder="חפש תלמיד...">
+          <datalist id="me-student-list"></datalist>
         </div>
       </div>
     </div>
@@ -37,9 +38,7 @@ async function renderMeetings() {
   document.getElementById('me-period').innerHTML = '<option value="">כל התקופות</option>' +
     periods.map(p => `<option>${escHtml(p)}</option>`).join('');
 
-  const sortedStu = _meetingsStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
-  document.getElementById('me-student').innerHTML = '<option value="">כל התלמידים</option>' +
-    sortedStu.map(s => `<option value="${s['מזהה']}">${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('');
+  document.getElementById('me-student-list').innerHTML = studentsDatalistOptions(_meetingsStudents, false);
 
   ['me-search','me-period','me-student'].forEach(id => document.getElementById(id).oninput = meetingsRefresh);
   ['me-period','me-student'].forEach(id => document.getElementById(id).onchange = meetingsRefresh);
@@ -49,10 +48,24 @@ async function renderMeetings() {
 function meetingsRefresh() {
   const q = (document.getElementById('me-search').value || '').toLowerCase();
   const period = document.getElementById('me-period').value;
-  const sid = document.getElementById('me-student').value;
+  const sLabel = document.getElementById('me-student').value.trim();
   let list = _meetingsData.slice().sort((a,b) => new Date(b['תאריך']||0) - new Date(a['תאריך']||0));
   if (period) list = list.filter(m => m['תקופה'] === period);
-  if (sid) list = list.filter(m => String(m['תלמיד_מזהה']) === sid);
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _meetingsStudents);
+    if (stu) {
+      list = list.filter(m => String(m['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      const stuById = {};
+      _meetingsStudents.forEach(s => stuById[s['מזהה']] = s);
+      list = list.filter(m => {
+        const s = stuById[m['תלמיד_מזהה']];
+        if (!s) return false;
+        return `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(lc);
+      });
+    }
+  }
   if (q) list = list.filter(m => Object.values(m).some(v => String(v||'').toLowerCase().includes(q)));
 
   const el = document.getElementById('me-list');
@@ -90,15 +103,15 @@ function meetingsRefresh() {
 
 function meetAddModal(existing) {
   const e = existing || {};
-  const sortedStu = _meetingsStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const preStu = e['תלמיד_מזהה'] ? _meetingsStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) : null;
+  const preStuLabel = preStu ? studentDisplay(preStu) : '';
   const html = `<div class="modal fade" id="me-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5>${existing ? 'עריכת' : 'פגישה חדשה —'} אסיפת הורים</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="row g-2 mb-2">
         <div class="col-md-7"><label class="form-label">תלמיד</label>
-          <select id="mea-student" class="form-select">
-            ${sortedStu.map(s => `<option value="${s['מזהה']}" ${String(e['תלמיד_מזהה'])===String(s['מזהה'])?'selected':''}>${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
-          </select>
+          <input id="mea-student" class="form-control" list="mea-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escHtml(preStuLabel)}">
+          <datalist id="mea-student-list">${studentsDatalistOptions(_meetingsStudents, true)}</datalist>
         </div>
         <div class="col-md-5"><label class="form-label">תאריך</label><input id="mea-date" type="date" class="form-control" value="${e['תאריך'] || new Date().toISOString().slice(0,10)}"></div>
       </div>
@@ -129,8 +142,11 @@ function meetEdit(id) {
 }
 
 async function meetSave(editId) {
+  const typedLabel = document.getElementById('mea-student').value.trim();
+  const stu = resolveStudent(typedLabel, _meetingsStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const obj = {
-    'תלמיד_מזהה': parseInt(document.getElementById('mea-student').value),
+    'תלמיד_מזהה': stu ? parseInt(stu['מזהה']) : 0,
     'תאריך': document.getElementById('mea-date').value,
     'תקופה': document.getElementById('mea-period').value.trim(),
     'רב': document.getElementById('mea-rabbi').value.trim(),
