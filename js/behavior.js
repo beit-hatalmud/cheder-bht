@@ -8,6 +8,29 @@ function getHebrewInfo(jsDate) {
   };
 }
 
+function _studentDisplay(s) {
+  return `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
+}
+
+function _studentsDatalistOptions(activeOnly=true) {
+  const list = activeOnly ? _allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים') : _allStudents;
+  const counts = {};
+  list.forEach(s => { const d = _studentDisplay(s); counts[d] = (counts[d]||0) + 1; });
+  return list.map(s => {
+    const d = _studentDisplay(s);
+    const label = counts[d] > 1 ? `${d} (${s['מזהה']})` : d;
+    return `<option value="${escHtml(label)}">`;
+  }).join('');
+}
+
+function _resolveStudent(label) {
+  if (!label) return null;
+  const t = label.trim();
+  const m = t.match(/^(.+)\s+\((\d+)\)$/);
+  if (m) return _allStudents.find(s => String(s['מזהה']) === m[2]) || null;
+  return _allStudents.find(s => _studentDisplay(s) === t) || null;
+}
+
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
@@ -16,7 +39,10 @@ async function renderBehavior() {
       <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
     </div>
     <div class="row g-2 mb-3">
-      <div class="col-md-4"><select id="b-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
+      <div class="col-md-4">
+        <input id="b-fstudent" class="form-control" list="b-fstudent-list" placeholder="חפש תלמיד...">
+        <datalist id="b-fstudent-list"></datalist>
+      </div>
       <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
     </div>
     <div id="b-list"></div>`;
@@ -31,16 +57,14 @@ async function renderBehavior() {
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   fillFilters();
   drawEvents(_events);
-  document.getElementById('b-fstudent').onchange = applyFilters;
+  const stEl = document.getElementById('b-fstudent');
+  stEl.oninput = applyFilters;
+  stEl.onchange = applyFilters;
   document.getElementById('b-fcat').onchange = applyFilters;
 }
 
 function fillFilters() {
-  const stSel = document.getElementById('b-fstudent');
-  _allStudents.forEach(s => {
-    const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
-    stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
-  });
+  document.getElementById('b-fstudent-list').innerHTML = _studentsDatalistOptions(false);
   const catSel = document.getElementById('b-fcat');
   _categories.forEach(c => {
     catSel.innerHTML += `<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`;
@@ -49,9 +73,17 @@ function fillFilters() {
 
 function applyFilters() {
   let f = _events;
-  const s = document.getElementById('b-fstudent').value;
+  const sLabel = document.getElementById('b-fstudent').value.trim();
   const c = document.getElementById('b-fcat').value;
-  if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
+  if (sLabel) {
+    const stu = _resolveStudent(sLabel);
+    if (stu) {
+      f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
+    }
+  }
   if (c) f = f.filter(e => e['קטגוריה'] === c);
   drawEvents(f);
 }
@@ -110,7 +142,8 @@ function editEvent(id) {
   addEventModal();
   const modalEl = document.getElementById('addEvModal');
   const populate = () => {
-    document.getElementById('ne-student').value = e['תלמיד_מזהה'] || '';
+    const stu = _allStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה']));
+    document.getElementById('ne-student').value = stu ? _studentDisplay(stu) : (e['שם תלמיד'] || '');
     document.getElementById('ne-cat').value = e['קטגוריה'] || '';
     document.getElementById('ne-desc').value = e['תיאור'] || '';
     document.getElementById('ne-sev').value = e['חומרה'] || 'בינונית';
@@ -144,7 +177,10 @@ function addEventModal() {
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>אירוע חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label>
+        <input id="ne-student" class="form-control" list="ne-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+        <datalist id="ne-student-list">${_studentsDatalistOptions(true)}</datalist>
+      </div>
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
@@ -166,12 +202,13 @@ async function saveEvent(event) {
     btn.disabled = true;
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
-  const sid = document.getElementById('ne-student').value;
-  const stu = _allStudents.find(s => String(s['מזהה']) === sid);
+  const typedLabel = document.getElementById('ne-student').value.trim();
+  const stu = _resolveStudent(typedLabel);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const obj = {
-    'תלמיד_מזהה': sid,
+    'תלמיד_מזהה': stu ? stu['מזהה'] : '',
     'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '',
     'קטגוריה': document.getElementById('ne-cat').value,
     'תיאור': document.getElementById('ne-desc').value,
