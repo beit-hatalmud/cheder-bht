@@ -29,7 +29,10 @@ async function renderConversations() {
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-chat-dots"></i> שיחות עם תלמידים</h3>
-      <button class="btn btn-primary" onclick="convAddModal()"><i class="bi bi-plus"></i> שיחה חדשה</button>
+      <div class="d-flex gap-2 align-items-center">
+        ${viewModeToggleHTML('conversations')}
+        <button class="btn btn-primary" onclick="convAddModal()"><i class="bi bi-plus"></i> שיחה חדשה</button>
+      </div>
     </div>
 
     <div class="card p-3 mb-3">
@@ -72,6 +75,7 @@ async function renderConversations() {
     CONV_CATEGORIES.map(c => `<option>${escHtml(c)}</option>`).join('');
 
   document.getElementById('co-student-list').innerHTML = studentsDatalistOptions(_convStudents, false);
+  activateViewMode('conversations');
 
   ['co-search','co-rabbi','co-cat','co-student'].forEach(id => document.getElementById(id).oninput = conversationsRefresh);
   ['co-rabbi','co-cat','co-student'].forEach(id => document.getElementById(id).onchange = conversationsRefresh);

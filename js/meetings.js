@@ -7,7 +7,10 @@ async function renderMeetings() {
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-people-fill"></i> אסיפות הורים</h3>
-      <button class="btn btn-primary" onclick="meetAddModal()"><i class="bi bi-plus"></i> פגישה חדשה</button>
+      <div class="d-flex gap-2 align-items-center">
+        ${viewModeToggleHTML('meetings')}
+        <button class="btn btn-primary" onclick="meetAddModal()"><i class="bi bi-plus"></i> פגישה חדשה</button>
+      </div>
     </div>
 
     <div class="card p-3 mb-3">
@@ -39,6 +42,7 @@ async function renderMeetings() {
     periods.map(p => `<option>${escHtml(p)}</option>`).join('');
 
   document.getElementById('me-student-list').innerHTML = studentsDatalistOptions(_meetingsStudents, false);
+  activateViewMode('meetings');
 
   ['me-search','me-period','me-student'].forEach(id => document.getElementById(id).oninput = meetingsRefresh);
   ['me-period','me-student'].forEach(id => document.getElementById(id).onchange = meetingsRefresh);
