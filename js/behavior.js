@@ -20,6 +20,7 @@ async function renderBehavior() {
       </div>
     </div>
     <div id="b-stats" class="row g-2 mb-3"></div>
+    <div id="b-filter-status" class="mb-2 text-end"></div>
     <div class="row g-2 mb-3">
       <div class="col-md-4">
         <input id="b-fstudent" class="form-control" list="b-fstudent-list" placeholder="חפש תלמיד...">
@@ -100,7 +101,25 @@ function applyFilters() {
   }
   if (c) f = f.filter(e => e['קטגוריה'] === c);
   drawEvents(f);
+  // Show filter status — # of results vs. total
+  const status = document.getElementById('b-filter-status');
+  if (status) {
+    if (sLabel || c) {
+      status.innerHTML = `<small class="text-muted">מציג ${f.length} מתוך ${_events.length}</small> <button class="btn btn-link btn-sm p-0 text-decoration-none" onclick="clearBehaviorFilters()">נקה</button>`;
+    } else {
+      status.innerHTML = '';
+    }
+  }
 }
+
+function clearBehaviorFilters() {
+  const stEl = document.getElementById('b-fstudent');
+  const catEl = document.getElementById('b-fcat');
+  if (stEl) stEl.value = '';
+  if (catEl) catEl.value = '';
+  applyFilters();
+}
+window.clearBehaviorFilters = clearBehaviorFilters;
 
 function drawEvents(list) {
   const el = document.getElementById('b-list');
