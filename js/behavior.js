@@ -135,9 +135,14 @@ function drawEvents(list) {
       ? `<button class="btn btn-sm btn-outline-success" onclick="markEventHandled(${e['מזהה']||0})" title="סמן כטופל"><i class="bi bi-check2-circle"></i></button>` : '';
     const stuId = e['תלמיד_מזהה'] || 0;
     const studentLink = stuId ? `<a href="#" onclick="event.preventDefault(); viewStudent(${stuId})" class="text-decoration-none" title="פתח כרטיס תלמיד"><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></a>` : `<strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>`;
+    // "חדש" badge for events from today
+    const evDate = e['תאריך'] ? new Date(e['תאריך']) : null;
+    const today = new Date();
+    const isToday = evDate && evDate.getFullYear() === today.getFullYear() && evDate.getMonth() === today.getMonth() && evDate.getDate() === today.getDate();
+    const newBadge = isToday ? '<span class="badge bg-info text-white me-1" style="font-size:.65rem;animation:pulse 2s infinite">חדש</span>' : '';
     return `<div class="card p-3 mb-2 ${sev}">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>${studentLink}${followBadge}</div>
+        <div>${newBadge}<span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>${studentLink}${followBadge}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>

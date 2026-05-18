@@ -368,6 +368,9 @@ html[data-theme="dark"] .cat-badge{background:rgba(59,130,246,.18);color:#93c5fd
 /* Disabled buttons clearer */
 .btn:disabled,.btn[disabled]{opacity:.55;cursor:not-allowed}
 
+/* Pulse animation for "new" badge */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
 /* Severity row tinting — left border accent */
 .card.severity-high{border-right:4px solid var(--danger)!important;background:rgba(220,38,38,.025)}
 .card.severity-mid{border-right:4px solid var(--warning)!important;background:rgba(217,119,6,.02)}
