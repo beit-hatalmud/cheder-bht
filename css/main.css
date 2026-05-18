@@ -370,3 +370,123 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 ::-webkit-scrollbar-track{background:#f1f5f9}
 ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:5px}
 ::-webkit-scrollbar-thumb:hover{background:#94a3b8}
+
+/* ========== Student Card v2 — Hero + KPI strip ========== */
+.stu-hero{
+  position:relative;
+  background:linear-gradient(120deg,#0f1d54 0%,#1e3a8a 50%,#0891b2 100%);
+  color:#fff;
+  border-radius:var(--radius) var(--radius) 0 0;
+  padding:1.4rem 1.5rem 1.2rem;
+  overflow:hidden;
+}
+.stu-hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 88% 30%,rgba(255,255,255,.12) 0%,transparent 55%),radial-gradient(circle at 10% 90%,rgba(255,255,255,.06) 0%,transparent 40%);
+  pointer-events:none;
+}
+.stu-hero > *{position:relative;z-index:1}
+.stu-hero-row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.stu-avatar-big{
+  width:78px;height:78px;border-radius:50%;
+  background:rgba(255,255,255,.97);color:var(--primary-dark);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:2rem;
+  box-shadow:0 6px 22px rgba(0,0,0,.25),inset 0 0 0 3px rgba(255,255,255,.5);
+  cursor:pointer;flex-shrink:0;font-family:'Frank Ruhl Libre',serif;
+  object-fit:cover;
+}
+.stu-hero h2{
+  color:#fff;margin:0 0 .15rem;
+  font-family:'Frank Ruhl Libre',serif;font-size:1.7rem;
+  text-shadow:0 2px 12px rgba(0,0,0,.25);letter-spacing:-.01em;
+}
+.stu-hero .stu-sub{
+  font-size:.92rem;opacity:.92;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;
+}
+.stu-hero .stu-sub > span{display:inline-flex;align-items:center;gap:.3rem}
+.stu-hero .stu-sub .dot{opacity:.5}
+.stu-hero-actions{margin-left:auto;display:flex;gap:.4rem;flex-wrap:wrap}
+.stu-hero-actions .btn{
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32);color:#fff;
+  font-size:.82rem;padding:.32rem .65rem;border-radius:8px;backdrop-filter:blur(4px);
+}
+.stu-hero-actions .btn:hover{background:rgba(255,255,255,.3);color:#fff}
+.stu-hero-actions .btn.wa{background:rgba(37,211,102,.85);border-color:transparent}
+.stu-hero-actions .btn.wa:hover{background:rgba(37,211,102,1)}
+.stu-hero-nav{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:.7rem;font-size:.85rem;opacity:.92;
+}
+.stu-hero-nav button{
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;
+  padding:.2rem .55rem;border-radius:6px;font-size:.82rem;cursor:pointer;
+}
+.stu-hero-nav button:hover{background:rgba(255,255,255,.25)}
+.stu-alergic-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  background:rgba(220,38,38,.95);color:#fff;font-size:.78rem;font-weight:600;
+  padding:.2rem .55rem;border-radius:999px;margin-right:.4rem;
+}
+
+/* KPI strip */
+.stu-kpis{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;
+  margin:-.6rem 1rem 1rem;position:relative;z-index:2;
+}
+@media (max-width:640px){.stu-kpis{grid-template-columns:repeat(3,1fr)}}
+.kpi-card{
+  background:var(--surface);border-radius:var(--radius-sm);
+  padding:.85rem .6rem .7rem;text-align:center;
+  border:1px solid var(--border);box-shadow:var(--shadow-sm);
+  transition:transform .15s ease,box-shadow .2s ease;
+}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi-card .kpi-icon{font-size:1.15rem;margin-bottom:.1rem;display:block}
+.kpi-card .kpi-num{font-size:1.55rem;font-weight:700;line-height:1;color:var(--primary-dark);font-family:'Frank Ruhl Libre',serif}
+.kpi-card .kpi-label{font-size:.75rem;color:var(--muted);margin-top:.2rem}
+.kpi-card.k-events{border-top:3px solid var(--primary)}
+.kpi-card.k-events .kpi-icon{color:var(--primary)}
+.kpi-card.k-high{border-top:3px solid var(--danger)}
+.kpi-card.k-high .kpi-icon{color:var(--danger)}
+.kpi-card.k-high .kpi-num{color:var(--danger)}
+.kpi-card.k-conv{border-top:3px solid var(--accent)}
+.kpi-card.k-conv .kpi-icon{color:var(--accent)}
+.kpi-card.k-lessons{border-top:3px solid var(--gold)}
+.kpi-card.k-lessons .kpi-icon{color:var(--gold)}
+.kpi-card.k-rw{border-top:3px solid var(--success)}
+.kpi-card.k-rw .kpi-icon{color:var(--success)}
+
+/* Modal body — student card v2 */
+.stu-body{padding:0 1.2rem 1rem}
+.stu-info-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:.5rem .9rem;
+  background:var(--surface-2);padding:.85rem 1rem;border-radius:var(--radius-sm);
+  border:1px solid var(--border);margin-bottom:1rem;font-size:.92rem;
+}
+@media (max-width:640px){.stu-info-grid{grid-template-columns:1fr}}
+.stu-info-grid .lbl{color:var(--muted);font-size:.78rem;display:block;margin-bottom:.05rem}
+.stu-info-grid .val{font-weight:500;color:var(--text)}
+.stu-info-grid .row-full{grid-column:1/-1}
+.stu-info-grid .danger-row{background:rgba(220,38,38,.07);padding:.4rem .6rem;border-radius:6px;color:var(--danger);grid-column:1/-1;font-weight:600}
+
+/* Pill-style tabs */
+.stu-tabs.nav-tabs{
+  border-bottom:1px solid var(--border);gap:.3rem;flex-wrap:wrap;margin-bottom:.7rem;
+}
+.stu-tabs.nav-tabs .nav-link{
+  border:1px solid transparent;border-radius:999px;
+  padding:.32rem .85rem;color:var(--muted);font-size:.88rem;font-weight:500;
+  background:transparent;transition:all .15s ease;
+}
+.stu-tabs.nav-tabs .nav-link:hover{background:var(--surface-2);color:var(--text)}
+.stu-tabs.nav-tabs .nav-link.active{
+  background:var(--primary);color:#fff;border-color:var(--primary);
+}
+html[data-theme="dark"] .stu-tabs.nav-tabs .nav-link.active{background:var(--accent);border-color:var(--accent)}
+
+.stu-trend-card{
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);padding:.7rem .9rem;margin-bottom:1rem;
+}
+.stu-trend-card h6{margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem;color:var(--text)}

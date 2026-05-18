@@ -420,35 +420,66 @@ async function viewStudent(id) {
     </div>`;
   }).join('') : '<p class="text-muted">אין אירועים מתועדים</p>';
 
-  const html = `<div class="modal fade" id="viewStuModal"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header">
-      <button class="btn btn-sm btn-outline-secondary p-1 ms-2" onclick="navigateStudent(${id}, -1)" title="הקודם (←)"><i class="bi bi-chevron-right"></i></button>
-      <div class="d-flex align-items-center gap-2 flex-grow-1">
-        ${s['תמונה'] ? `<img src="${escHtml(s['תמונה'])}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;cursor:pointer" onclick="uploadStudentPhoto(${id})">` : `<span class="avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:48px;height:48px;cursor:pointer" onclick="uploadStudentPhoto(${id})" title="העלה תמונה">${escHtml(((s['שם פרטי']||' ')[0] + (s['שם משפחה']||' ')[0]).trim() || '?')}</span>`}
-        <h5 class="mb-0"><i class="bi bi-person"></i> ${escHtml(fullName)}</h5>
+  const initials = ((s['שם פרטי']||' ')[0] + (s['שם משפחה']||' ')[0]).trim() || '?';
+  const avatarBig = s['תמונה']
+    ? `<img class="stu-avatar-big" src="${escHtml(s['תמונה'])}" alt="" onclick="uploadStudentPhoto(${id})">`
+    : `<div class="stu-avatar-big" onclick="uploadStudentPhoto(${id})" title="העלה תמונה">${escHtml(initials)}</div>`;
+  const heroParentBtns = (() => {
+    const out = [];
+    if (s['טלפון אם']) {
+      const clean = s['טלפון אם'].replace(/\D/g,'');
+      const intl = clean.startsWith('0') ? '972' + clean.slice(1) : clean;
+      out.push(`<a href="https://wa.me/${intl}?text=${encodeURIComponent('שלום, מבית התלמוד בנוגע ל'+fullName.trim())}" target="_blank" class="btn wa" title="WhatsApp אמא"><i class="bi bi-whatsapp"></i> אמא</a>`);
+      out.push(`<a href="tel:${escHtml(s['טלפון אם'])}" class="btn" title="חיוג אמא"><i class="bi bi-telephone"></i></a>`);
+    }
+    if (s['טלפון אב']) {
+      const clean = s['טלפון אב'].replace(/\D/g,'');
+      const intl = clean.startsWith('0') ? '972' + clean.slice(1) : clean;
+      out.push(`<a href="https://wa.me/${intl}?text=${encodeURIComponent('שלום, מבית התלמוד בנוגע ל'+fullName.trim())}" target="_blank" class="btn wa" title="WhatsApp אבא"><i class="bi bi-whatsapp"></i> אבא</a>`);
+      out.push(`<a href="tel:${escHtml(s['טלפון אב'])}" class="btn" title="חיוג אבא"><i class="bi bi-telephone"></i></a>`);
+    }
+    return out.join('');
+  })();
+  const highCount = events.filter(e=>e['חומרה']==='גבוהה').length;
+  const html = `<div class="modal fade" id="viewStuModal"><div class="modal-dialog modal-lg"><div class="modal-content" style="border:none">
+    <button class="btn-close position-absolute" style="top:.7rem;left:.7rem;z-index:5;filter:invert(1) brightness(2)" data-bs-dismiss="modal"></button>
+    <div class="stu-hero">
+      <div class="stu-hero-nav">
+        <button onclick="navigateStudent(${id}, -1)" title="הקודם (←)"><i class="bi bi-chevron-right"></i> הקודם</button>
+        <span><i class="bi bi-person-vcard"></i> כרטיס תלמיד</span>
+        <button onclick="navigateStudent(${id}, 1)" title="הבא (→)">הבא <i class="bi bi-chevron-left"></i></button>
       </div>
-      <button class="btn btn-sm btn-outline-secondary p-1 me-2" onclick="navigateStudent(${id}, 1)" title="הבא (→)"><i class="bi bi-chevron-left"></i></button>
-      <button class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+      <div class="stu-hero-row">
+        ${avatarBig}
+        <div class="flex-grow-1" style="min-width:0">
+          <h2>${escHtml(fullName)}${s['אלרגיה']?`<span class="stu-alergic-badge"><i class="bi bi-exclamation-triangle-fill"></i> ${escHtml(s['אלרגיה'])}</span>`:''}</h2>
+          <div class="stu-sub">
+            ${s['מחזור']?`<span><i class="bi bi-mortarboard"></i> כיתה ${escHtml(s['מחזור'])}</span><span class="dot">·</span>`:''}
+            ${s['גיל']?`<span><i class="bi bi-cake2"></i> גיל ${escHtml(s['גיל'])}</span><span class="dot">·</span>`:''}
+            ${s['מספר זהות']?`<span><i class="bi bi-card-text"></i> ${escHtml(s['מספר זהות'])}</span>`:''}
+          </div>
+        </div>
+        <div class="stu-hero-actions">${heroParentBtns}</div>
+      </div>
     </div>
-    <div class="modal-body">
-      <div class="row g-2 mb-3">
-        <div class="col-md-3"><div class="card p-2 text-center"><strong>${escHtml(s['גיל']||'-')}</strong><div class="small text-muted">גיל</div></div></div>
-        <div class="col-md-3"><div class="card p-2 text-center"><strong>${escHtml(s['מחזור']||'-')}</strong><div class="small text-muted">כיתה</div></div></div>
-        <div class="col-md-3"><div class="card p-2 text-center"><strong>${events.length}</strong><div class="small text-muted">אירועים</div></div></div>
-        <div class="col-md-3"><div class="card p-2 text-center"><strong>${events.filter(e=>e['חומרה']==='גבוהה').length}</strong><div class="small text-muted">חומרה גבוהה</div></div></div>
+    <div class="stu-kpis">
+      <div class="kpi-card k-events"><span class="kpi-icon"><i class="bi bi-clipboard-check"></i></span><div class="kpi-num">${events.length}</div><div class="kpi-label">אירועים</div></div>
+      <div class="kpi-card k-high"><span class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></span><div class="kpi-num">${highCount}</div><div class="kpi-label">חמורים</div></div>
+      <div class="kpi-card k-conv"><span class="kpi-icon"><i class="bi bi-chat-dots-fill"></i></span><div class="kpi-num">${conversations.length}</div><div class="kpi-label">שיחות</div></div>
+      <div class="kpi-card k-lessons" id="kpi-lessons"><span class="kpi-icon"><i class="bi bi-mortarboard-fill"></i></span><div class="kpi-num" id="kpi-lessons-num">…</div><div class="kpi-label">שיעורים פרטניים</div></div>
+      <div class="kpi-card k-rw" id="kpi-rw"><span class="kpi-icon"><i class="bi bi-book-half"></i></span><div class="kpi-num" id="kpi-rw-num">…</div><div class="kpi-label">קריאה / כתיבה</div></div>
+    </div>
+    <div class="modal-body stu-body">
+      <div class="stu-info-grid">
+        <div><span class="lbl">תאריך לידה</span><span class="val">${escHtml(formatGreg(s['תאריך לידה'])||'-')}${hebBd ? ` <small class="text-muted">(${escHtml(hebBd)})</small>` : ''}</span></div>
+        <div><span class="lbl">שם אם</span><span class="val">${escHtml(s['שם אם']||'-')} <small class="text-muted">${escHtml(s['טלפון אם']||'')}</small></span></div>
+        <div><span class="lbl">שם אב</span><span class="val">${escHtml(s['שם אב']||'-')} <small class="text-muted">${escHtml(s['טלפון אב']||'')}</small></span></div>
+        <div><span class="lbl">כתובת</span><span class="val">${escHtml(s['כתובת']||'-')}${s['עיר'] ? ', ' + escHtml(s['עיר']) : ''}</span></div>
+        ${s['הערות רפואיות'] ? `<div class="row-full"><span class="lbl">הערות רפואיות</span><span class="val">${escHtml(s['הערות רפואיות'])}</span></div>` : ''}
+        ${s['הערות'] ? `<div class="row-full"><span class="lbl">הערות</span><span class="val">${escHtml(s['הערות'])}</span></div>` : ''}
       </div>
-      <h6>פרטים אישיים</h6>
-      <table class="table table-sm">
-        <tr><td><strong>תאריך לידה</strong></td><td>${escHtml(formatGreg(s['תאריך לידה'])||'-')} ${hebBd ? `<br><small class="text-muted">${escHtml(hebBd)}</small>` : ''}</td><td><strong>ת.ז.</strong></td><td>${escHtml(s['מספר זהות']||'-')}</td></tr>
-        <tr><td><strong>שם אם</strong></td><td>${escHtml(s['שם אם']||'-')}</td><td><strong>טלפון אם</strong></td><td>${escHtml(s['טלפון אם']||'-')} ${waButtons(s['טלפון אם'], fullName, 'אמא')}</td></tr>
-        <tr><td><strong>שם אב</strong></td><td>${escHtml(s['שם אב']||'-')}</td><td><strong>טלפון אב</strong></td><td>${escHtml(s['טלפון אב']||'-')} ${waButtons(s['טלפון אב'], fullName, 'אבא')}</td></tr>
-        <tr><td><strong>כתובת</strong></td><td colspan="3">${escHtml(s['כתובת']||'-')}${s['עיר'] ? ', ' + escHtml(s['עיר']) : ''}</td></tr>
-        ${s['אלרגיה'] ? `<tr class="table-danger"><td><strong>⚠️ אלרגיה / רגישות</strong></td><td colspan="3"><strong>${escHtml(s['אלרגיה'])}</strong></td></tr>` : ''}
-        ${s['הערות רפואיות'] ? `<tr><td><strong>הערות רפואיות</strong></td><td colspan="3">${escHtml(s['הערות רפואיות'])}</td></tr>` : ''}
-        ${s['הערות'] ? `<tr><td><strong>הערות</strong></td><td colspan="3">${escHtml(s['הערות'])}</td></tr>` : ''}
-      </table>
-      <div class="card p-3 mb-3">
-        <h6><i class="bi bi-graph-up"></i> מגמת התנהגות (14 ימים)</h6>
+      <div class="stu-trend-card">
+        <h6><i class="bi bi-graph-up text-primary"></i> מגמת התנהגות (14 ימים)</h6>
         <canvas id="stu-trend-chart" style="max-height:120px"></canvas>
       </div>
       ${(() => {
@@ -456,7 +487,12 @@ async function viewStudent(id) {
         const writing = events.filter(e => e['קטגוריה'] === 'קידום כתיבה');
         // Lessons live in dedicated tab (loaded separately on tab open) — show 0 count for now
         window._stuExtraSections = {reading, writing, klein: [], yodlov: []};
-        // Async fetch lessons for this student to populate Klein/Yodlov tabs after render
+        // Update reading+writing KPI immediately
+        setTimeout(() => {
+          const rwNum = document.getElementById('kpi-rw-num');
+          if (rwNum) rwNum.textContent = String(reading.length + writing.length);
+        }, 50);
+        // Async fetch lessons for this student to populate Klein/Yodlov tabs + KPI
         if (typeof fetchLessons === 'function') {
           fetchLessons(false).then(all => {
             const k = all.filter(l => String(l['רב']||'') === 'הרב קליין' && String(l['תלמיד_מזהה']) === String(id));
@@ -465,6 +501,8 @@ async function viewStudent(id) {
             const yc = document.querySelector('a[href="#stu-tab-yodlov"]');
             if (kc) kc.textContent = `🎓 קליין (${k.length})`;
             if (yc) yc.textContent = `🎓 יודלוב (${y.length})`;
+            const lsNum = document.getElementById('kpi-lessons-num');
+            if (lsNum) lsNum.textContent = String(k.length + y.length);
             const kp = document.getElementById('stu-tab-klein');
             const yp = document.getElementById('stu-tab-yodlov');
             const renderL = (items, title) => items.length ? items.sort((a,b)=>new Date(b['תאריך'])-new Date(a['תאריך'])).map(l => `<div class="card p-2 mb-2"><div class="d-flex justify-content-between flex-wrap"><div><strong>${escHtml(l['נושא']||'')}</strong></div><small class="text-muted">${escHtml(new Date(l['תאריך']).toLocaleDateString('he-IL'))}${l['משך']?` · ${escHtml(l['משך'])} דק'`:''}</small></div>${l['תוכן']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(l['תוכן'])}</div>`:''}${l['שיעורי_בית']?`<div class="small mt-1 text-warning">📝 שיעורי בית: ${escHtml(l['שיעורי_בית'])}</div>`:''}${l['רושם']?`<div class="small text-muted">😊 ${escHtml(l['רושם'])}</div>`:''}</div>`).join('') : `<p class="text-muted">אין סיכומי שיעור ${title}.</p>`;
@@ -474,7 +512,7 @@ async function viewStudent(id) {
         }
         return '';
       })()}
-      <ul class="nav nav-tabs mt-3 small" id="stu-tabs">
+      <ul class="nav nav-tabs stu-tabs mt-3" id="stu-tabs">
         <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#stu-tab-behavior">התנהגות (${events.length})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-conversations">שיחות (${conversations.length})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-reading">📖 קריאה (${(window._stuExtraSections||{}).reading?.length||0})</a></li>
