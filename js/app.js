@@ -421,17 +421,26 @@ function drawAlerts(students, events) {
     .sort((a,b) => b[1] - a[1])
     .map(([sid, n]) => ({ student: students.find(s => String(s['מזהה']) === String(sid)), count: n }))
     .filter(x => x.student);
-  if (!flagged.length) {
+  // Also surface unhandled high-severity events (never auto-cleared)
+  const unhandled = events.filter(e => e['חומרה'] === 'גבוהה' && !(
+    String(e['טופל']||'').toLowerCase() === 'true' || e['טופל'] === 'כן' || e['טופל'] === true
+  ));
+  if (!flagged.length && !unhandled.length) {
     el.innerHTML = '<p class="text-muted small mb-0">אין דגלים השבוע</p>';
     return;
   }
-  el.innerHTML = flagged.map(f => {
-    const fullName = (f.student['שם פרטי']||'') + ' ' + (f.student['שם משפחה']||'');
-    return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${f.student['מזהה']})" style="cursor:pointer">
-      <div><i class="bi bi-flag-fill text-danger"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(${escHtml(f.student['מחזור']||'')})</span></div>
-      <div><span class="badge bg-danger">${f.count} אירועי חומרה גבוהה</span></div>
-    </div>`;
-  }).join('');
+  if (!flagged.length) {
+    el.innerHTML = `<div class="alert alert-warning py-2 small mb-0"><i class="bi bi-exclamation-triangle-fill"></i> ${unhandled.length} אירועי חומרה גבוהה לא טופלו <a href="#behavior" onclick="goto('behavior');return false" class="text-decoration-none">פתח</a></div>`;
+    return;
+  }
+  el.innerHTML = (unhandled.length ? `<div class="alert alert-warning py-2 small mb-2"><i class="bi bi-exclamation-triangle-fill"></i> ${unhandled.length} אירועי חומרה גבוהה לא טופלו <a href="#behavior" onclick="goto('behavior');return false" class="text-decoration-none">פתח</a></div>` : '') +
+    flagged.map(f => {
+      const fullName = (f.student['שם פרטי']||'') + ' ' + (f.student['שם משפחה']||'');
+      return `<div class="d-flex justify-content-between border-bottom py-2 small" onclick="viewStudent(${f.student['מזהה']})" style="cursor:pointer">
+        <div><i class="bi bi-flag-fill text-danger"></i> <strong>${escHtml(fullName)}</strong> <span class="text-muted">(${escHtml(f.student['מחזור']||'')})</span></div>
+        <div><span class="badge bg-danger">${f.count} אירועי חומרה גבוהה</span></div>
+      </div>`;
+    }).join('');
 }
 
 function drawTrendChart(events) {
