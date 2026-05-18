@@ -42,7 +42,8 @@ async function renderConversations() {
           <select id="co-cat" class="form-select"><option value="">כל הקטגוריות</option></select>
         </div>
         <div class="col-md-2">
-          <select id="co-student" class="form-select"><option value="">כל התלמידים</option></select>
+          <input id="co-student" class="form-control" list="co-student-list" placeholder="חפש תלמיד...">
+          <datalist id="co-student-list"></datalist>
         </div>
       </div>
     </div>
@@ -70,9 +71,7 @@ async function renderConversations() {
   document.getElementById('co-cat').innerHTML = '<option value="">כל הקטגוריות</option>' +
     CONV_CATEGORIES.map(c => `<option>${escHtml(c)}</option>`).join('');
 
-  const sortedStu = _convStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
-  document.getElementById('co-student').innerHTML = '<option value="">כל התלמידים</option>' +
-    sortedStu.map(s => `<option value="${s['מזהה']}">${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('');
+  document.getElementById('co-student-list').innerHTML = studentsDatalistOptions(_convStudents, false);
 
   ['co-search','co-rabbi','co-cat','co-student'].forEach(id => document.getElementById(id).oninput = conversationsRefresh);
   ['co-rabbi','co-cat','co-student'].forEach(id => document.getElementById(id).onchange = conversationsRefresh);
@@ -83,11 +82,25 @@ function conversationsRefresh() {
   const q = (document.getElementById('co-search').value || '').toLowerCase();
   const rabbi = document.getElementById('co-rabbi').value;
   const cat = document.getElementById('co-cat').value;
-  const sid = document.getElementById('co-student').value;
+  const sLabel = document.getElementById('co-student').value.trim();
   let list = _convData.slice().sort((a,b) => new Date(b['תאריך']||0) - new Date(a['תאריך']||0));
   if (rabbi) list = list.filter(m => m['רב'] === rabbi);
   if (cat) list = list.filter(m => m['קטגוריה'] === cat);
-  if (sid) list = list.filter(m => String(m['תלמיד_מזהה']) === sid);
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _convStudents);
+    if (stu) {
+      list = list.filter(m => String(m['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      const stuById = {};
+      _convStudents.forEach(s => stuById[s['מזהה']] = s);
+      list = list.filter(m => {
+        const s = stuById[m['תלמיד_מזהה']];
+        if (!s) return false;
+        return `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(lc);
+      });
+    }
+  }
   if (q) list = list.filter(m => Object.values(m).some(v => String(v||'').toLowerCase().includes(q)));
 
   const el = document.getElementById('co-list');
@@ -136,16 +149,15 @@ function convAddModal(existing) {
   const e = existing || {};
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const defaultRabbi = e['רב'] || sess.username || '';
-  const sortedStu = _convStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const preStu = e['תלמיד_מזהה'] ? _convStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה'])) : null;
+  const preStuLabel = preStu ? studentDisplay(preStu) : '';
   const html = `<div class="modal fade" id="co-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5>${existing ? 'עריכת' : ''} שיחה עם תלמיד</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="row g-2 mb-2">
         <div class="col-md-7"><label class="form-label">תלמיד</label>
-          <select id="coa-student" class="form-select" onchange="convUpdateLinkedEvents(this.value)">
-            <option value="">בחר תלמיד</option>
-            ${sortedStu.map(s => `<option value="${s['מזהה']}" ${String(e['תלמיד_מזהה'])===String(s['מזהה'])?'selected':''}>${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
-          </select>
+          <input id="coa-student" class="form-control" list="coa-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escHtml(preStuLabel)}" oninput="convStudentResolved(this.value)" onchange="convStudentResolved(this.value)">
+          <datalist id="coa-student-list">${studentsDatalistOptions(_convStudents, true)}</datalist>
         </div>
         <div class="col-md-5"><label class="form-label">תאריך</label><input id="coa-date" type="date" class="form-control" value="${e['תאריך'] ? String(e['תאריך']).slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
       </div>
@@ -190,8 +202,13 @@ function convAddModal(existing) {
   new bootstrap.Modal(_m).show();
   _m.addEventListener('hidden.bs.modal', () => { convStopMic(); cleanupModal('co-modal'); }, { once: true });
   // Pre-populate linked-event dropdown for the current student
-  const curSid = document.getElementById('coa-student').value;
-  if (curSid) convUpdateLinkedEvents(curSid, e['אירוע_מקושר']);
+  if (preStu) convUpdateLinkedEvents(preStu['מזהה'], e['אירוע_מקושר']);
+}
+
+// Called from oninput/onchange on the typeahead — resolves name → ID then updates linked events
+function convStudentResolved(label) {
+  const stu = resolveStudent(label, _convStudents);
+  convUpdateLinkedEvents(stu ? stu['מזהה'] : '');
 }
 
 function convUpdateLinkedEvents(studentId, preselect) {
@@ -282,8 +299,11 @@ function convEdit(id) {
 async function convSave(editId) {
   convStopMic();
   const dateStr = document.getElementById('coa-date').value;
+  const typedLabel = document.getElementById('coa-student').value.trim();
+  const stu = resolveStudent(typedLabel, _convStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const obj = {
-    'תלמיד_מזהה': parseInt(document.getElementById('coa-student').value),
+    'תלמיד_מזהה': stu ? parseInt(stu['מזהה']) : 0,
     'תאריך': dateStr,
     'רב': document.getElementById('coa-rabbi').value.trim(),
     'קטגוריה': document.getElementById('coa-cat').value,
