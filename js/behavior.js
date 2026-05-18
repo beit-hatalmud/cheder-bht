@@ -145,7 +145,7 @@ function drawEvents(list) {
         <div>${newBadge}<span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>${studentLink}${followBadge}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
-          <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
+          <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
           ${handleBtn}
           <button class="btn btn-sm btn-outline-primary" onclick="editEvent(${e['מזהה']||0})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
