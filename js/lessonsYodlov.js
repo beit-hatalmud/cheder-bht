@@ -16,7 +16,10 @@ async function renderLessonsYodlov() {
       <i class="bi bi-info-circle"></i> דיווחי קריאה מופיעים גם במסך "מעקב התנהגות" הכללי, אבל זה המסך הייעודי לסינון מהיר.
     </div>
     <div class="row g-2 mb-3">
-      <div class="col-md-6"><select id="y-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
+      <div class="col-md-6">
+        <input id="y-fstudent" class="form-control" list="y-fstudent-list" placeholder="חפש תלמיד...">
+        <datalist id="y-fstudent-list"></datalist>
+      </div>
     </div>
     <div id="y-list"></div>`;
   const [stRes, evRes] = await Promise.all([
@@ -28,21 +31,27 @@ async function renderLessonsYodlov() {
   _yEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   fillLessonsYodlovFilters();
   drawLessonsYodlovEvents(_yEvents);
-  document.getElementById('y-fstudent').onchange = applyReadingFilters;
+  const stEl = document.getElementById('y-fstudent');
+  stEl.oninput = applyLessonsYodlovFilters;
+  stEl.onchange = applyLessonsYodlovFilters;
 }
 
 function fillLessonsYodlovFilters() {
-  const stSel = document.getElementById('y-fstudent');
-  _yAllStudents.forEach(s => {
-    const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
-    stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
-  });
+  document.getElementById('y-fstudent-list').innerHTML = studentsDatalistOptions(_yAllStudents, false);
 }
 
-function applyReadingFilters() {
+function applyLessonsYodlovFilters() {
   let f = _yEvents;
-  const s = document.getElementById('y-fstudent').value;
-  if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
+  const sLabel = document.getElementById('y-fstudent').value.trim();
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _yAllStudents);
+    if (stu) {
+      f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
+    }
+  }
   drawLessonsYodlovEvents(f);
 }
 
@@ -86,7 +95,10 @@ function addLessonsYodlovModal() {
   const html = `<div class="modal fade" id="addLessonsYodlovModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>דיווח קידום קריאה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="nr-student" class="form-select"><option value="">בחר</option>${_yAllStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label>
+        <input id="nr-student" class="form-control" list="nr-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+        <datalist id="nr-student-list">${studentsDatalistOptions(_yAllStudents, true)}</datalist>
+      </div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveLessonsYodlov(event)">שמור</button></div>
@@ -105,8 +117,10 @@ async function saveLessonsYodlov(event) {
     btn.disabled = true;
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
-  const sid = document.getElementById('nr-student').value;
-  const stu = _yAllStudents.find(s => String(s['מזהה']) === sid);
+  const typedLabel = document.getElementById('nr-student').value.trim();
+  const stu = resolveStudent(typedLabel, _yAllStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
+  const sid = stu ? stu['מזהה'] : '';
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const desc = document.getElementById('nr-desc').value;
