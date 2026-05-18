@@ -219,9 +219,10 @@ async function funcDelete(id) {
 }
 
 function funcExportCSV() {
+  if (!_funcSelected) return alert('בחר תלמיד תחילה');
   const sid = String(_funcSelected);
   const list = _funcEntries.filter(e => String(e['תלמיד_מזהה']) === sid);
-  if (!list.length) return alert('אין נתונים לייצוא');
+  if (!list.length) return alert('אין נתונים לייצוא לתלמיד זה');
   const cols = ['קטגוריה','תת_קטגוריה','פרמטר','ציון','תקופה','תאריך','הערות'];
   const csv = ['﻿' + cols.join(',')];
   list.forEach(e => csv.push(cols.map(c => `"${(e[c]||'').toString().replace(/"/g,'""')}"`).join(',')));
