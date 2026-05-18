@@ -11,9 +11,12 @@ function getHebrewInfo(jsDate) {
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
-      <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h3 class="mb-0"><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
+      <div class="d-flex gap-2 align-items-center">
+        ${viewModeToggleHTML('behavior')}
+        <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
+      </div>
     </div>
     <div class="row g-2 mb-3">
       <div class="col-md-4">
@@ -32,6 +35,7 @@ async function renderBehavior() {
   _events = evRes.data || [];
   _categories = catRes.data || [];
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  activateViewMode('behavior');
   fillFilters();
   drawEvents(_events);
   const stEl = document.getElementById('b-fstudent');
