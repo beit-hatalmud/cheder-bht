@@ -8,9 +8,12 @@ let _rEvents = [], _rAllStudents = [];
 async function renderReading() {
   document.getElementById('page-reading').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-book-half text-warning"></i> קידום קריאה</h3>
-      <button class="btn btn-success" onclick="addReadingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h3 class="mb-0"><i class="bi bi-book-half text-warning"></i> קידום קריאה</h3>
+      <div class="d-flex gap-2 align-items-center">
+        ${viewModeToggleHTML('reading')}
+        <button class="btn btn-success" onclick="addReadingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
+      </div>
     </div>
     <div class="alert alert-info py-2 small mb-3">
       <i class="bi bi-info-circle"></i> דיווחי קריאה מופיעים גם במסך "מעקב התנהגות" הכללי, אבל זה המסך הייעודי לסינון מהיר.
@@ -29,6 +32,7 @@ async function renderReading() {
   _rAllStudents = stRes.data || [];
   _rEvents = (evRes.data || []).filter(e => e['קטגוריה'] === READING_CAT);
   _rEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  activateViewMode('reading');
   fillReadingFilters();
   drawReadingEvents(_rEvents);
   const stEl = document.getElementById('r-fstudent');

@@ -8,9 +8,12 @@ let _wEvents = [], _wAllStudents = [];
 async function renderWriting() {
   document.getElementById('page-writing').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-pencil-fill text-success"></i> קידום כתיבה</h3>
-      <button class="btn btn-success" onclick="addWritingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h3 class="mb-0"><i class="bi bi-pencil-fill text-success"></i> קידום כתיבה</h3>
+      <div class="d-flex gap-2 align-items-center">
+        ${viewModeToggleHTML('writing')}
+        <button class="btn btn-success" onclick="addWritingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
+      </div>
     </div>
     <div class="alert alert-info py-2 small mb-3">
       <i class="bi bi-info-circle"></i> דיווחי קריאה מופיעים גם במסך "מעקב התנהגות" הכללי, אבל זה המסך הייעודי לסינון מהיר.
@@ -29,6 +32,7 @@ async function renderWriting() {
   _wAllStudents = stRes.data || [];
   _wEvents = (evRes.data || []).filter(e => e['קטגוריה'] === WRITING_CAT);
   _wEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  activateViewMode('writing');
   fillWritingFilters();
   drawWritingEvents(_wEvents);
   const stEl = document.getElementById('w-fstudent');
