@@ -541,15 +541,15 @@ function genReportTests() {
 
 async function genReportParent() {
   const data = getVisibleData();
-  const activeStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים').sort((a,b) =>
-    String(a['מחזור']).localeCompare(String(b['מחזור'])) || (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const activeStu = (data.students||[]).filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
+  // Cache for resolving names in genParentPDF
+  window._rpStudents = activeStu;
   const html = `<div class="modal fade" id="rp-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5><i class="bi bi-envelope-fill"></i> דוח להורים</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="mb-3"><label class="form-label">תלמיד</label>
-        <select id="rp-student" class="form-select">
-          ${activeStu.map(s => `<option value="${s['מזהה']}">${escHtml((s['מחזור']||'')+' · '+(s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}
-        </select>
+        <input id="rp-student" class="form-control" list="rp-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+        <datalist id="rp-student-list">${studentsDatalistOptions(activeStu, true)}</datalist>
       </div>
       <div class="mb-3">
         <label class="form-label">מייל הורה</label>
@@ -573,11 +573,13 @@ async function genReportParent() {
 }
 
 async function genParentPDF(sendEmail) {
-  const sid = document.getElementById('rp-student').value;
-  const email = document.getElementById('rp-email').value.trim();
+  const typedLabel = document.getElementById('rp-student').value.trim();
   const data = getVisibleData();
-  const stu = (data.students||[]).find(s => String(s['מזהה']) === String(sid));
-  if (!stu) return alert('תלמיד לא נמצא');
+  const stuPool = window._rpStudents || (data.students||[]);
+  const stu = resolveStudent(typedLabel, stuPool);
+  if (!stu) return alert('בחר תלמיד מהרשימה');
+  const sid = stu['מזהה'];
+  const email = document.getElementById('rp-email').value.trim();
   if (sendEmail && !email) return alert('הזן מייל');
   const events = (data.behavior||[]).filter(e => String(e['תלמיד_מזהה']) === String(sid))
     .sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
