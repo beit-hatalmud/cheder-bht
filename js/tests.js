@@ -25,7 +25,8 @@ async function renderTests() {
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">תלמיד</label>
-          <select id="t-student" class="form-select form-select-sm"><option value="">הכל</option></select>
+          <input id="t-student" class="form-control form-control-sm" list="t-student-list" placeholder="חפש תלמיד...">
+          <datalist id="t-student-list"></datalist>
         </div>
       </div>
     </div>
@@ -62,24 +63,37 @@ async function renderTests() {
   document.getElementById('t-parsha').innerHTML = '<option value="">הכל</option>' +
     parshot.map(x => `<option>${escHtml(x)}</option>`).join('');
 
-  const sortedStu = _testsStudents.slice().sort((a,b) =>
-    String(a['מחזור']).localeCompare(String(b['מחזור'])) ||
-    (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
-  document.getElementById('t-student').innerHTML = '<option value="">הכל</option>' +
-    sortedStu.map(s => `<option value="${s['מזהה']}">${escHtml((s['מחזור']||'')+' · '+(s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('');
+  document.getElementById('t-student-list').innerHTML = studentsDatalistOptions(_testsStudents, false);
 
-  ['t-type','t-parsha','t-student'].forEach(id => document.getElementById(id).onchange = testsRefresh);
+  ['t-type','t-parsha'].forEach(id => document.getElementById(id).onchange = testsRefresh);
+  const stEl = document.getElementById('t-student');
+  stEl.oninput = testsRefresh;
+  stEl.onchange = testsRefresh;
   testsRefresh();
 }
 
 function testsRefresh() {
   const type = document.getElementById('t-type').value;
   const parsha = document.getElementById('t-parsha').value;
-  const sid = document.getElementById('t-student').value;
+  const sLabel = document.getElementById('t-student').value.trim();
   let list = _testsData;
   if (type) list = list.filter(t => t['סוג'] === type);
   if (parsha) list = list.filter(t => t['פרשה'] === parsha);
-  if (sid) list = list.filter(t => String(t['תלמיד_מזהה']) === sid);
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _testsStudents);
+    if (stu) {
+      list = list.filter(t => String(t['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      const lc = sLabel.toLowerCase();
+      const stuById = {};
+      _testsStudents.forEach(s => stuById[s['מזהה']] = s);
+      list = list.filter(t => {
+        const s = stuById[t['תלמיד_מזהה']];
+        if (!s) return false;
+        return `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(lc);
+      });
+    }
+  }
   drawTestsTable(list);
   drawTestsChart(list);
 }
@@ -140,12 +154,12 @@ function drawTestsChart(list) {
 
 function testAddModal() {
   const types = [...new Set(_testsData.map(t => t['סוג']).filter(Boolean))];
-  const sortedStu = _testsStudents.slice().sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
   const html = `<div class="modal fade" id="t-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">ציון מבחן חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="mb-2"><label class="form-label">תלמיד</label>
-        <select id="ta-student" class="form-select">${sortedStu.map(s => `<option value="${s['מזהה']}">${escHtml((s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('')}</select>
+        <input id="ta-student" class="form-control" list="ta-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+        <datalist id="ta-student-list">${studentsDatalistOptions(_testsStudents, true)}</datalist>
       </div>
       <div class="mb-2"><label class="form-label">סוג מבחן</label>
         <input list="ta-types" id="ta-type" class="form-control">
@@ -167,8 +181,11 @@ function testAddModal() {
 }
 
 async function testSave() {
+  const typedLabel = document.getElementById('ta-student').value.trim();
+  const stu = resolveStudent(typedLabel, _testsStudents);
+  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const obj = {
-    'תלמיד_מזהה': parseInt(document.getElementById('ta-student').value),
+    'תלמיד_מזהה': stu ? parseInt(stu['מזהה']) : 0,
     'סוג': document.getElementById('ta-type').value.trim(),
     'פרשה': document.getElementById('ta-parsha').value.trim(),
     'ציון': Math.max(0, Math.min(100, parseFloat(document.getElementById('ta-score').value) || 0)),
