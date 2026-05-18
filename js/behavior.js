@@ -186,6 +186,7 @@ function addEventModal() {
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
+      <div class="mb-3"><label class="form-label">תאריך</label><input id="ne-date" type="date" class="form-control" value="${new Date().toISOString().slice(0,10)}"><small class="text-muted">אפשר לדווח על אירוע מהעבר</small></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveEvent(event)">שמור</button></div>
   </div></div></div>`;
@@ -229,9 +230,10 @@ async function saveEvent(event) {
     }
     r = await api('updateBehavior', [obj]);
   } else {
-    const now = new Date();
-    const info = getHebrewInfo(now);
-    obj['תאריך'] = now.toISOString();
+    const dateInput = document.getElementById('ne-date')?.value;
+    const eventDate = dateInput ? new Date(dateInput + 'T12:00:00') : new Date();
+    const info = getHebrewInfo(eventDate);
+    obj['תאריך'] = eventDate.toISOString();
     obj['תאריך_עברי'] = info.hdate;
     obj['פרשה'] = info.parsha;
     obj['דווח_עי'] = reporter;
