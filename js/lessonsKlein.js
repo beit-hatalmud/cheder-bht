@@ -62,7 +62,7 @@ function applyLessonsKleinPageFilters() {
 function drawLessonsKleinEvents(list) {
   const el = document.getElementById('l-list');
   if (!list.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-book fs-1"></i><p>אין דיווחי קריאה</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-mortarboard fs-1"></i><p class="mt-2">אין דיווחי שיעור פרטני קליין</p><p class="small">לחץ "דיווח חדש" כדי להתחיל</p></div>';
     return;
   }
   el.innerHTML = list.map(e => {
