@@ -737,10 +737,8 @@ async function renderReportsAdvancedFilter() {
       <div class="row g-2">
         <div class="col-md-3">
           <label class="form-label small">תלמיד</label>
-          <select id="r-student" class="form-select form-select-sm">
-            <option value="">כל התלמידים</option>
-            ${data.students.map(s => `<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}
-          </select>
+          <input id="r-student" class="form-control form-control-sm" list="r-student-list" placeholder="חפש תלמיד..." autocomplete="off">
+          <datalist id="r-student-list">${studentsDatalistOptions(data.students, false)}</datalist>
         </div>
         <div class="col-md-3">
           <label class="form-label small">כיתה</label>
@@ -789,21 +787,33 @@ let _filteredStudents = [], _filteredEvents = [];
 
 function applyReportFilters() {
   const data = getData();
-  const sId = document.getElementById('r-student').value;
+  const sLabel = document.getElementById('r-student').value.trim();
+  const matchedStu = sLabel ? resolveStudent(sLabel, data.students) : null;
+  const sId = matchedStu ? String(matchedStu['מזהה']) : '';
+  const sPartial = (sLabel && !matchedStu) ? sLabel.toLowerCase() : '';
   const cycle = document.getElementById('r-cycle').value;
   const cat = document.getElementById('r-cat').value;
   const sev = document.getElementById('r-sev').value;
   const from = document.getElementById('r-from').value;
   const to = document.getElementById('r-to').value;
 
+  const matchByPartial = s => sPartial && (`${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(sPartial));
+
   _filteredStudents = data.students.filter(s => {
     if (sId && String(s['מזהה']) !== sId) return false;
+    if (sPartial && !matchByPartial(s)) return false;
     if (cycle && s['מחזור'] !== cycle) return false;
     return true;
   });
 
+  const stuById = {};
+  data.students.forEach(s => stuById[s['מזהה']] = s);
   _filteredEvents = data.behavior.filter(e => {
     if (sId && String(e['תלמיד_מזהה']) !== sId) return false;
+    if (sPartial) {
+      const s = stuById[e['תלמיד_מזהה']];
+      if (!s || !matchByPartial(s)) return false;
+    }
     if (cat && e['קטגוריה'] !== cat) return false;
     if (sev && e['חומרה'] !== sev) return false;
     const dt = new Date(e['תאריך']);
