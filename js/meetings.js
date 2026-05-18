@@ -2,6 +2,19 @@
 let _meetingsData = [];
 let _meetingsStudents = [];
 
+// Keyboard shortcut: N/נ opens "new meeting" when meetings page visible
+function _meetingsKeyHandler(e) {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  const pageVisible = document.getElementById('page-meetings')?.offsetParent !== null;
+  if (!pageVisible) return;
+  if (e.key === 'n' || e.key === 'N' || e.key === 'נ') {
+    e.preventDefault();
+    if (typeof meetAddModal === 'function') meetAddModal();
+  }
+}
+document.addEventListener('keydown', _meetingsKeyHandler);
+
 async function renderMeetings() {
   const html = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
