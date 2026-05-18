@@ -36,15 +36,15 @@ async function renderWriting() {
   fillWritingFilters();
   drawWritingEvents(_wEvents);
   const stEl = document.getElementById('w-fstudent');
-  stEl.oninput = applyReadingFilters;
-  stEl.onchange = applyReadingFilters;
+  stEl.oninput = applyWritingPageFilters;
+  stEl.onchange = applyWritingPageFilters;
 }
 
 function fillWritingFilters() {
   document.getElementById('w-fstudent-list').innerHTML = studentsDatalistOptions(_wAllStudents, false);
 }
 
-function applyReadingFilters() {
+function applyWritingPageFilters() {
   let f = _wEvents;
   const sLabel = document.getElementById('w-fstudent').value.trim();
   if (sLabel) {

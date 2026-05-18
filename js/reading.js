@@ -36,15 +36,15 @@ async function renderReading() {
   fillReadingFilters();
   drawReadingEvents(_rEvents);
   const stEl = document.getElementById('r-fstudent');
-  stEl.oninput = applyReadingFilters;
-  stEl.onchange = applyReadingFilters;
+  stEl.oninput = applyReadingPageFilters;
+  stEl.onchange = applyReadingPageFilters;
 }
 
 function fillReadingFilters() {
   document.getElementById('r-fstudent-list').innerHTML = studentsDatalistOptions(_rAllStudents, false);
 }
 
-function applyReadingFilters() {
+function applyReadingPageFilters() {
   let f = _rEvents;
   const sLabel = document.getElementById('r-fstudent').value.trim();
   if (sLabel) {

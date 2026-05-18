@@ -36,15 +36,15 @@ async function renderLessonsKlein() {
   fillLessonsKleinFilters();
   drawLessonsKleinEvents(_lEvents);
   const stEl = document.getElementById('l-fstudent');
-  stEl.oninput = applyReadingFilters;
-  stEl.onchange = applyReadingFilters;
+  stEl.oninput = applyLessonsKleinPageFilters;
+  stEl.onchange = applyLessonsKleinPageFilters;
 }
 
 function fillLessonsKleinFilters() {
   document.getElementById('l-fstudent-list').innerHTML = studentsDatalistOptions(_lAllStudents, false);
 }
 
-function applyReadingFilters() {
+function applyLessonsKleinPageFilters() {
   let f = _lEvents;
   const sLabel = document.getElementById('l-fstudent').value.trim();
   if (sLabel) {
