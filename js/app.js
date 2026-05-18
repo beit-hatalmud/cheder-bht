@@ -213,6 +213,8 @@ async function loadStats() {
   const conversations = c.data || [];
   document.getElementById('stat-students').textContent = students.length;
   document.getElementById('stat-events').textContent = events.length;
+  const updatedEl = document.getElementById('stats-updated');
+  if (updatedEl) updatedEl.textContent = 'עודכן ' + new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
   const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
   const week = events.filter(e => dateMs(e['תאריך']) > weekAgo);
   document.getElementById('stat-week').textContent = week.length;
