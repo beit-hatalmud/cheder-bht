@@ -8,29 +8,6 @@ function getHebrewInfo(jsDate) {
   };
 }
 
-function _studentDisplay(s) {
-  return `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
-}
-
-function _studentsDatalistOptions(activeOnly=true) {
-  const list = activeOnly ? _allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים') : _allStudents;
-  const counts = {};
-  list.forEach(s => { const d = _studentDisplay(s); counts[d] = (counts[d]||0) + 1; });
-  return list.map(s => {
-    const d = _studentDisplay(s);
-    const label = counts[d] > 1 ? `${d} (${s['מזהה']})` : d;
-    return `<option value="${escHtml(label)}">`;
-  }).join('');
-}
-
-function _resolveStudent(label) {
-  if (!label) return null;
-  const t = label.trim();
-  const m = t.match(/^(.+)\s+\((\d+)\)$/);
-  if (m) return _allStudents.find(s => String(s['מזהה']) === m[2]) || null;
-  return _allStudents.find(s => _studentDisplay(s) === t) || null;
-}
-
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
@@ -64,7 +41,7 @@ async function renderBehavior() {
 }
 
 function fillFilters() {
-  document.getElementById('b-fstudent-list').innerHTML = _studentsDatalistOptions(false);
+  document.getElementById('b-fstudent-list').innerHTML = studentsDatalistOptions(_allStudents, false);
   const catSel = document.getElementById('b-fcat');
   _categories.forEach(c => {
     catSel.innerHTML += `<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`;
@@ -76,7 +53,7 @@ function applyFilters() {
   const sLabel = document.getElementById('b-fstudent').value.trim();
   const c = document.getElementById('b-fcat').value;
   if (sLabel) {
-    const stu = _resolveStudent(sLabel);
+    const stu = resolveStudent(sLabel, _allStudents);
     if (stu) {
       f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
     } else {
@@ -143,7 +120,7 @@ function editEvent(id) {
   const modalEl = document.getElementById('addEvModal');
   const populate = () => {
     const stu = _allStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה']));
-    document.getElementById('ne-student').value = stu ? _studentDisplay(stu) : (e['שם תלמיד'] || '');
+    document.getElementById('ne-student').value = stu ? studentDisplay(stu) : (e['שם תלמיד'] || '');
     document.getElementById('ne-cat').value = e['קטגוריה'] || '';
     document.getElementById('ne-desc').value = e['תיאור'] || '';
     document.getElementById('ne-sev').value = e['חומרה'] || 'בינונית';
@@ -179,7 +156,7 @@ function addEventModal() {
     <div class="modal-body">
       <div class="mb-3"><label class="form-label">תלמיד</label>
         <input id="ne-student" class="form-control" list="ne-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
-        <datalist id="ne-student-list">${_studentsDatalistOptions(true)}</datalist>
+        <datalist id="ne-student-list">${studentsDatalistOptions(_allStudents, true)}</datalist>
       </div>
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
@@ -203,7 +180,7 @@ async function saveEvent(event) {
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
   const typedLabel = document.getElementById('ne-student').value.trim();
-  const stu = _resolveStudent(typedLabel);
+  const stu = resolveStudent(typedLabel, _allStudents);
   if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
