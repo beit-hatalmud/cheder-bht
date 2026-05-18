@@ -321,10 +321,11 @@ async function convSave(editId) {
     const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
     obj['רב'] = sess.username || 'לא ידוע';
   }
-  // Auto-compute Hebrew date + parsha from the date field
+  // Auto-compute Hebrew date + parsha from the date field (parse as local noon to avoid TZ shift)
   if (dateStr) {
-    if (typeof formatHebrewShort === 'function') obj['תאריך_עברי'] = formatHebrewShort(dateStr);
-    if (typeof getParshaFor === 'function') obj['פרשה'] = getParshaFor(dateStr);
+    const dt = new Date(dateStr + 'T12:00:00');
+    if (typeof formatHebrewShort === 'function') obj['תאריך_עברי'] = formatHebrewShort(dt);
+    if (typeof getParshaFor === 'function') obj['פרשה'] = getParshaFor(dt);
   }
   if (editId) obj['מזהה'] = editId;
   const r = await api(editId ? 'updateConversation' : 'addConversation', [obj]);
