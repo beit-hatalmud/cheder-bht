@@ -15,6 +15,7 @@ async function renderBehavior() {
       <h3 class="mb-0"><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
       <div class="d-flex gap-2 align-items-center">
         ${viewModeToggleHTML('behavior')}
+        <button class="btn btn-outline-secondary btn-sm" onclick="exportBehaviorCSV()" title="ייצוא לאקסל"><i class="bi bi-file-earmark-spreadsheet"></i></button>
         <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
       </div>
     </div>
@@ -174,6 +175,32 @@ async function markEventHandled(id) {
   renderBehavior();
 }
 window.markEventHandled = markEventHandled;
+
+function exportBehaviorCSV() {
+  const sLabel = document.getElementById('b-fstudent')?.value.trim() || '';
+  const cat = document.getElementById('b-fcat')?.value || '';
+  let list = _events.slice();
+  if (sLabel) {
+    const stu = resolveStudent(sLabel, _allStudents);
+    if (stu) list = list.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
+    else list = list.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(sLabel.toLowerCase()));
+  }
+  if (cat) list = list.filter(e => e['קטגוריה'] === cat);
+  if (!list.length) return alert('אין אירועים לייצוא במסנן הנוכחי');
+  const cols = ['תאריך','תאריך_עברי','פרשה','שם תלמיד','קטגוריה','חומרה','תיאור','דווח_עי','טופל'];
+  const rows = list.map(e => cols.map(c => {
+    const v = e[c] ? String(e[c]).replace(/"/g,'""').replace(/[\r\n]+/g,' ') : '';
+    return `"${v}"`;
+  }).join(','));
+  const csv = '﻿' + cols.join(',') + '\n' + rows.join('\n');  // BOM for Excel
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `התנהגות_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+window.exportBehaviorCSV = exportBehaviorCSV;
 
 function addEventModal() {
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">
