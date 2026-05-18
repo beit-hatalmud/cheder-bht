@@ -18,7 +18,8 @@ async function renderFunctioning() {
       <div class="row g-2">
         <div class="col-md-4">
           <label class="form-label small mb-1">תלמיד</label>
-          <select id="func-student" class="form-select form-select-sm"></select>
+          <input id="func-student" class="form-control form-control-sm" list="func-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
+          <datalist id="func-student-list"></datalist>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">קטגוריה</label>
@@ -67,8 +68,7 @@ async function renderFunctioning() {
   _funcEntries = fR.data || [];
 
   const sel = document.getElementById('func-student');
-  sel.innerHTML = _funcStudents.map(s =>
-    `<option value="${s['מזהה']}">${escHtml((s['מחזור']||'')+' · '+(s['שם פרטי']||'')+' '+(s['שם משפחה']||''))}</option>`).join('');
+  document.getElementById('func-student-list').innerHTML = studentsDatalistOptions(_funcStudents, false);
 
   const cats = [...new Set(_funcEntries.map(e => e['קטגוריה']).filter(Boolean))];
   document.getElementById('func-cat').innerHTML = '<option value="">הכל</option>' +
@@ -80,16 +80,21 @@ async function renderFunctioning() {
 
   if (_funcStudents.length) {
     _funcSelected = _funcStudents[0]['מזהה'];
-    sel.value = _funcSelected;
+    sel.value = studentDisplay(_funcStudents[0]);
   }
-  sel.onchange = () => { _funcSelected = sel.value; funcRefresh(); };
+  const onStudentChange = () => {
+    const stu = resolveStudent(sel.value, _funcStudents);
+    if (stu) { _funcSelected = stu['מזהה']; funcRefresh(); }
+  };
+  sel.oninput = onStudentChange;
+  sel.onchange = onStudentChange;
   document.getElementById('func-cat').onchange = funcRefresh;
   document.getElementById('func-period').onchange = funcRefresh;
   funcRefresh();
 }
 
 function funcRefresh() {
-  const sid = String(_funcSelected || document.getElementById('func-student').value);
+  const sid = String(_funcSelected || '');
   const cat = document.getElementById('func-cat').value;
   const period = document.getElementById('func-period').value;
   let list = _funcEntries.filter(e => String(e['תלמיד_מזהה']) === sid);
