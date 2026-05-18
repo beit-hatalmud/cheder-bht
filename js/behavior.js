@@ -177,9 +177,10 @@ function editEvent(id) {
 
 async function deleteEvent(id) {
   if (!confirm('בטוח למחוק את האירוע?')) return;
-  await api('deleteBehavior', [id]);
+  const r = await api('deleteBehavior', [id]);
+  if (r && !r.ok) return alert(r.error || 'מחיקה נכשלה');
   renderBehavior();
-  loadStats();
+  if (typeof loadStats === 'function') loadStats();
 }
 
 // Mark a high-severity event as handled (follow-up done)
@@ -291,5 +292,5 @@ async function saveEvent(event) {
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug #42 fix
   hideModal('addEvModal');
   renderBehavior();
-  loadStats();
+  if (typeof loadStats === 'function') loadStats();
 }
