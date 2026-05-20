@@ -391,9 +391,8 @@ function addUserModal() {
             <option value="students">תלמידים</option>
             <option value="behavior">מעקב התנהגות</option>
             <option value="reading">קידום קריאה</option>
-            <option value="writing">קידום כתיבה</option>
+            <option value="writing">מעקב כתיבה — הרב יודלוב</option>
             <option value="lessonsKlein">שיעורים פרטניים — קליין</option>
-            <option value="lessonsYodlov">שיעורים פרטניים — יודלוב</option>
             <option value="functioning">ציוני תפקוד</option>
             <option value="tests">מבחנים</option>
             <option value="medications">רפואי</option>

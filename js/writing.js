@@ -1,6 +1,7 @@
-// קידום קריאה — מסך נפרד, אבל הנתונים נשמרים באותה טבלת אירועים
-// (כדי שיופיעו גם במעקב התנהגות הכללי, לפי בקשת יוסי 14.5.26).
-// קטגוריה קבועה: "קידום קריאה".
+// מעקב כתיבה — הרב יודלוב
+// מבנה Yudlov: שיעור (ב/ג), תאריך, עבודה_על, הערות, הארות
+// נשמר באותה טבלת אירועים (מעקב_התנהגות) עם קטגוריה 'קידום כתיבה',
+// כדי שיופיע גם במעקב הכללי.
 
 const WRITING_CAT = 'קידום כתיבה';
 let _wEvents = [], _wAllStudents = [];
@@ -9,19 +10,26 @@ async function renderWriting() {
   document.getElementById('page-writing').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h3 class="mb-0"><i class="bi bi-pencil-fill text-success"></i> קידום כתיבה</h3>
+      <h3 class="mb-0"><i class="bi bi-pencil-fill text-success"></i> מעקב כתיבה — הרב יודלוב</h3>
       <div class="d-flex gap-2 align-items-center">
         ${viewModeToggleHTML('writing')}
         <button class="btn btn-success" onclick="addWritingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
       </div>
     </div>
     <div class="alert alert-info py-2 small mb-3">
-      <i class="bi bi-info-circle"></i> דיווחי קריאה מופיעים גם במסך "מעקב התנהגות" הכללי, אבל זה המסך הייעודי לסינון מהיר.
+      <i class="bi bi-info-circle"></i> דיווחי כתיבה מופיעים גם במסך "מעקב התנהגות" הכללי.
     </div>
     <div class="row g-2 mb-3">
       <div class="col-md-6">
         <input id="w-fstudent" class="form-control" list="w-fstudent-list" placeholder="חפש תלמיד...">
         <datalist id="w-fstudent-list"></datalist>
+      </div>
+      <div class="col-md-3">
+        <select id="w-fshiur" class="form-select">
+          <option value="">כל השיעורים</option>
+          <option value="ב">שיעור ב</option>
+          <option value="ג">שיעור ג</option>
+        </select>
       </div>
     </div>
     <div id="w-list"></div>`;
@@ -31,13 +39,13 @@ async function renderWriting() {
   ]);
   _wAllStudents = stRes.data || [];
   _wEvents = (evRes.data || []).filter(e => e['קטגוריה'] === WRITING_CAT);
-  _wEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  _wEvents.sort((a,b) => new Date(b['תאריך']||0) - new Date(a['תאריך']||0));
   activateViewMode('writing');
   fillWritingFilters();
   drawWritingEvents(_wEvents);
-  const stEl = document.getElementById('w-fstudent');
-  stEl.oninput = applyWritingPageFilters;
-  stEl.onchange = applyWritingPageFilters;
+  document.getElementById('w-fstudent').oninput = applyWritingPageFilters;
+  document.getElementById('w-fstudent').onchange = applyWritingPageFilters;
+  document.getElementById('w-fshiur').onchange = applyWritingPageFilters;
 }
 
 function fillWritingFilters() {
@@ -47,6 +55,7 @@ function fillWritingFilters() {
 function applyWritingPageFilters() {
   let f = _wEvents;
   const sLabel = document.getElementById('w-fstudent').value.trim();
+  const shiur = document.getElementById('w-fshiur').value;
   if (sLabel) {
     const stu = resolveStudent(sLabel, _wAllStudents);
     if (stu) {
@@ -56,6 +65,7 @@ function applyWritingPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
+  if (shiur) f = f.filter(e => e['שיעור'] === shiur);
   drawWritingEvents(f);
 }
 
@@ -79,9 +89,14 @@ function drawWritingEvents(list) {
     const reporterBadge = reporter ? `<small class="text-muted"><i class="bi bi-person-fill"></i> ${escHtml(reporter)}</small>` : '';
     const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
-    return `<div class="card p-3 mb-2 border-warning-subtle">
-      <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="badge bg-warning text-dark">קידום קריאה</span> <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
+    const shiurBadge = e['שיעור'] ? `<span class="badge bg-info text-dark">שיעור ${escHtml(e['שיעור'])}</span>` : '';
+    return `<div class="card p-3 mb-2 border-success-subtle">
+      <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+        <div>
+          <span class="badge bg-success">כתיבה</span>
+          ${shiurBadge}
+          <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>
+        </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
@@ -89,21 +104,45 @@ function drawWritingEvents(list) {
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>
       </div>
-      <p class="mb-0 mt-2">${escHtml(e['תיאור']||'')}</p>
+      ${e['תיאור'] ? `<div class="mb-2"><small class="text-muted fw-bold d-block"><i class="bi bi-bullseye me-1"></i>עבודה על:</small><div style="white-space:pre-wrap">${escHtml(e['תיאור'])}</div></div>` : ''}
+      ${e['הערות'] ? `<div class="mb-2"><small class="text-muted fw-bold d-block"><i class="bi bi-chat-left-text me-1"></i>הערות:</small><div style="white-space:pre-wrap">${escHtml(e['הערות'])}</div></div>` : ''}
+      ${e['פירוט'] ? `<div class="mb-2 p-2 rounded" style="background:#f0fdf4;border-right:3px solid #16a34a"><small class="text-success fw-bold d-block"><i class="bi bi-lightbulb me-1"></i>הארות הרב:</small><div class="text-success-emphasis" style="white-space:pre-wrap">${escHtml(e['פירוט'])}</div></div>` : ''}
       ${reporterBadge ? `<div class="mt-2">${reporterBadge}</div>` : ''}
     </div>`;
   }).join('');
 }
 
-function addWritingModal() {
-  const html = `<div class="modal fade" id="addWritingModal"><div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5>דיווח קידום קריאה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+function addWritingModal(prefill) {
+  const today = new Date().toISOString().slice(0,10);
+  const p = prefill || {};
+  const html = `<div class="modal fade" id="addWritingModal"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-pencil-fill text-success"></i> דיווח כתיבה — הרב יודלוב</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label>
-        <input id="nr-student" class="form-control" list="nr-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
-        <datalist id="nr-student-list">${studentsDatalistOptions(_wAllStudents, true)}</datalist>
+      <div class="row g-2">
+        <div class="col-md-7"><label class="form-label">תלמיד</label>
+          <input id="nw-student" class="form-control" list="nw-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escAttr(p.student||'')}">
+          <datalist id="nw-student-list">${studentsDatalistOptions(_wAllStudents, true)}</datalist>
+        </div>
+        <div class="col-md-2"><label class="form-label">שיעור</label>
+          <select id="nw-shiur" class="form-select">
+            <option value="">—</option>
+            <option value="ב" ${p.shiur==='ב'?'selected':''}>ב</option>
+            <option value="ג" ${p.shiur==='ג'?'selected':''}>ג</option>
+          </select>
+        </div>
+        <div class="col-md-3"><label class="form-label">תאריך</label>
+          <input id="nw-date" type="date" class="form-control" value="${p.date||today}">
+        </div>
       </div>
-      <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
+      <div class="mt-3"><label class="form-label"><i class="bi bi-bullseye me-1"></i>עבודה על:</label>
+        <textarea id="nw-work" class="form-control" rows="2" placeholder="מה עבדנו עליו בכתיבה...">${escHtml(p.work||'')}</textarea>
+      </div>
+      <div class="mt-3"><label class="form-label"><i class="bi bi-chat-left-text me-1"></i>הערות:</label>
+        <textarea id="nw-notes" class="form-control" rows="2" placeholder="מצב הכתב, שגיאות, התקדמות...">${escHtml(p.notes||'')}</textarea>
+      </div>
+      <div class="mt-3"><label class="form-label"><i class="bi bi-lightbulb me-1"></i>הארות הרב:</label>
+        <textarea id="nw-insight" class="form-control" rows="2" placeholder="המלצות, כיוונים, פעולות להמשך...">${escHtml(p.insight||'')}</textarea>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveWriting(event)">שמור</button></div>
   </div></div></div>`;
@@ -114,30 +153,42 @@ function addWritingModal() {
   modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addWritingModal'), { once: true });
 }
 
+function escAttr(s){ return String(s||'').replace(/"/g,'&quot;'); }
+
 async function saveWriting(event) {
   const btn = event?.target?.closest('button');
   if (btn && btn.disabled) return;
-  if (btn) {
-    btn.disabled = true;
-    setTimeout(() => { btn.disabled = false; }, 3000);
-  }
-  const typedLabel = document.getElementById('nr-student').value.trim();
+  if (btn) { btn.disabled = true; setTimeout(() => { btn.disabled = false; }, 3000); }
+  const typedLabel = document.getElementById('nw-student').value.trim();
   const stu = resolveStudent(typedLabel, _wAllStudents);
   if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
   const sid = stu ? stu['מזהה'] : '';
+  const work = document.getElementById('nw-work').value.trim();
+  const notes = document.getElementById('nw-notes').value.trim();
+  const insight = document.getElementById('nw-insight').value.trim();
+  const shiur = document.getElementById('nw-shiur').value;
+  const dateStr = document.getElementById('nw-date').value;
+  if (!sid) return alert('יש לבחור תלמיד');
+  if (!work && !notes && !insight) return alert('חובה למלא לפחות שדה אחד (עבודה / הערות / הארות)');
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
-  const desc = document.getElementById('nr-desc').value;
-  if (!sid || !desc) return alert('כל השדות חובה');
-  const now = new Date();
-  const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(now) : {hdate:'',parsha:''};
+  const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+  const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(dt) : {hdate:'',parsha:''};
+  // NOTE: The Sheet has no 'עבודה_על'/'הארות' columns — Apps Script drops unknown
+  // fields silently. We piggyback on existing columns: תיאור holds the "what we
+  // worked on" text (most important, also shown in the general behavior page),
+  // הערות holds the state notes, and פירוט (otherwise unused) holds Yudlov's
+  // insights ("הארות").
   const obj = {
     'תלמיד_מזהה': sid,
-    'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '',
+    'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '',
     'קטגוריה': WRITING_CAT,
-    'תיאור': desc,
+    'שיעור': shiur,
+    'תיאור': work,
+    'הערות': notes,
+    'פירוט': insight,
     'חומרה': 'נמוכה',
-    'תאריך': now.toISOString(),
+    'תאריך': dt.toISOString(),
     'תאריך_עברי': info.hdate,
     'פרשה': info.parsha,
     'דווח_עי': reporter,
