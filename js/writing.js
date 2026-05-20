@@ -90,7 +90,6 @@ function drawWritingEvents(list) {
     const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
     const shiurBadge = e['שיעור'] ? `<span class="badge bg-info text-dark">שיעור ${escHtml(e['שיעור'])}</span>` : '';
-    const legacy = e['תיאור'] && !e['עבודה_על'] && !e['הערות'] && !e['הארות'];
     return `<div class="card p-3 mb-2 border-success-subtle">
       <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
         <div>
@@ -105,10 +104,9 @@ function drawWritingEvents(list) {
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>
       </div>
-      ${e['עבודה_על'] ? `<div class="mb-2"><small class="text-muted fw-bold d-block"><i class="bi bi-bullseye me-1"></i>עבודה על:</small><div style="white-space:pre-wrap">${escHtml(e['עבודה_על'])}</div></div>` : ''}
+      ${e['תיאור'] ? `<div class="mb-2"><small class="text-muted fw-bold d-block"><i class="bi bi-bullseye me-1"></i>עבודה על:</small><div style="white-space:pre-wrap">${escHtml(e['תיאור'])}</div></div>` : ''}
       ${e['הערות'] ? `<div class="mb-2"><small class="text-muted fw-bold d-block"><i class="bi bi-chat-left-text me-1"></i>הערות:</small><div style="white-space:pre-wrap">${escHtml(e['הערות'])}</div></div>` : ''}
-      ${e['הארות'] ? `<div class="mb-2 p-2 rounded" style="background:#f0fdf4;border-right:3px solid #16a34a"><small class="text-success fw-bold d-block"><i class="bi bi-lightbulb me-1"></i>הארות הרב:</small><div class="text-success-emphasis" style="white-space:pre-wrap">${escHtml(e['הארות'])}</div></div>` : ''}
-      ${legacy ? `<p class="mb-0">${escHtml(e['תיאור'])}</p>` : ''}
+      ${e['פירוט'] ? `<div class="mb-2 p-2 rounded" style="background:#f0fdf4;border-right:3px solid #16a34a"><small class="text-success fw-bold d-block"><i class="bi bi-lightbulb me-1"></i>הארות הרב:</small><div class="text-success-emphasis" style="white-space:pre-wrap">${escHtml(e['פירוט'])}</div></div>` : ''}
       ${reporterBadge ? `<div class="mt-2">${reporterBadge}</div>` : ''}
     </div>`;
   }).join('');
@@ -176,15 +174,19 @@ async function saveWriting(event) {
   const reporter = sess.username || 'admin';
   const dt = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
   const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(dt) : {hdate:'',parsha:''};
+  // NOTE: The Sheet has no 'עבודה_על'/'הארות' columns — Apps Script drops unknown
+  // fields silently. We piggyback on existing columns: תיאור holds the "what we
+  // worked on" text (most important, also shown in the general behavior page),
+  // הערות holds the state notes, and פירוט (otherwise unused) holds Yudlov's
+  // insights ("הארות").
   const obj = {
     'תלמיד_מזהה': sid,
     'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim() : '',
     'קטגוריה': WRITING_CAT,
     'שיעור': shiur,
-    'עבודה_על': work,
+    'תיאור': work,
     'הערות': notes,
-    'הארות': insight,
-    'תיאור': [work,notes,insight].filter(Boolean).join(' | '),
+    'פירוט': insight,
     'חומרה': 'נמוכה',
     'תאריך': dt.toISOString(),
     'תאריך_עברי': info.hdate,
