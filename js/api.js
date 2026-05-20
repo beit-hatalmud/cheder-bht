@@ -105,6 +105,7 @@ async function loadData() {
     meetings: Array.isArray(stored.meetings) ? stored.meetings : [],
     attendance: Array.isArray(stored.attendance) ? stored.attendance : [],
     conversations: Array.isArray(stored.conversations) ? stored.conversations : [],
+    signatures: Array.isArray(stored.signatures) ? stored.signatures : [],
   };
   // If cache is empty (first visit), pull from the Sheet synchronously
   const hasAnyData = _data.students.length || _data.behavior.length;
@@ -149,7 +150,7 @@ function getData() {
       try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
     });
   }
-  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
+  return _data || { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [], signatures: [] };
 }
 
 // Bug #34 fix: check if current user can mutate a given student's data
@@ -181,7 +182,7 @@ function getVisibleData() {
   const full = (all.users || []).find(x => x.username === u.username);
   if (!full) {
     // SECURITY: stale session with no matching user → show nothing (not everything)
-    return { ...all, students: [], behavior: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
+    return { ...all, students: [], behavior: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [], signatures: [] };
   }
 
   // Compute allowed student IDs from visible_classes + visible_students
@@ -217,6 +218,7 @@ function getVisibleData() {
     meetings: filterBySid(all.meetings),
     attendance: filterBySid(all.attendance),
     conversations: filterBySid(all.conversations),
+    signatures: filterBySid(all.signatures),
   };
 }
 window.getVisibleData = getVisibleData;
@@ -939,6 +941,39 @@ async function api(fn, args) {
       saveStored(_data);
       markLocalChange();
       syncDeleteRow('כדורים', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'listSignatures':
+      return { ok: true, data: getVisibleData().signatures || [] };
+    case 'addSignature': {
+      const obj = args[0];
+      if (!canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      obj['מזהה'] = genId();
+      _data.signatures = _data.signatures || [];
+      _data.signatures.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('חתימות', obj).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'updateSignature': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.signatures || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.signatures[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.signatures[idx] = Object.assign({}, _data.signatures[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('חתימות', _data.signatures[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteSignature': {
+      const id = args[0];
+      const idx = (_data.signatures || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (!canMutateStudent(_data.signatures[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.signatures.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('חתימות', 'מזהה', id).then(updateSyncIndicator);
       return { ok: true };
     }
     case 'exportPDF':
