@@ -211,7 +211,6 @@ async function deleteEvent(id) {
     'page-writing': 'renderWriting',
     'page-reading': 'renderReading',
     'page-lessonsKlein': 'renderLessonsKlein',
-    'page-lessonsYodlov': 'renderLessonsYodlov',
     'page-behavior': 'renderBehavior',
   };
   for (const id in map) {
