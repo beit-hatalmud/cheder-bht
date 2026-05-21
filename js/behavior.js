@@ -2,7 +2,13 @@
 // tasks (משימות), and student card. Tab content is rendered by separate
 // modules: behavior-forms.js, behavior-tasks.js, behavior-card.js.
 
-let _events = [], _categories = [], _allStudents = [];
+// Sbb 47: expose to window for cross-module access by behavior-extras.js
+window._events = window._events || [];
+window._categories = window._categories || [];
+window._allStudents = window._allStudents || [];
+var _events = window._events;
+var _categories = window._categories;
+var _allStudents = window._allStudents;
 let _activeBehaviorTab = 'events';
 
 function getHebrewInfo(jsDate) {
@@ -40,9 +46,9 @@ async function renderBehavior() {
     api('listTasks', []),
     api('listProjects', []),
   ]);
-  _allStudents = stRes.data || [];
-  _events = evRes.data || [];
-  _categories = catRes.data || [];
+  _allStudents = window._allStudents = stRes.data || [];
+  _events = window._events = evRes.data || [];
+  _categories = window._categories = catRes.data || [];
   // Pre-load these so tabs render fast and badges work
   window._bfSignatures = sigRes.data || [];
   window._tasks = taskRes.data || [];
