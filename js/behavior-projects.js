@@ -3,7 +3,7 @@
 // סטטוס (פעיל/הושעה/הושלם), אחראי, התחלה, יעד, התקדמות %.
 
 let _projects = [];
-const _PROJ_STATUSES = ['פעיל', 'הושעה', 'הושלם'];
+const _PROJ_STATUSES = ['חדש', 'בתהליך', 'הושלם'];
 
 async function renderProjectsTab(rootEl) {
   rootEl.innerHTML = `
@@ -44,7 +44,7 @@ function projFiltered() {
   const status = document.getElementById('pf-status').value;
   if (status) list = list.filter(p => p['סטטוס'] === status);
   list.sort((a, b) => {
-    const so = { 'פעיל': 0, 'הושעה': 1, 'הושלם': 2 };
+    const so = { 'חדש': 0, 'בתהליך': 1, 'הושלם': 2 };
     const sa = so[a['סטטוס']] ?? 3, sb = so[b['סטטוס']] ?? 3;
     if (sa !== sb) return sa - sb;
     return new Date(b['תאריך_יצירה']||0) - new Date(a['תאריך_יצירה']||0);
@@ -76,7 +76,7 @@ function projTaskStats(projId) {
 
 function projCardHtml(p) {
   const stats = projTaskStats(p['מזהה']);
-  const sBadge = p['סטטוס'] === 'פעיל' ? 'bg-success' : p['סטטוס'] === 'הושעה' ? 'bg-warning text-dark' : 'bg-secondary';
+  const sBadge = p['סטטוס'] === 'חדש' ? 'bg-info' : p['סטטוס'] === 'בתהליך' ? 'bg-warning text-dark' : p['סטטוס'] === 'הושלם' ? 'bg-success' : 'bg-secondary';
   const due = p['תאריך_יעד'] ? (typeof formatGreg === 'function' ? formatGreg(p['תאריך_יעד']) : p['תאריך_יעד']) : '';
   const overdue = p['תאריך_יעד'] && new Date(p['תאריך_יעד']) < new Date() && p['סטטוס'] !== 'הושלם';
   return `<div class="card p-3 mb-2" style="${overdue ? 'border-right:4px solid #dc2626' : ''}">

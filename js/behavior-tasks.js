@@ -3,7 +3,7 @@
 // יצירה אוטומטית מאירועי חומרה גבוהה, board (Kanban) view, התראות.
 
 let _tasks = [];
-const _TASKS_STATUSES = ['לעשות', 'בתהליך', 'הושלם'];
+const _TASKS_STATUSES = ['חדש', 'בתהליך', 'הושלם'];
 const _TASKS_PRIORITY = ['רגיל', 'גבוה', 'דחוף'];
 
 async function renderTasksTab(rootEl) {
@@ -147,7 +147,7 @@ function tasksListHtml(list) {
         <div class="flex-grow-1">
           <div class="d-flex gap-2 align-items-center flex-wrap mb-1">
             <strong>${escHtml(t['כותרת']||'(ללא כותרת)')}</strong>
-            <span class="badge ${statusColor}">${escHtml(t['סטטוס']||'לעשות')}</span>
+            <span class="badge ${statusColor}">${escHtml(t['סטטוס']||'חדש')}</span>
             <span class="badge ${pColor}">${escHtml(t['עדיפות']||'רגיל')}</span>
             ${overdue ? '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle"></i> פג תוקף</span>' : ''}
           </div>
@@ -273,7 +273,7 @@ window.createTaskFromEvent_impl = async function(eventId) {
     'תיאור': `אירוע התנהגות מ-${ev['תאריך']?new Date(ev['תאריך']).toLocaleDateString('he-IL'):''}: ${ev['תיאור']||''}`,
     'תלמיד_מזהה': ev['תלמיד_מזהה'] || '',
     'עדיפות': 'גבוה',
-    'סטטוס': 'לעשות',
+    'סטטוס': 'חדש',
     'אירוע_מזהה': ev['מזהה'],
     'תאריך_יעד': new Date(Date.now() + 3*24*3600*1000).toISOString().slice(0,10),  // due in 3 days
   };
