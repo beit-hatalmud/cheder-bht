@@ -1,5 +1,12 @@
 [
   {
+    "id": "2026-05-21-58",
+    "date": "2026-05-21",
+    "title": "🔧 תיקון קריטי: tabs scope",
+    "type": "fix",
+    "desc": "let _tasks/_projects ב-script-scope לא היו נגישים מ-behavior.js. תוקן ל-window._tasks/_projects. עכשיו ה-badges והפילטרים עובדים נכון."
+  },
+  {
     "id": "2026-05-21-57",
     "date": "2026-05-21",
     "title": "ברכה יומית",

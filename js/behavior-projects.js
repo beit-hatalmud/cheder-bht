@@ -2,8 +2,10 @@
 // פרויקט = יוזמה כללית שמכילה כמה משימות. כל פרויקט: שם, תיאור,
 // סטטוס (פעיל/הושעה/הושלם), אחראי, התחלה, יעד, התקדמות %.
 
-let _projects = [];
+// Sbb 46 fix: use window._projects for cross-module access
+window._projects = window._projects || [];
 const _PROJ_STATUSES = ['חדש', 'בתהליך', 'הושלם'];
+var _projects = window._projects;
 
 async function renderProjectsTab(rootEl) {
   rootEl.innerHTML = `
@@ -23,7 +25,7 @@ async function renderProjectsTab(rootEl) {
     <div id="proj-container"></div>`;
 
   const r = await api('listProjects', []);
-  _projects = (r && r.data) ? r.data : [];
+  _projects = window._projects = (r && r.data) ? r.data : [];
 
   document.getElementById('pf-status').onchange = projRedraw;
   const savedView = sessionStorage.getItem('proj_view') || 'cards';

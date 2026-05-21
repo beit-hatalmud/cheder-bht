@@ -2,9 +2,12 @@
 // פיצ'רים: סטטוס, עדיפות, תאריך יעד, אחראי, קישור לאירוע/תלמיד,
 // יצירה אוטומטית מאירועי חומרה גבוהה, board (Kanban) view, התראות.
 
-let _tasks = [];
+// Sbb 46 fix: use window._tasks for cross-module access (let creates script-scope)
+window._tasks = window._tasks || [];
 const _TASKS_STATUSES = ['חדש', 'בתהליך', 'הושלם'];
 const _TASKS_PRIORITY = ['רגיל', 'גבוה', 'דחוף'];
+// alias for local use
+var _tasks = window._tasks;
 
 async function renderTasksTab(rootEl) {
   rootEl.innerHTML = `
@@ -31,7 +34,7 @@ async function renderTasksTab(rootEl) {
     <div id="tasks-container"></div>`;
 
   const r = await api('listTasks', []);
-  _tasks = (r && r.data) ? r.data : [];
+  _tasks = window._tasks = (r && r.data) ? r.data : [];
 
   ['tf-student','tf-status','tf-priority'].forEach(id => {
     const el = document.getElementById(id);

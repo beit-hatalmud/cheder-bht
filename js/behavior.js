@@ -45,8 +45,11 @@ async function renderBehavior() {
   _categories = catRes.data || [];
   // Pre-load these so tabs render fast and badges work
   window._bfSignatures = sigRes.data || [];
-  _tasks = taskRes.data || [];
-  _projects = projRes.data || [];
+  window._tasks = taskRes.data || [];
+  window._projects = projRes.data || [];
+  // also expose to module-scoped vars if they exist
+  try { if (typeof _tasks !== 'undefined') _tasks = window._tasks; } catch(_) {}
+  try { if (typeof _projects !== 'undefined') _projects = window._projects; } catch(_) {}
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   updateTabBadges();
   // restore last tab
@@ -66,14 +69,12 @@ function updateTabBadges() {
     const el = document.getElementById(id);
     if (el) el.textContent = n > 0 ? n : '';
   };
-  // Pending approval events
+  const tasks = window._tasks || [];
+  const projects = window._projects || [];
   setBadge('tab-events-badge', (_events||[]).filter(e => e['סטטוס_אישור'] === 'ממתין לאישור').length);
-  // Pending signatures
   setBadge('tab-forms-badge', (window._bfSignatures||[]).filter(s => s['סטטוס'] === 'מחכה').length);
-  // Overdue tasks
-  setBadge('tab-tasks-badge', (_tasks||[]).filter(t => t['סטטוס'] !== 'הושלם' && t['תאריך_יעד'] && new Date(t['תאריך_יעד']) < new Date()).length);
-  // Active projects
-  setBadge('tab-proj-badge', (_projects||[]).filter(p => p['סטטוס'] !== 'הושלם').length);
+  setBadge('tab-tasks-badge', tasks.filter(t => t['סטטוס'] !== 'הושלם' && t['תאריך_יעד'] && new Date(t['תאריך_יעד']) < new Date()).length);
+  setBadge('tab-proj-badge', projects.filter(p => p['סטטוס'] !== 'הושלם').length);
 }
 
 function switchBehaviorTab(name, ev) {
