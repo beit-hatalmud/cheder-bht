@@ -976,6 +976,39 @@ async function api(fn, args) {
       syncDeleteRow('חתימות', 'מזהה', id).then(updateSyncIndicator);
       return { ok: true };
     }
+    case 'listTasks':
+      return { ok: true, data: getVisibleData().tasks || (_data.tasks || []) };
+    case 'addTask': {
+      const obj = args[0];
+      if (obj['תלמיד_מזהה'] && !canMutateStudent(obj['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      obj['מזהה'] = genId();
+      _data.tasks = _data.tasks || [];
+      _data.tasks.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('משימות', obj).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'updateTask': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.tasks || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (_data.tasks[idx]['תלמיד_מזהה'] && !canMutateStudent(_data.tasks[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.tasks[idx] = Object.assign({}, _data.tasks[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('משימות', _data.tasks[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteTask': {
+      const id = args[0];
+      const idx = (_data.tasks || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      if (_data.tasks[idx]['תלמיד_מזהה'] && !canMutateStudent(_data.tasks[idx]['תלמיד_מזהה'])) return { ok: false, error: 'אין הרשאה' };
+      _data.tasks.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('משימות', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'exportPDF':
       // generate PDF in browser using jsPDF or similar
       return { ok: false, error: 'ייצוא PDF טרם נתמך, יוטמע בקרוב' };

@@ -1,6 +1,10 @@
-let _events = [], _categories = [], _allStudents = [];
+// 2026-05-21: behavior.js now hosts 4 tabs - events, forms (חתימות הורים),
+// tasks (משימות), and student card. Tab content is rendered by separate
+// modules: behavior-forms.js, behavior-tasks.js, behavior-card.js.
 
-// Compute Hebrew date + parsha for a given JS Date — delegates to dates.js for consistency
+let _events = [], _categories = [], _allStudents = [];
+let _activeBehaviorTab = 'events';
+
 function getHebrewInfo(jsDate) {
   return {
     hdate: (typeof formatHebrew === 'function') ? formatHebrew(jsDate) : '',
@@ -11,24 +15,19 @@ function getHebrewInfo(jsDate) {
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h3 class="mb-0"><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
-      <div class="d-flex gap-2 align-items-center">
-        ${viewModeToggleHTML('behavior')}
-        <button class="btn btn-outline-secondary btn-sm" onclick="exportBehaviorCSV()" title="ייצוא לאקסל"><i class="bi bi-file-earmark-spreadsheet"></i></button>
-        <button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
-      </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
+      <div id="b-actions"></div>
     </div>
-    <div id="b-stats" class="row g-2 mb-3"></div>
-    <div id="b-filter-status" class="mb-2 text-end"></div>
-    <div class="row g-2 mb-3">
-      <div class="col-md-4">
-        <input id="b-fstudent" class="form-control" list="b-fstudent-list" placeholder="חפש תלמיד...">
-        <datalist id="b-fstudent-list"></datalist>
-      </div>
-      <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
-    </div>
-    <div id="b-list"><div class="text-center py-5 text-muted"><div class="spinner-border text-primary" role="status" style="width:2rem;height:2rem"></div><p class="mt-2 small">טוען אירועים...</p></div></div>`;
+    <ul class="nav nav-pills mb-3" id="behavior-tabs">
+      <li class="nav-item"><a class="nav-link active" href="#" onclick="switchBehaviorTab('events',event)"><i class="bi bi-clipboard"></i> אירועים</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('forms',event)"><i class="bi bi-pencil-square"></i> חתימות הורים</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('tasks',event)"><i class="bi bi-list-check"></i> משימות</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('card',event)"><i class="bi bi-person-vcard"></i> כרטיס תלמיד</a></li>
+    </ul>
+    <div id="behavior-tab-content"></div>`;
+
+  // Load shared data once
   const [stRes, evRes, catRes] = await Promise.all([
     api('listStudents', []),
     api('listBehavior', []),
@@ -38,48 +37,66 @@ async function renderBehavior() {
   _events = evRes.data || [];
   _categories = catRes.data || [];
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
-  activateViewMode('behavior');
-  drawBehaviorStats();
+  // restore last tab
+  _activeBehaviorTab = sessionStorage.getItem('behavior_tab') || 'events';
+  setActivePill(_activeBehaviorTab);
+  renderActiveBehaviorTab();
+}
+
+function setActivePill(name) {
+  document.querySelectorAll('#behavior-tabs .nav-link').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('onclick').includes(`'${name}'`));
+  });
+}
+
+function switchBehaviorTab(name, ev) {
+  if (ev) ev.preventDefault();
+  _activeBehaviorTab = name;
+  sessionStorage.setItem('behavior_tab', name);
+  setActivePill(name);
+  renderActiveBehaviorTab();
+}
+
+function renderActiveBehaviorTab() {
+  const root = document.getElementById('behavior-tab-content');
+  const actionBar = document.getElementById('b-actions');
+  if (_activeBehaviorTab === 'events') {
+    actionBar.innerHTML = `<button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>`;
+    renderEventsTab(root);
+  } else if (_activeBehaviorTab === 'forms') {
+    actionBar.innerHTML = `<button class="btn btn-success" onclick="newFormLink()"><i class="bi bi-plus"></i> שלח טופס חדש</button>`;
+    if (typeof renderFormsTab === 'function') renderFormsTab(root);
+    else root.innerHTML = '<div class="alert alert-warning">חתימות הורים — טוען...</div>';
+  } else if (_activeBehaviorTab === 'tasks') {
+    actionBar.innerHTML = `<button class="btn btn-success" onclick="addTaskModal()"><i class="bi bi-plus"></i> משימה חדשה</button>`;
+    if (typeof renderTasksTab === 'function') renderTasksTab(root);
+    else root.innerHTML = '<div class="alert alert-warning">משימות — טוען...</div>';
+  } else if (_activeBehaviorTab === 'card') {
+    actionBar.innerHTML = '';
+    if (typeof renderCardTab === 'function') renderCardTab(root);
+    else root.innerHTML = '<div class="alert alert-warning">כרטיס תלמיד — טוען...</div>';
+  }
+}
+
+function renderEventsTab(root) {
+  root.innerHTML = `
+    <div class="row g-2 mb-3">
+      <div class="col-md-4"><select id="b-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
+      <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
+    </div>
+    <div id="b-list"></div>`;
   fillFilters();
   drawEvents(_events);
-  const stEl = document.getElementById('b-fstudent');
-  stEl.oninput = applyFilters;
-  stEl.onchange = applyFilters;
+  document.getElementById('b-fstudent').onchange = applyFilters;
   document.getElementById('b-fcat').onchange = applyFilters;
 }
 
-function drawBehaviorStats() {
-  const el = document.getElementById('b-stats');
-  if (!el) return;
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7*24*3600*1000);
-  const inWeek = _events.filter(e => e['תאריך'] && new Date(e['תאריך']) >= weekAgo);
-  const highWeek = inWeek.filter(e => e['חומרה'] === 'גבוהה').length;
-  const handled = _events.filter(e => e['חומרה']==='גבוהה' && (String(e['טופל']||'').toLowerCase()==='true' || e['טופל']==='כן' || e['טופל']===true)).length;
-  const totalHigh = _events.filter(e => e['חומרה']==='גבוהה').length;
-  const pendingHigh = totalHigh - handled;
-  el.innerHTML = `
-    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--primary)"><div style="font-size:1.6rem;font-weight:700;color:var(--primary-dark)">${_events.length}</div><div class="small text-muted">סך אירועים</div></div></div>
-    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--accent)"><div style="font-size:1.6rem;font-weight:700;color:var(--accent)">${inWeek.length}</div><div class="small text-muted">בשבוע האחרון</div></div></div>
-    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--danger)"><div style="font-size:1.6rem;font-weight:700;color:var(--danger)">${highWeek}</div><div class="small text-muted">חמורים השבוע</div></div></div>
-    <div class="col-6 col-md-3"><div class="card p-3 text-center" style="border-top:3px solid var(--warning)"><div style="font-size:1.6rem;font-weight:700;color:var(--warning)">${pendingHigh}</div><div class="small text-muted">חמורים שלא טופלו</div></div></div>`;
-}
-
-// Keyboard shortcut: N (English) or 'נ' (Hebrew) opens "new event" modal — only while on behavior page
-function _behaviorKeyHandler(e) {
-  if (e.target.matches('input,textarea,select')) return;  // don't hijack typing
-  if (e.ctrlKey || e.altKey || e.metaKey) return;
-  const pageVisible = document.getElementById('page-behavior')?.offsetParent !== null;
-  if (!pageVisible) return;
-  if (e.key === 'n' || e.key === 'N' || e.key === 'נ') {
-    e.preventDefault();
-    if (typeof addEventModal === 'function') addEventModal();
-  }
-}
-document.addEventListener('keydown', _behaviorKeyHandler);
-
 function fillFilters() {
-  document.getElementById('b-fstudent-list').innerHTML = studentsDatalistOptions(_allStudents, false);
+  const stSel = document.getElementById('b-fstudent');
+  _allStudents.forEach(s => {
+    const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
+    stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
+  });
   const catSel = document.getElementById('b-fcat');
   _categories.forEach(c => {
     catSel.innerHTML += `<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`;
@@ -88,62 +105,28 @@ function fillFilters() {
 
 function applyFilters() {
   let f = _events;
-  const sLabel = document.getElementById('b-fstudent').value.trim();
+  const s = document.getElementById('b-fstudent').value;
   const c = document.getElementById('b-fcat').value;
-  if (sLabel) {
-    const stu = resolveStudent(sLabel, _allStudents);
-    if (stu) {
-      f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
-    } else {
-      const lc = sLabel.toLowerCase();
-      f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
-    }
-  }
+  if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
   if (c) f = f.filter(e => e['קטגוריה'] === c);
   drawEvents(f);
-  // Show filter status — # of results vs. total
-  const status = document.getElementById('b-filter-status');
-  if (status) {
-    if (sLabel || c) {
-      status.innerHTML = `<small class="text-muted">מציג ${f.length} מתוך ${_events.length}</small> <button class="btn btn-link btn-sm p-0 text-decoration-none" onclick="clearBehaviorFilters()">נקה</button>`;
-    } else {
-      status.innerHTML = '';
-    }
-  }
 }
-
-function clearBehaviorFilters() {
-  const stEl = document.getElementById('b-fstudent');
-  const catEl = document.getElementById('b-fcat');
-  if (stEl) stEl.value = '';
-  if (catEl) catEl.value = '';
-  applyFilters();
-}
-window.clearBehaviorFilters = clearBehaviorFilters;
 
 function drawEvents(list) {
   const el = document.getElementById('b-list');
   if (!list.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-clipboard fs-1"></i><p class="mt-2">אין אירועים תואמים</p><p class="small">נקה מסננים כדי לראות הכל</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-clipboard fs-1"></i><p>אין אירועים</p></div>';
     return;
   }
-  // Precompute per-student event counts (over the unfiltered set)
-  const stuCounts = {};
-  _events.forEach(ev => {
-    const sid = ev['תלמיד_מזהה'];
-    if (sid) stuCounts[sid] = (stuCounts[sid] || 0) + 1;
-  });
   el.innerHTML = list.map(e => {
     const sev = e['חומרה'] === 'גבוהה' ? 'severity-high' : e['חומרה'] === 'נמוכה' ? 'severity-low' : 'severity-mid';
     const date = e['תאריך'] ? formatGreg(e['תאריך']) : '';
-    const rel = (typeof formatRelative === 'function' && e['תאריך']) ? formatRelative(e['תאריך']) : '';
     let hdate = e['תאריך_עברי'] || '';
-    let parsha = parshaHebrew(e['פרשה']) || '';
-    // Backfill from JS date if missing
+    let parsha = e['פרשה'] || '';
     if ((!hdate || !parsha) && e['תאריך']) {
       const info = getHebrewInfo(new Date(e['תאריך']));
       if (!hdate) hdate = info.hdate;
-      if (!parsha) parsha = parshaHebrew(info.parsha);
+      if (!parsha) parsha = info.parsha;
     }
     const reporter = e['דווח_עי'] || '';
     const lesson = e['שיעור'] || '';
@@ -158,22 +141,16 @@ function drawEvents(list) {
       : '<span class="badge bg-danger-subtle text-danger-emphasis border me-1"><i class="bi bi-exclamation-triangle"></i> נדרשת שיחה</span>') : '';
     const handleBtn = isHigh && !handled
       ? `<button class="btn btn-sm btn-outline-success" onclick="markEventHandled(${e['מזהה']||0})" title="סמן כטופל"><i class="bi bi-check2-circle"></i></button>` : '';
-    const stuId = e['תלמיד_מזהה'] || 0;
-    const totalForStu = stuId ? (stuCounts[stuId] || 0) : 0;
-    const countBadge = totalForStu > 3 ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1" title="סך אירועים לתלמיד" style="font-size:.65rem">${totalForStu}×</span>` : '';
-    const studentLink = stuId ? `<a href="#" onclick="event.preventDefault(); viewStudent(${stuId})" class="text-decoration-none" title="פתח כרטיס תלמיד"><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></a>${countBadge}` : `<strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>`;
-    // "חדש" badge for events from today
-    const evDate = e['תאריך'] ? new Date(e['תאריך']) : null;
-    const today = new Date();
-    const isToday = evDate && evDate.getFullYear() === today.getFullYear() && evDate.getMonth() === today.getMonth() && evDate.getDate() === today.getDate();
-    const newBadge = isToday ? '<span class="badge bg-info text-white me-1" style="font-size:.65rem;animation:pulse 2s infinite">חדש</span>' : '';
+    const taskBtn = isHigh && !handled
+      ? `<button class="btn btn-sm btn-outline-warning" onclick="createTaskFromEvent(${e['מזהה']||0})" title="צור משימת מעקב"><i class="bi bi-list-check"></i></button>` : '';
+    const formBtn = `<button class="btn btn-sm btn-outline-info" onclick="newFormForEvent(${e['מזהה']||0})" title="שלח טופס להורה"><i class="bi bi-pencil-square"></i></button>`;
     return `<div class="card p-3 mb-2 ${sev}">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div>${newBadge}<span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span>${studentLink}${followBadge}</div>
+        <div><span class="cat-badge">${escHtml(e['קטגוריה']||'')}</span><strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>${followBadge}</div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
-          <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
-          ${handleBtn}
+          <small class="text-muted">${escHtml(date)}</small>
+          ${handleBtn}${taskBtn}${formBtn}
           <button class="btn btn-sm btn-outline-primary" onclick="editEvent(${e['מזהה']||0})"><i class="bi bi-pencil"></i></button>
           <button class="btn btn-sm btn-outline-danger" onclick="deleteEvent(${e['מזהה']||0})"><i class="bi bi-trash"></i></button>
         </div>
@@ -190,8 +167,7 @@ function editEvent(id) {
   addEventModal();
   const modalEl = document.getElementById('addEvModal');
   const populate = () => {
-    const stu = _allStudents.find(s => String(s['מזהה']) === String(e['תלמיד_מזהה']));
-    document.getElementById('ne-student').value = stu ? studentDisplay(stu) : (e['שם תלמיד'] || '');
+    document.getElementById('ne-student').value = e['תלמיד_מזהה'] || '';
     document.getElementById('ne-cat').value = e['קטגוריה'] || '';
     document.getElementById('ne-desc').value = e['תיאור'] || '';
     document.getElementById('ne-sev').value = e['חומרה'] || 'בינונית';
@@ -204,26 +180,11 @@ function editEvent(id) {
 
 async function deleteEvent(id) {
   if (!confirm('בטוח למחוק את האירוע?')) return;
-  const r = await api('deleteBehavior', [id]);
-  if (r && !r.ok) return alert(r.error || 'מחיקה נכשלה');
-  // Re-render whichever page is currently visible — fixes stale-list on writing/reading/lessons pages
-  const map = {
-    'page-writing': 'renderWriting',
-    'page-reading': 'renderReading',
-    'page-lessonsKlein': 'renderLessonsKlein',
-    'page-behavior': 'renderBehavior',
-  };
-  for (const id in map) {
-    const el = document.getElementById(id);
-    if (el && el.offsetParent !== null && typeof window[map[id]] === 'function') {
-      window[map[id]]();
-      break;
-    }
-  }
-  if (typeof loadStats === 'function') loadStats();
+  await api('deleteBehavior', [id]);
+  renderBehavior();
+  loadStats();
 }
 
-// Mark a high-severity event as handled (follow-up done)
 async function markEventHandled(id) {
   const ev = _events.find(x => String(x['מזהה']) === String(id));
   if (!ev) return;
@@ -235,44 +196,26 @@ async function markEventHandled(id) {
 }
 window.markEventHandled = markEventHandled;
 
-function exportBehaviorCSV() {
-  const sLabel = document.getElementById('b-fstudent')?.value.trim() || '';
-  const cat = document.getElementById('b-fcat')?.value || '';
-  let list = _events.slice();
-  if (sLabel) {
-    const stu = resolveStudent(sLabel, _allStudents);
-    if (stu) list = list.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
-    else list = list.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(sLabel.toLowerCase()));
-  }
-  if (cat) list = list.filter(e => e['קטגוריה'] === cat);
-  if (!list.length) return alert('אין אירועים לייצוא במסנן הנוכחי');
-  const cols = ['תאריך','תאריך_עברי','פרשה','שם תלמיד','קטגוריה','חומרה','תיאור','דווח_עי','טופל'];
-  const rows = list.map(e => cols.map(c => {
-    const v = e[c] ? String(e[c]).replace(/"/g,'""').replace(/[\r\n]+/g,' ') : '';
-    return `"${v}"`;
-  }).join(','));
-  const csv = '﻿' + cols.join(',') + '\n' + rows.join('\n');  // BOM for Excel
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `התנהגות_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-window.exportBehaviorCSV = exportBehaviorCSV;
+// Create a follow-up task from a high-severity event — implemented in behavior-tasks.js
+window.createTaskFromEvent = async function(eventId) {
+  if (typeof createTaskFromEvent_impl === 'function') return createTaskFromEvent_impl(eventId);
+  alert('משימות לא נטענו עדיין');
+};
+
+// Open the form-link modal pre-filled from an event — implemented in behavior-forms.js
+window.newFormForEvent = function(eventId) {
+  if (typeof newFormForEvent_impl === 'function') return newFormForEvent_impl(eventId);
+  switchBehaviorTab('forms');
+};
 
 function addEventModal() {
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>אירוע חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label>
-        <input id="ne-student" class="form-control" list="ne-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
-        <datalist id="ne-student-list">${studentsDatalistOptions(_allStudents, true)}</datalist>
-      </div>
+      <div class="mb-3"><label class="form-label">תלמיד</label><select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
-      <div class="mb-3"><label class="form-label">תאריך</label><input id="ne-date" type="date" class="form-control" value="${new Date().toISOString().slice(0,10)}"><small class="text-muted">אפשר לדווח על אירוע מהעבר</small></div>
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button><button class="btn btn-primary" onclick="saveEvent(event)">שמור</button></div>
   </div></div></div>`;
@@ -280,28 +223,22 @@ function addEventModal() {
   document.body.insertAdjacentHTML('beforeend', html);
   const modalEl = document.getElementById('addEvModal');
   new bootstrap.Modal(modalEl).show();
-  modalEl.addEventListener('shown.bs.modal', () => {
-    const stuField = document.getElementById('ne-student');
-    if (stuField && !stuField.value) stuField.focus();
-  }, { once: true });
   modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addEvModal'), { once: true });
 }
 
 async function saveEvent(event) {
-  // Bug #8 fix: prevent double-submit
   const btn = event?.target?.closest('button');
   if (btn && btn.disabled) return;
   if (btn) {
     btn.disabled = true;
     setTimeout(() => { btn.disabled = false; }, 3000);
   }
-  const typedLabel = document.getElementById('ne-student').value.trim();
-  const stu = resolveStudent(typedLabel, _allStudents);
-  if (typedLabel && !stu) return alert('לא נמצא תלמיד בשם זה. בחר מתוך הרשימה.');
+  const sid = document.getElementById('ne-student').value;
+  const stu = _allStudents.find(s => String(s['מזהה']) === sid);
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const obj = {
-    'תלמיד_מזהה': stu ? stu['מזהה'] : '',
+    'תלמיד_מזהה': sid,
     'שם תלמיד': stu ? `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}` : '',
     'קטגוריה': document.getElementById('ne-cat').value,
     'תיאור': document.getElementById('ne-desc').value,
@@ -320,17 +257,16 @@ async function saveEvent(event) {
     }
     r = await api('updateBehavior', [obj]);
   } else {
-    const dateInput = document.getElementById('ne-date')?.value;
-    const eventDate = dateInput ? new Date(dateInput + 'T12:00:00') : new Date();
-    const info = getHebrewInfo(eventDate);
-    obj['תאריך'] = eventDate.toISOString();
+    const now = new Date();
+    const info = getHebrewInfo(now);
+    obj['תאריך'] = now.toISOString();
     obj['תאריך_עברי'] = info.hdate;
     obj['פרשה'] = info.parsha;
     obj['דווח_עי'] = reporter;
     r = await api('addBehavior', [obj]);
   }
-  if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');  // Bug #42 fix
+  if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');
   hideModal('addEvModal');
   renderBehavior();
-  if (typeof loadStats === 'function') loadStats();
+  loadStats();
 }
