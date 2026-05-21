@@ -976,6 +976,36 @@ async function api(fn, args) {
       syncDeleteRow('חתימות', 'מזהה', id).then(updateSyncIndicator);
       return { ok: true };
     }
+    case 'listProjects':
+      return { ok: true, data: _data.projects || [] };
+    case 'addProject': {
+      const obj = args[0];
+      obj['מזהה'] = genId();
+      _data.projects = _data.projects || [];
+      _data.projects.push(obj);
+      saveStored(_data); markLocalChange();
+      syncRowToSheet('פרויקטים', obj).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'updateProject': {
+      const obj = args[0];
+      const id = obj['מזהה'];
+      const idx = (_data.projects || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.projects[idx] = Object.assign({}, _data.projects[idx], obj);
+      saveStored(_data); markLocalChange();
+      syncUpdateRow('פרויקטים', _data.projects[idx], 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
+    case 'deleteProject': {
+      const id = args[0];
+      const idx = (_data.projects || []).findIndex(e => String(e['מזהה']) === String(id));
+      if (idx < 0) return { ok: false, error: 'not found' };
+      _data.projects.splice(idx, 1);
+      saveStored(_data); markLocalChange();
+      syncDeleteRow('פרויקטים', 'מזהה', id).then(updateSyncIndicator);
+      return { ok: true };
+    }
     case 'listTasks':
       return { ok: true, data: getVisibleData().tasks || (_data.tasks || []) };
     case 'addTask': {

@@ -23,6 +23,7 @@ async function renderBehavior() {
       <li class="nav-item"><a class="nav-link active" href="#" onclick="switchBehaviorTab('events',event)"><i class="bi bi-clipboard"></i> אירועים</a></li>
       <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('forms',event)"><i class="bi bi-pencil-square"></i> חתימות הורים</a></li>
       <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('tasks',event)"><i class="bi bi-list-check"></i> משימות</a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('projects',event)"><i class="bi bi-kanban"></i> פרויקטים</a></li>
       <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('card',event)"><i class="bi bi-person-vcard"></i> כרטיס תלמיד</a></li>
     </ul>
     <div id="behavior-tab-content"></div>`;
@@ -71,6 +72,10 @@ function renderActiveBehaviorTab() {
     actionBar.innerHTML = `<button class="btn btn-success" onclick="addTaskModal()"><i class="bi bi-plus"></i> משימה חדשה</button>`;
     if (typeof renderTasksTab === 'function') renderTasksTab(root);
     else root.innerHTML = '<div class="alert alert-warning">משימות — טוען...</div>';
+  } else if (_activeBehaviorTab === 'projects') {
+    actionBar.innerHTML = `<button class="btn btn-success" onclick="addProjectModal()"><i class="bi bi-plus"></i> פרויקט חדש</button>`;
+    if (typeof renderProjectsTab === 'function') renderProjectsTab(root);
+    else root.innerHTML = '<div class="alert alert-warning">פרויקטים — טוען...</div>';
   } else if (_activeBehaviorTab === 'card') {
     actionBar.innerHTML = '';
     if (typeof renderCardTab === 'function') renderCardTab(root);
