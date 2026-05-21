@@ -15,9 +15,12 @@ function getHebrewInfo(jsDate) {
 async function renderBehavior() {
   document.getElementById('page-behavior').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
-      <div id="b-actions"></div>
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h3 class="mb-0"><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
+      <div class="d-flex gap-2 align-items-center">
+        <button class="btn btn-sm btn-outline-secondary" onclick="forceSyncBehavior()" title="סנכרן מ-Sheet"><i class="bi bi-arrow-clockwise"></i> סנכרן</button>
+        <div id="b-actions"></div>
+      </div>
     </div>
     <ul class="nav nav-pills mb-3 flex-wrap" id="behavior-tabs">
       <li class="nav-item"><a class="nav-link active" href="#" onclick="switchBehaviorTab('events',event)"><i class="bi bi-clipboard"></i> אירועים <span class="badge bg-warning text-dark ms-1" id="tab-events-badge"></span></a></li>
@@ -79,7 +82,28 @@ function switchBehaviorTab(name, ev) {
   sessionStorage.setItem('behavior_tab', name);
   setActivePill(name);
   renderActiveBehaviorTab();
+  updateTabBadges();
 }
+
+// Auto-refresh badges every 60s
+if (typeof window !== 'undefined') {
+  setInterval(() => {
+    if (document.getElementById('behavior-tabs')) updateTabBadges();
+  }, 60000);
+}
+
+window.forceSyncBehavior = async function() {
+  if (typeof toast === 'function') toast('מסנכרן מ-Sheet...', 'success');
+  // Reset _lastLocalChange so pullAllFromSheet won't skip
+  if (typeof _lastLocalChange !== 'undefined') {
+    try { window._lastLocalChange = 0; } catch(_) {}
+  }
+  if (typeof pullAllFromSheet === 'function') {
+    await pullAllFromSheet();
+  }
+  await renderBehavior();
+  if (typeof toast === 'function') toast('✓ מסונכרן', 'success');
+};
 
 function renderActiveBehaviorTab() {
   const root = document.getElementById('behavior-tab-content');
