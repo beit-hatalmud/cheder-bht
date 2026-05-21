@@ -309,3 +309,84 @@ document.addEventListener('keydown', (e) => {
     showHelp();
   }
 });
+
+// SBB 36: Auto-backup to localStorage every 5 min
+setInterval(() => {
+  try {
+    const backup = {
+      ts: Date.now(),
+      events: window._events || [],
+      tasks: window._tasks || [],
+      projects: window._projects || [],
+      signatures: window._bfSignatures || [],
+    };
+    localStorage.setItem('bht_auto_backup', JSON.stringify(backup));
+  } catch (_) {}
+}, 5 * 60 * 1000);
+
+window.restoreAutoBackup = function() {
+  try {
+    const backup = JSON.parse(localStorage.getItem('bht_auto_backup'));
+    if (!backup) return alert('אין גיבוי שמור');
+    if (!confirm(`לשחזר גיבוי מ-${new Date(backup.ts).toLocaleString('he-IL')}?\nזה ידרוס נתונים מקומיים נוכחיים.`)) return;
+    if (window._events && backup.events) window._events = backup.events;
+    if (window._tasks && backup.tasks) window._tasks = backup.tasks;
+    if (window._projects && backup.projects) window._projects = backup.projects;
+    if (backup.signatures) window._bfSignatures = backup.signatures;
+    renderBehavior();
+    alert('שוחזר');
+  } catch (e) { alert('שגיאה: ' + e.message); }
+};
+
+// SBB 37: Visual indicator if offline
+window.addEventListener('online', () => {
+  document.getElementById('offline-banner')?.remove();
+});
+window.addEventListener('offline', () => {
+  if (document.getElementById('offline-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'offline-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f59e0b;color:#fff;padding:6px;text-align:center;font-family:Heebo,Arial;direction:rtl;z-index:99999;font-size:13px;font-weight:600';
+  b.textContent = '⚠ אין חיבור לאינטרנט - השינויים יסונכרנו כשהחיבור יחזור';
+  document.body.appendChild(b);
+});
+
+// SBB 38: Quick stat tooltips on tab pills
+document.addEventListener('mouseover', (e) => {
+  const link = e.target.closest('#behavior-tabs .nav-link');
+  if (!link || link.dataset.tt) return;
+  link.dataset.tt = '1';
+  const onclick = link.getAttribute('onclick') || '';
+  let tip = '';
+  if (onclick.includes("'events'")) tip = `${(_events||[]).length} אירועים`;
+  else if (onclick.includes("'tasks'")) tip = `${(_tasks||[]).length} משימות`;
+  else if (onclick.includes("'projects'")) tip = `${(_projects||[]).length} פרויקטים`;
+  else if (onclick.includes("'forms'")) tip = `${(window._bfSignatures||[]).length} חתימות`;
+  if (tip) link.title = tip;
+});
+
+// SBB 39: Smooth scroll to top button
+(function() {
+  const btn = document.createElement('button');
+  btn.id = 'scroll-top-btn';
+  btn.innerHTML = '↑';
+  btn.style.cssText = 'position:fixed;bottom:170px;left:30px;width:40px;height:40px;border-radius:50%;border:0;background:#0066cc;color:#fff;cursor:pointer;font-size:18px;display:none;z-index:9990;box-shadow:0 4px 12px rgba(0,0,0,0.2)';
+  btn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (document.readyState !== 'loading') document.body.appendChild(btn);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
+  window.addEventListener('scroll', () => {
+    btn.style.display = window.scrollY > 300 ? 'block' : 'none';
+  });
+})();
+
+// SBB 40: Random motivational message on home page
+window.showMotivation = function() {
+  const msgs = [
+    'יום פורה! 🌟',
+    'כל אירוע שתועד הוא צעד לשיפור 💪',
+    'תזכור: מעקב יוצר שינוי 📈',
+    'יישר כוח על העדכון השוטף! 👏',
+    'הצוות שלך עושה עבודה חשובה ✨',
+  ];
+  return msgs[Math.floor(Math.random() * msgs.length)];
+};
