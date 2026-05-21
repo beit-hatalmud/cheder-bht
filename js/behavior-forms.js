@@ -276,9 +276,13 @@ async function bfCreateLink(tplKey, preEventId) {
         </div>
       </div>
       <div class="row g-2 mb-3">
-        <div class="col-md-12">
-          <label class="form-label">מייל לקבלת חתימה</label>
+        <div class="col-md-6">
+          <label class="form-label">מייל לקבלת חתימה (יעד)</label>
           <input id="bf-l-recipient" class="form-control" value="${escHtml(defaultRecipient)}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">מייל ההורה (מילוי מראש - אופציונלי)</label>
+          <input id="bf-l-parent-email" type="email" class="form-control" placeholder="parent@example.com">
         </div>
       </div>
       <hr>
@@ -344,6 +348,9 @@ async function bfBuildLink(tplKey) {
       const el = document.getElementById('bf-l-pre-' + f.id);
       if (el && el.value) urlParams.set(f.id, el.value);
     });
+    // parent_email pre-fill (always available via app.js auto-inject)
+    const peEl = document.getElementById('bf-l-parent-email');
+    if (peEl && peEl.value.trim()) urlParams.set('parent_email', peEl.value.trim());
     const url = BF_BASE + 'index.html?' + urlParams.toString();
     document.getElementById('bf-l-url').textContent = url;
     document.getElementById('bf-l-open').href = url;
