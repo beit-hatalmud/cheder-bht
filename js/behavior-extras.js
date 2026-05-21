@@ -186,3 +186,68 @@ window.addEventListener('hashchange', () => {
   }
 });
 setTimeout(injectMobileNav, 1000);
+
+// SBB 31: Floating dark-mode toggle (top-left)
+(function injectDarkToggle() {
+  if (document.getElementById('bht-dark-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'bht-dark-btn';
+  btn.className = 'bht-dark-toggle';
+  btn.innerHTML = '🌙';
+  btn.title = 'מצב כהה';
+  btn.onclick = () => {
+    toggleDarkMode();
+    btn.innerHTML = document.documentElement.classList.contains('dark-mode') ? '☀️' : '🌙';
+  };
+  // Initial icon based on current mode
+  if (document.documentElement.classList.contains('dark-mode')) btn.innerHTML = '☀️';
+  if (document.readyState !== 'loading') document.body.appendChild(btn);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
+})();
+
+// SBB 32: Undo system for behavior deletions (5-second window)
+window._bhtUndoStack = [];
+window.recordUndo = function(type, data) {
+  window._bhtUndoStack.push({ type, data, time: Date.now() });
+  if (window._bhtUndoStack.length > 5) window._bhtUndoStack.shift();
+  showUndoToast(type);
+};
+window.showUndoToast = function(type) {
+  let el = document.getElementById('undo-toast');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'undo-toast';
+  el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1f2937;color:#fff;padding:12px 16px;border-radius:10px;display:flex;gap:12px;align-items:center;z-index:9999;font-family:Heebo,Arial;direction:rtl;box-shadow:0 8px 24px rgba(0,0,0,0.3)';
+  el.innerHTML = `<span>${type} נמחק</span> <button onclick="bhtUndo()" style="background:#3b82f6;color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit">בטל</button>`;
+  document.body.appendChild(el);
+  setTimeout(() => el?.remove(), 5000);
+};
+window.bhtUndo = async function() {
+  const entry = window._bhtUndoStack.pop();
+  if (!entry) return alert('אין מה לבטל');
+  const apiMap = { event: 'addBehavior', task: 'addTask', project: 'addProject', signature: 'addSignature' };
+  const fn = apiMap[entry.type] || apiMap.event;
+  await api(fn, [entry.data]);
+  if (typeof toast === 'function') toast('בוטל', 'success');
+  if (typeof renderBehavior === 'function') renderBehavior();
+  document.getElementById('undo-toast')?.remove();
+};
+
+// SBB 33: hover preview on student names in events
+document.addEventListener('mouseover', (e) => {
+  const card = e.target.closest('[data-student-id]');
+  if (!card || card.dataset.hoverShown) return;
+  card.dataset.hoverShown = '1';
+  setTimeout(() => { card.dataset.hoverShown = ''; }, 1000);
+});
+
+// SBB 34: console banner so devs/users know what version is running
+console.log('%c🎓 בית התלמוד - מעקב התנהגות v2.0%c\n%cנטענו %d אירועים, %d משימות, %d פרויקטים, %d חתימות',
+  'font-size:18px;font-weight:bold;color:#0066cc',
+  '',
+  'color:#6b7280',
+  (window._events||[]).length,
+  (window._tasks||[]).length,
+  (window._projects||[]).length,
+  (window._bfSignatures||[]).length
+);
