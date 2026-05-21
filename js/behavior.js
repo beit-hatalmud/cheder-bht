@@ -79,17 +79,62 @@ function renderActiveBehaviorTab() {
 }
 
 function renderEventsTab(root) {
-  root.innerHTML = `
+  // 2026-05-21: phone-line approval flow — events from /8 come in as סטטוס_אישור=ממתין לאישור
+  const pending = _events.filter(e => e['סטטוס_אישור'] === 'ממתין לאישור');
+  const pendingHtml = pending.length ? `
+    <div class="card border-warning p-3 mb-3" style="background:#fffbeb">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><i class="bi bi-clock-history text-warning"></i> ${pending.length} אירועים מהקו הטלפוני ממתינים לאישור</h5>
+        <button class="btn btn-sm btn-link" onclick="document.getElementById('b-pending').classList.toggle('d-none')">הצג / הסתר</button>
+      </div>
+      <div id="b-pending">${pending.map(e => bcPendingCardHtml(e)).join('')}</div>
+    </div>` : '';
+  root.innerHTML = pendingHtml + `
     <div class="row g-2 mb-3">
       <div class="col-md-4"><select id="b-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
       <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
     </div>
     <div id="b-list"></div>`;
   fillFilters();
-  drawEvents(_events);
+  drawEvents(_events.filter(e => e['סטטוס_אישור'] !== 'ממתין לאישור'));
   document.getElementById('b-fstudent').onchange = applyFilters;
   document.getElementById('b-fcat').onchange = applyFilters;
 }
+
+function bcPendingCardHtml(e) {
+  const eid = e['מזהה']||0;
+  const date = e['תאריך'] ? (typeof formatGreg==='function'?formatGreg(e['תאריך']):e['תאריך']) : '';
+  const sev = e['חומרה'] === 'גבוהה' ? 'danger' : e['חומרה'] === 'נמוכה' ? 'success' : 'warning';
+  return `<div class="card p-2 mb-2" style="border-right:4px solid #f59e0b">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+      <div class="flex-grow-1">
+        <div class="d-flex gap-2 align-items-center flex-wrap mb-1">
+          <strong>${escHtml(e['שם תלמיד']||'(לא זוהה)')}</strong>
+          <span class="badge bg-secondary">${escHtml(e['קטגוריה']||'')}</span>
+          <span class="badge bg-${sev}">${escHtml(e['חומרה']||'')}</span>
+          <small class="text-muted"><i class="bi bi-telephone"></i> ${escHtml(e['דווח_עי']||'phone')}</small>
+          <small class="text-muted">${escHtml(date)}</small>
+        </div>
+        <div class="small">${escHtml(e['תיאור']||'')}</div>
+      </div>
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-success" onclick="approveEvent(${eid})" title="אשר"><i class="bi bi-check-lg"></i> אשר</button>
+        <button class="btn btn-sm btn-primary" onclick="editEvent(${eid})" title="ערוך לפני אישור"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-danger" onclick="deleteEvent(${eid})" title="מחק"><i class="bi bi-trash"></i></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.approveEvent = async function(id) {
+  const ev = _events.find(x => String(x['מזהה']) === String(id));
+  if (!ev) return;
+  ev['סטטוס_אישור'] = 'מאושר';
+  const r = await api('updateBehavior', [ev]);
+  if (r && !r.ok) return alert(r.error || 'שגיאה');
+  if (typeof toast === 'function') toast('האירוע אושר', 'success');
+  renderBehavior();
+};
 
 function fillFilters() {
   const stSel = document.getElementById('b-fstudent');
