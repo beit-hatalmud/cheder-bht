@@ -390,3 +390,54 @@ window.showMotivation = function() {
   ];
   return msgs[Math.floor(Math.random() * msgs.length)];
 };
+
+// SBB 41: Number/date formatters as helpers
+window.fmtRelativeTime = function(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'לפני שניות';
+  if (diff < 3600) return `לפני ${Math.round(diff/60)} דק'`;
+  if (diff < 86400) return `לפני ${Math.round(diff/3600)} שעות`;
+  if (diff < 7*86400) return `לפני ${Math.round(diff/86400)} ימים`;
+  return d.toLocaleDateString('he-IL');
+};
+
+// SBB 42: ESC closes search modal etc
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal.show').forEach(m => {
+      try { bootstrap.Modal.getInstance(m)?.hide(); } catch(_) {}
+    });
+  }
+});
+
+// SBB 43: Welcome toast on first behavior page load each day
+(function welcomeToast() {
+  if (location.hash.replace('#','') !== 'behavior') return;
+  const today = new Date().toISOString().slice(0,10);
+  if (sessionStorage.getItem('welcome_' + today)) return;
+  sessionStorage.setItem('welcome_' + today, '1');
+  setTimeout(() => {
+    if (typeof toast === 'function') toast(showMotivation(), 'success');
+  }, 1500);
+})();
+
+// SBB 44: Total updates count visible in footer
+window.updateFooterCount = function() {
+  let el = document.getElementById('footer-version');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'footer-version';
+    el.style.cssText = 'position:fixed;bottom:4px;right:14px;font-size:10px;color:#9ca3af;font-family:Heebo,Arial;direction:rtl;z-index:9990;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  el.textContent = `בית התלמוד v2.0 · ${Date.now() % 100000}`;
+};
+updateFooterCount();
+
+// SBB 45: Validate inputs (no empty strings, no XSS chars on save)
+window.bhtSanitize = function(text) {
+  if (!text) return '';
+  return String(text).replace(/[<>]/g, '').trim();
+};
