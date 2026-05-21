@@ -106,6 +106,8 @@ async function loadData() {
     attendance: Array.isArray(stored.attendance) ? stored.attendance : [],
     conversations: Array.isArray(stored.conversations) ? stored.conversations : [],
     signatures: Array.isArray(stored.signatures) ? stored.signatures : [],
+    tasks: Array.isArray(stored.tasks) ? stored.tasks : [],
+    projects: Array.isArray(stored.projects) ? stored.projects : [],
   };
   // If cache is empty (first visit), pull from the Sheet synchronously
   const hasAnyData = _data.students.length || _data.behavior.length;
@@ -1296,7 +1298,7 @@ async function pullAllFromSheet() {
   }
   _pullInProgress = true;
   try {
-  const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows, conversations] = await Promise.all([
+  const [students, behavior, users, classes, functioning, tests, medications, meetings, attendance, categoriesRows, conversations, signatures, tasks, projects] = await Promise.all([
     pullFromSheet('תלמידים'),
     pullFromSheet('מעקב_התנהגות'),
     pullFromSheet('משתמשים'),
@@ -1308,6 +1310,9 @@ async function pullAllFromSheet() {
     pullFromSheet('נוכחות'),
     pullFromSheet('קטגוריות'),
     pullFromSheet('שיחות'),
+    pullFromSheet('חתימות').catch(() => null),
+    pullFromSheet('משימות').catch(() => null),
+    pullFromSheet('פרויקטים').catch(() => null),
   ]);
   // Don't overwrite local with empty if local has data (avoid silent wipe)
   const safeReplace = (cur, fresh) => {
@@ -1348,6 +1353,9 @@ async function pullAllFromSheet() {
   _data.meetings = safeReplace(_data.meetings, meetings);
   _data.attendance = safeReplace(_data.attendance, attendance);
   _data.conversations = safeReplace(_data.conversations, conversations);
+  _data.signatures = safeReplace(_data.signatures, signatures);
+  _data.tasks = safeReplace(_data.tasks, tasks);
+  _data.projects = safeReplace(_data.projects, projects);
   // Bug #14 fix: notify pages that data was refreshed so they can re-render
   try { window.dispatchEvent(new CustomEvent('cheder-data-refreshed')); } catch {}
   if (Array.isArray(categoriesRows) && categoriesRows.length) {
