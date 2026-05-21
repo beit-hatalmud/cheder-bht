@@ -441,3 +441,51 @@ window.bhtSanitize = function(text) {
   if (!text) return '';
   return String(text).replace(/[<>]/g, '').trim();
 };
+
+// SBB 48: Notification permission + browser notifications for new pending events
+(function initBrowserNotif() {
+  if (typeof Notification === 'undefined') return;
+  let lastPendingCount = 0;
+  const check = () => {
+    const cur = (window._events||[]).filter(e => e['סטטוס_אישור'] === 'ממתין לאישור').length;
+    if (cur > lastPendingCount && lastPendingCount > 0 && Notification.permission === 'granted') {
+      const diff = cur - lastPendingCount;
+      new Notification(`${diff} אירועים חדשים ממתינים לאישור`, {
+        body: 'התקבלו דיווחים מהקו הטלפוני',
+        icon: '/cheder-bht/img/logo.png',
+        tag: 'bht-pending',
+      });
+    }
+    lastPendingCount = cur;
+  };
+  setInterval(check, 60000);
+  // Request permission once
+  if (Notification.permission === 'default') {
+    setTimeout(() => Notification.requestPermission(), 5000);
+  }
+})();
+
+// SBB 49: Persist active filter selection across reloads
+const FILTER_KEY = 'bht_active_filter';
+const _origApplyQuickFilter = window.applyQuickFilter;
+window.applyQuickFilter = function(name) {
+  try { localStorage.setItem(FILTER_KEY, name); } catch(_) {}
+  if (_origApplyQuickFilter) _origApplyQuickFilter(name);
+};
+// Restore on tab switch
+const _origInjectQuickFilters = window.injectQuickFilters;
+window.injectQuickFilters = function() {
+  if (_origInjectQuickFilters) _origInjectQuickFilters();
+  setTimeout(() => {
+    try {
+      const saved = localStorage.getItem(FILTER_KEY);
+      if (saved && saved !== 'all') {
+        const btn = document.querySelector(`#quick-filters [onclick*="'${saved}'"]`);
+        if (btn) btn.click();
+      }
+    } catch(_) {}
+  }, 100);
+};
+
+// SBB 50: Final - log all loaded enhancements
+console.log('%c✅ 50 סבבי שיפור הופעלו', 'color:#16a34a;font-weight:bold;font-size:14px');
