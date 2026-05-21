@@ -150,6 +150,34 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// 2026-05-21: auto-login via URL params (?u=...&p=base64) — used by Chrome extension
+(function autoLoginFromUrl(){
+  try {
+    const url = new URL(location.href);
+    const u = url.searchParams.get('u');
+    const p = url.searchParams.get('p');
+    if (u && p) {
+      const decoded = atob(p);
+      // Wait for DOM ready then trigger login
+      const fire = () => {
+        const userEl = document.getElementById('username');
+        const passEl = document.getElementById('password');
+        if (userEl && passEl) {
+          userEl.value = u;
+          passEl.value = decoded;
+          // Strip params from URL so they don't linger
+          url.searchParams.delete('u');
+          url.searchParams.delete('p');
+          history.replaceState(null, '', url.pathname + (url.search ? url.search : '') + url.hash);
+          setTimeout(() => { if (typeof doLogin === 'function') doLogin(); }, 100);
+        }
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fire);
+      else fire();
+    }
+  } catch (_) {}
+})();
+
 async function doLogin(){
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
