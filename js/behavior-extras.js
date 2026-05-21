@@ -251,3 +251,61 @@ console.log('%c🎓 בית התלמוד - מעקב התנהגות v2.0%c\n%cנט
   (window._projects||[]).length,
   (window._bfSignatures||[]).length
 );
+
+// SBB 35: Help button + shortcuts modal
+(function injectHelpButton() {
+  if (document.getElementById('bht-help-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'bht-help-btn';
+  btn.title = 'עזרה (?)';
+  btn.style.cssText = 'position:fixed;top:14px;left:60px;width:36px;height:36px;border-radius:50%;border:1px solid #d1d5db;background:#fff;cursor:pointer;font-size:16px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.1)';
+  btn.innerHTML = '?';
+  btn.onclick = showHelp;
+  if (document.readyState !== 'loading') document.body.appendChild(btn);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
+})();
+
+window.showHelp = function() {
+  const html = `<div class="modal fade" id="help-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff">
+      <h5><i class="bi bi-question-circle"></i> עזרה ומדריך</h5>
+      <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+      <h6>⌨ קיצורי מקלדת</h6>
+      <table class="table table-sm">
+        <tr><td><kbd>1</kbd>-<kbd>5</kbd></td><td>מעבר בין tabs</td></tr>
+        <tr><td><kbd>n</kbd> או <kbd>+</kbd></td><td>יצירת פריט חדש בטאב הנוכחי</td></tr>
+        <tr><td><kbd>r</kbd></td><td>סנכרון מ-Sheet</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>חיפוש כללי</td></tr>
+        <tr><td><kbd>?</kbd></td><td>עזרה זו</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>סגירת modal</td></tr>
+      </table>
+      <h6 class="mt-3">🎯 פיצ'רים</h6>
+      <ul>
+        <li><strong>אירועים</strong> - דיווח על אירועי התנהגות. אירועי חומרה גבוהה יוצרים אוטומטית משימת מעקב.</li>
+        <li><strong>חתימות הורים</strong> - 6 תבניות + bonus custom builder. שליחת קישור ב-WhatsApp/SMS/Gmail.</li>
+        <li><strong>משימות</strong> - Kanban + רשימה. סטטוס/עדיפות/יעד.</li>
+        <li><strong>פרויקטים</strong> - יוזמות שמכילות משימות. גרף התקדמות אוטומטי.</li>
+        <li><strong>כרטיס תלמיד</strong> - תצוגה מאוחדת + הדפסה ל-PDF.</li>
+      </ul>
+      <h6 class="mt-3">📞 קו טלפוני /8</h6>
+      <p>1=הקלטת אירוע, 2=אירועים אחרונים, 3=משימות, 4=חתימות, 5=חיפוש לפי תלמיד, 6=סימון משימה כהושלמה.</p>
+      <h6 class="mt-3">🔄 סנכרון</h6>
+      <p>כל פעולה נשמרת מקומית מיד ומסונכרנת לגיליון תוך 5 שניות. לחיצה על כפתור "סנכרן" מטעינה מחדש מ-Sheet.</p>
+    </div>
+  </div></div></div>`;
+  cleanupModal('help-modal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  const m = document.getElementById('help-modal');
+  new bootstrap.Modal(m).show();
+  m.addEventListener('hidden.bs.modal', () => cleanupModal('help-modal'), { once: true });
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+    e.preventDefault();
+    showHelp();
+  }
+});
