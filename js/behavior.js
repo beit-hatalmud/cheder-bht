@@ -19,25 +19,33 @@ async function renderBehavior() {
       <h3><i class="bi bi-clipboard-check"></i> מעקב התנהגות</h3>
       <div id="b-actions"></div>
     </div>
-    <ul class="nav nav-pills mb-3" id="behavior-tabs">
-      <li class="nav-item"><a class="nav-link active" href="#" onclick="switchBehaviorTab('events',event)"><i class="bi bi-clipboard"></i> אירועים</a></li>
-      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('forms',event)"><i class="bi bi-pencil-square"></i> חתימות הורים</a></li>
-      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('tasks',event)"><i class="bi bi-list-check"></i> משימות</a></li>
-      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('projects',event)"><i class="bi bi-kanban"></i> פרויקטים</a></li>
+    <ul class="nav nav-pills mb-3 flex-wrap" id="behavior-tabs">
+      <li class="nav-item"><a class="nav-link active" href="#" onclick="switchBehaviorTab('events',event)"><i class="bi bi-clipboard"></i> אירועים <span class="badge bg-warning text-dark ms-1" id="tab-events-badge"></span></a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('forms',event)"><i class="bi bi-pencil-square"></i> חתימות הורים <span class="badge bg-warning text-dark ms-1" id="tab-forms-badge"></span></a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('tasks',event)"><i class="bi bi-list-check"></i> משימות <span class="badge bg-danger ms-1" id="tab-tasks-badge"></span></a></li>
+      <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('projects',event)"><i class="bi bi-kanban"></i> פרויקטים <span class="badge bg-info ms-1" id="tab-proj-badge"></span></a></li>
       <li class="nav-item"><a class="nav-link" href="#" onclick="switchBehaviorTab('card',event)"><i class="bi bi-person-vcard"></i> כרטיס תלמיד</a></li>
     </ul>
     <div id="behavior-tab-content"></div>`;
 
   // Load shared data once
-  const [stRes, evRes, catRes] = await Promise.all([
+  const [stRes, evRes, catRes, sigRes, taskRes, projRes] = await Promise.all([
     api('listStudents', []),
     api('listBehavior', []),
     api('listCategories', []),
+    api('listSignatures', []),
+    api('listTasks', []),
+    api('listProjects', []),
   ]);
   _allStudents = stRes.data || [];
   _events = evRes.data || [];
   _categories = catRes.data || [];
+  // Pre-load these so tabs render fast and badges work
+  window._bfSignatures = sigRes.data || [];
+  _tasks = taskRes.data || [];
+  _projects = projRes.data || [];
   _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+  updateTabBadges();
   // restore last tab
   _activeBehaviorTab = sessionStorage.getItem('behavior_tab') || 'events';
   setActivePill(_activeBehaviorTab);
@@ -48,6 +56,21 @@ function setActivePill(name) {
   document.querySelectorAll('#behavior-tabs .nav-link').forEach(a => {
     a.classList.toggle('active', a.getAttribute('onclick').includes(`'${name}'`));
   });
+}
+
+function updateTabBadges() {
+  const setBadge = (id, n) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = n > 0 ? n : '';
+  };
+  // Pending approval events
+  setBadge('tab-events-badge', (_events||[]).filter(e => e['סטטוס_אישור'] === 'ממתין לאישור').length);
+  // Pending signatures
+  setBadge('tab-forms-badge', (window._bfSignatures||[]).filter(s => s['סטטוס'] === 'מחכה').length);
+  // Overdue tasks
+  setBadge('tab-tasks-badge', (_tasks||[]).filter(t => t['סטטוס'] !== 'הושלם' && t['תאריך_יעד'] && new Date(t['תאריך_יעד']) < new Date()).length);
+  // Active projects
+  setBadge('tab-proj-badge', (_projects||[]).filter(p => p['סטטוס'] !== 'הושלם').length);
 }
 
 function switchBehaviorTab(name, ev) {
