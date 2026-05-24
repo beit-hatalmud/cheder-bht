@@ -25,7 +25,7 @@ async function renderWriting() {
         <datalist id="w-fstudent-list"></datalist>
       </div>
       <div class="col-md-2">
-        <select id="w-frabbi" class="form-select"><option value="">כל הרבנים</option><option value="הרב יודלוב">הרב יודלוב</option><option value="הרב שניידר">הרב שניידר</option><option value="הרב קליין">הרב קליין</option><option value="הרב ירושלמי">הרב ירושלמי</option><option value="אחר">אחר</option></select>
+        <select id="w-frabbi" class="form-select"><option value="">כל הרבנים</option><option value="הרב יודלוב">הרב יודלוב</option><option value="הרב קליין">הרב קליין</option><option value="הרב ירושלמי">הרב ירושלמי</option><option value="הרב שניידר">הרב שניידר</option><option value="הרב סורוצקין">הרב סורוצקין</option><option value="הרב ארלנגר">הרב ארלנגר</option><option value="הרב פרידלנדר">הרב פרידלנדר</option><option value="הרב וינברג">הרב וינברג</option><option value="הרב קלצקין">הרב קלצקין</option><option value="הרב רוקמיל">הרב רוקמיל</option><option value="הרב הינמן">הרב הינמן</option><option value="הרב לינצנר">הרב לינצנר</option><option value="הרב יגר">הרב יגר</option><option value="הרב גולדברג">הרב גולדברג</option><option value="הרב גליק">הרב גליק</option><option value="הרב ולפסון">הרב ולפסון</option><option value="אחר">אחר</option></select>
       </div>
       <div class="col-md-3">
         <select id="w-fshiur" class="form-select">

@@ -24,7 +24,7 @@ async function renderLessonsKlein() {
         <datalist id="l-fstudent-list"></datalist>
       </div>
       <div class="col-md-3">
-        <select id="l-frabbi" class="form-select"><option value="">כל הרבנים</option><option value="הרב יודלוב">הרב יודלוב</option><option value="הרב שניידר">הרב שניידר</option><option value="הרב קליין">הרב קליין</option><option value="הרב ירושלמי">הרב ירושלמי</option><option value="אחר">אחר</option></select>
+        <select id="l-frabbi" class="form-select"><option value="">כל הרבנים</option><option value="הרב יודלוב">הרב יודלוב</option><option value="הרב קליין">הרב קליין</option><option value="הרב ירושלמי">הרב ירושלמי</option><option value="הרב שניידר">הרב שניידר</option><option value="הרב סורוצקין">הרב סורוצקין</option><option value="הרב ארלנגר">הרב ארלנגר</option><option value="הרב פרידלנדר">הרב פרידלנדר</option><option value="הרב וינברג">הרב וינברג</option><option value="הרב קלצקין">הרב קלצקין</option><option value="הרב רוקמיל">הרב רוקמיל</option><option value="הרב הינמן">הרב הינמן</option><option value="הרב לינצנר">הרב לינצנר</option><option value="הרב יגר">הרב יגר</option><option value="הרב גולדברג">הרב גולדברג</option><option value="הרב גליק">הרב גליק</option><option value="הרב ולפסון">הרב ולפסון</option><option value="אחר">אחר</option></select>
       </div>
     </div>
     <div id="l-list"></div>`;
@@ -64,7 +64,18 @@ function applyLessonsKleinPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
-  if (_rabbi) f = f.filter(e => (e['רב']||'') === _rabbi || (e['דווח_עי']||'') === _rabbi);
+  if (_rabbi) {
+    f = f.filter(e => {
+      // Match by current 'רב' field, legacy 'דווח_עי', or infer from old category
+      if ((e['רב']||'') === _rabbi) return true;
+      if ((e['דווח_עי']||'') === _rabbi) return true;
+      const cat = String(e['קטגוריה']||'');
+      // Old categories: "שיעור פרטני קליין" → הרב קליין, "שיעור פרטני יודלוב" → הרב יודלוב
+      const rabbiName = _rabbi.replace('הרב ', '');
+      if (cat.includes(rabbiName)) return true;
+      return false;
+    });
+  }
   drawLessonsKleinEvents(f);
 }
 
