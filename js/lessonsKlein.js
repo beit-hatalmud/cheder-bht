@@ -24,7 +24,7 @@ async function renderLessonsKlein() {
         <datalist id="l-fstudent-list"></datalist>
       </div>
       <div class="col-md-3">
-        <select id="l-frabbi" class="form-select"><option value="">כל הרבנים</option></select>
+        <select id="l-frabbi" class="form-select"><option value="">כל הרבנים</option><option value="הרב יודלוב">הרב יודלוב</option><option value="הרב שניידר">הרב שניידר</option><option value="הרב קליין">הרב קליין</option><option value="הרב ירושלמי">הרב ירושלמי</option><option value="אחר">אחר</option></select>
       </div>
     </div>
     <div id="l-list"></div>`;
