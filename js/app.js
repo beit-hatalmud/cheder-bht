@@ -82,7 +82,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','tasks','projects','formsMgmt','cameras','reading','writing','lessonsKlein','forms','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','signatures','settings','reports','feedback'];
+const PAGES = ['login','home','students','behavior','tasks','projects','formsMgmt','cameras','reading','writing','lessonsKlein','forms','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','signatures','settings','reports','feedback','staff'];
 
 function showPage(name) {
   PAGES.forEach(p => {
@@ -97,6 +97,7 @@ function showPage(name) {
   if (name === 'reading' && typeof renderReading === 'function') renderReading();
   if (name === 'writing' && typeof renderWriting === 'function') renderWriting();
   if (name === 'lessonsKlein' && typeof renderLessonsKlein === 'function') renderLessonsKlein();
+  if (name === 'staff' && typeof renderStaff === 'function') renderStaff();
   if (name === 'forms' && typeof renderForms === 'function') renderForms();
   if (name === 'functioning' && typeof renderFunctioning === 'function') renderFunctioning();
   if (name === 'tests' && typeof renderTests === 'function') renderTests();

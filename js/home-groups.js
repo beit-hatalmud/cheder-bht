@@ -2,7 +2,7 @@
 (function() {
   const GROUPS = {
     1: ['students', 'behavior', 'writing', 'reading', 'lessonsKlein'],
-    2: ['formsMgmt', 'projects', 'tasks', 'attendance'],
+    2: ['formsMgmt', 'projects', 'tasks', 'attendance', 'staff'],
     3: ['meetings', 'conversations', 'medications'],
     4: ['classview', 'functioning', 'tests', 'calendar', 'reports', 'cameras', 'feedback', 'settings'],
   };

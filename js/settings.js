@@ -119,6 +119,22 @@ async function editUser(username) {
     if (document.getElementById('nu-fullname')) document.getElementById('nu-fullname').value = u['שם מלא'] || u.full_name || '';
     if (document.getElementById('nu-email')) document.getElementById('nu-email').value = u['אימייל'] || u.email || '';
     if (document.getElementById('nu-phone')) document.getElementById('nu-phone').value = u['טלפון'] || u.phone || '';
+    if (document.getElementById('nu-tz')) document.getElementById('nu-tz').value = u['תז'] || u['ת.ז.'] || '';
+    if (document.getElementById('nu-birth')) {
+      const b = u['תאריך_לידה'] || '';
+      // Convert dd/mm/yyyy → yyyy-mm-dd for date input
+      if (b && b.includes('/')) {
+        const [d,m,y] = b.split('/');
+        document.getElementById('nu-birth').value = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      } else document.getElementById('nu-birth').value = b;
+    }
+    if (document.getElementById('nu-address')) document.getElementById('nu-address').value = u['כתובת'] || '';
+    if (document.getElementById('nu-homephone')) document.getElementById('nu-homephone').value = u['טלפון_בית'] || '';
+    if (document.getElementById('nu-bank')) document.getElementById('nu-bank').value = u['בנק'] || u['מספר_בנק'] || '';
+    if (document.getElementById('nu-branch')) document.getElementById('nu-branch').value = u['סניף'] || u['מספר_סניף'] || '';
+    if (document.getElementById('nu-account')) document.getElementById('nu-account').value = u['חשבון'] || u['מספר_חשבון'] || '';
+    if (document.getElementById('nu-empno')) document.getElementById('nu-empno').value = u['מספר_עובד'] || '';
+    if (document.getElementById('nu-personalfile')) document.getElementById('nu-personalfile').value = u['תיק_אישי'] || '';
     if (document.getElementById('nu-notes')) document.getElementById('nu-notes').value = u['הערות_משתמש'] || u.notes || '';
     if (document.getElementById('nu-landing')) document.getElementById('nu-landing').value = u['דף_כניסה'] || u.landingPage || '';
     document.getElementById('nu-role').value = u.role || 'מורה';
@@ -380,6 +396,42 @@ function addUserModal() {
           <label class="form-label">טלפון</label>
           <input id="nu-phone" class="form-control" placeholder="052-1234567">
         </div>
+        <div class="col-md-6">
+          <label class="form-label">ת.ז.</label>
+          <input id="nu-tz" class="form-control" placeholder="9 ספרות">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">תאריך לידה</label>
+          <input id="nu-birth" type="date" class="form-control">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">כתובת</label>
+          <input id="nu-address" class="form-control" placeholder="רחוב מספר/דירה">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">טלפון בית</label>
+          <input id="nu-homephone" class="form-control" placeholder="025012166">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">בנק</label>
+          <input id="nu-bank" class="form-control" placeholder="12">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">סניף</label>
+          <input id="nu-branch" class="form-control" placeholder="446">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">חשבון</label>
+          <input id="nu-account" class="form-control" placeholder="123456">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">מספר עובד</label>
+          <input id="nu-empno" class="form-control" placeholder="">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">תיק אישי (קישור Drive)</label>
+          <input id="nu-personalfile" type="url" class="form-control" placeholder="https://drive.google.com/...">
+        </div>
         <div class="col-12">
           <label class="form-label">הערות</label>
           <textarea id="nu-notes" class="form-control" rows="2" placeholder="הערות אופציונליות..."></textarea>
@@ -517,6 +569,15 @@ async function saveUser() {
     'תפקיד': document.getElementById('nu-role').value,
     'אימייל': (document.getElementById('nu-email')?.value || '').trim(),
     'טלפון': (document.getElementById('nu-phone')?.value || '').trim(),
+    'תז': (document.getElementById('nu-tz')?.value || '').trim(),
+    'תאריך_לידה': (document.getElementById('nu-birth')?.value || '').trim(),
+    'כתובת': (document.getElementById('nu-address')?.value || '').trim(),
+    'טלפון_בית': (document.getElementById('nu-homephone')?.value || '').trim(),
+    'בנק': (document.getElementById('nu-bank')?.value || '').trim(),
+    'סניף': (document.getElementById('nu-branch')?.value || '').trim(),
+    'חשבון': (document.getElementById('nu-account')?.value || '').trim(),
+    'מספר_עובד': (document.getElementById('nu-empno')?.value || '').trim(),
+    'תיק_אישי': (document.getElementById('nu-personalfile')?.value || '').trim(),
     'הערות_משתמש': (document.getElementById('nu-notes')?.value || '').trim(),
     'דף_כניסה': (document.getElementById('nu-landing')?.value || '').trim(),
     'הרשאות': checked.length === PERMISSION_AREAS.length ? 'all' : checked.join(','),
