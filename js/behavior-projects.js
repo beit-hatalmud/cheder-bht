@@ -157,6 +157,15 @@ window.addProjectModal = function(prefill) {
     <div class="modal-body">
       <div class="mb-2"><label class="form-label">שם הפרויקט</label><input id="p-name" class="form-control" value="${escHtml(e['שם']||'')}"></div>
       <div class="mb-2"><label class="form-label">תיאור</label><textarea id="p-desc" class="form-control" rows="3">${escHtml(e['תיאור']||'')}</textarea></div>
+      <div class="mb-2"><label class="form-label">סוג פרויקט</label>
+        <select id="p-type" class="form-select">
+          <option value="כלל מכינה" ${e['סוג']==='כלל מכינה' || !e['סוג']?'selected':''}>🏛 כלל מכינה</option>
+          <option value="צוות" ${e['סוג']==='צוות'?'selected':''}>👥 צוות / הנהלה</option>
+          <option value="כיתה" ${e['סוג']==='כיתה'?'selected':''}>🎓 כיתה ספציפית</option>
+          <option value="אירוע" ${e['סוג']==='אירוע'?'selected':''}>🎉 אירוע חד-פעמי</option>
+          <option value="אחר" ${e['סוג']==='אחר'?'selected':''}>🔹 אחר</option>
+        </select>
+      </div>
       <div class="row g-2">
         <div class="col-md-4"><label class="form-label">סטטוס</label><select id="p-status" class="form-select">${_PROJ_STATUSES.map(s => `<option ${e['סטטוס']===s?'selected':''}>${escHtml(s)}</option>`).join('')}</select></div>
         <div class="col-md-4"><label class="form-label">אחראי</label><input id="p-owner" class="form-control" value="${escHtml(e['אחראי']||sess.username||'')}"></div>
@@ -188,6 +197,7 @@ window.projSave = async function(editId) {
     'שם': document.getElementById('p-name').value.trim(),
     'תיאור': document.getElementById('p-desc').value.trim(),
     'סטטוס': document.getElementById('p-status').value,
+    'סוג': document.getElementById('p-type')?.value || 'כלל מכינה',
     'אחראי': document.getElementById('p-owner').value.trim(),
     'תאריך_יעד': document.getElementById('p-due').value || '',
   };

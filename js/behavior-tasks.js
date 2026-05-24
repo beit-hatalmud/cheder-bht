@@ -182,11 +182,20 @@ window.addTaskModal = function(prefill) {
     <div class="modal-body">
       <div class="mb-2"><label class="form-label">כותרת</label><input id="t-title" class="form-control" value="${escHtml(e['כותרת']||'')}"></div>
       <div class="mb-2"><label class="form-label">תיאור</label><textarea id="t-desc" class="form-control" rows="2">${escHtml(e['תיאור']||'')}</textarea></div>
+      <div class="mb-2">
+        <label class="form-label">סוג משימה</label>
+        <select id="t-type" class="form-select">
+          <option value="הנהלה" ${e['סוג']==='הנהלה'?'selected':''}>🏢 הנהלה / צוות</option>
+          <option value="הוראה" ${e['סוג']==='הוראה'?'selected':''}>📚 צוות הוראה</option>
+          <option value="ניהול תלמיד" ${e['סוג']==='ניהול תלמיד'?'selected':''}>👤 ניהול תלמיד</option>
+          <option value="כללי" ${e['סוג']==='כללי' || !e['סוג']?'selected':''}>🔹 כללי</option>
+        </select>
+      </div>
       <div class="row g-2">
         <div class="col-md-6">
-          <label class="form-label">תלמיד (אופציונלי)</label>
+          <label class="form-label">תלמיד (לקישור משימה לתלמיד ספציפי, אופציונלי)</label>
           <select id="t-student" class="form-select">
-            <option value="">— ללא —</option>
+            <option value="">— ללא קישור לתלמיד —</option>
             ${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s => {
               const sid = s['מזהה'];
               return `<option value="${escHtml(sid)}" ${String(e['תלמיד_מזהה'])===String(sid)?'selected':''}>${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`;
@@ -230,6 +239,7 @@ window.tasksSave = async function(editId) {
     'כותרת': document.getElementById('t-title').value.trim(),
     'תיאור': document.getElementById('t-desc').value.trim(),
     'תלמיד_מזהה': document.getElementById('t-student').value || '',
+    'סוג': document.getElementById('t-type')?.value || 'כללי',
     'תאריך_יעד': document.getElementById('t-due').value || '',
     'סטטוס': document.getElementById('t-status').value,
     'עדיפות': document.getElementById('t-priority').value,

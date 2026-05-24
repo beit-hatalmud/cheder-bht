@@ -258,7 +258,11 @@ async function bfCreateLink(tplKey, preEventId) {
   const html = `<div class="modal fade" id="bf-link-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5><i class="bi bi-link-45deg"></i> ${escHtml(tpl.title)}</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="row g-2 mb-3">
+      <div class="alert alert-info p-2 mb-3 small">
+        <input type="checkbox" id="bf-l-broadcast" class="form-check-input me-2">
+        <label for="bf-l-broadcast" class="form-check-label"><strong>📣 קישור פתוח לכל המכינה</strong> - כל הורה יוכל למלא, ללא בחירת תלמיד מראש (התלמיד יוקלד בטופס עצמו)</label>
+      </div>
+      <div class="row g-2 mb-3" id="bf-l-student-row">
         <div class="col-md-6">
           <label class="form-label">תלמיד</label>
           <select id="bf-l-student" class="form-select">
@@ -319,14 +323,19 @@ async function bfCreateLink(tplKey, preEventId) {
   const _m = document.getElementById('bf-link-modal');
   new bootstrap.Modal(_m).show();
   _m.addEventListener('hidden.bs.modal', () => cleanupModal('bf-link-modal'), { once: true });
+  // Toggle student row when broadcast checked
+  const bc = document.getElementById('bf-l-broadcast');
+  const sr = document.getElementById('bf-l-student-row');
+  if (bc && sr) bc.addEventListener('change', () => { sr.style.display = bc.checked ? 'none' : ''; });
 }
 
 async function bfBuildLink(tplKey) {
   const forms = bfAllForms();
   const tpl = forms[tplKey];
+  const broadcast = document.getElementById('bf-l-broadcast')?.checked;
   const sid = document.getElementById('bf-l-student').value;
-  if (!sid) return alert('בחר תלמיד');
-  const stu = _allStudents.find(s => String(s['מזהה']) === sid);
+  if (!broadcast && !sid) return alert('בחר תלמיד או סמן "קישור פתוח לכל המכינה"');
+  const stu = sid ? _allStudents.find(s => String(s['מזהה']) === sid) : null;
   const ref = document.getElementById('bf-l-ref').value.trim();
   const recipient = document.getElementById('bf-l-recipient').value.trim();
   const params = new URLSearchParams({
@@ -338,12 +347,16 @@ async function bfBuildLink(tplKey) {
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'שגיאה');
     const lt = d.token;
-    const fullName = `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim();
     const urlParams = new URLSearchParams({ tpl: tplKey, lt });
     if (ref) urlParams.set('ref', ref);
     if (recipient) urlParams.set('to', recipient);
-    urlParams.set('student_name', fullName);
-    if (stu['מחזור']) urlParams.set('cycle', stu['מחזור']);
+    if (broadcast) {
+      urlParams.set('broadcast', '1');
+    } else if (stu) {
+      const fullName = `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim();
+      urlParams.set('student_name', fullName);
+      if (stu['מחזור']) urlParams.set('cycle', stu['מחזור']);
+    }
     (tpl.fields || []).forEach(f => {
       const el = document.getElementById('bf-l-pre-' + f.id);
       if (el && el.value) urlParams.set(f.id, el.value);
