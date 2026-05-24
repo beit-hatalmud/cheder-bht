@@ -1,7 +1,26 @@
-// standalone-pages.js — 3 דפים עצמאיים: משימות, פרויקטים, ניהול טפסים.
-// לא בתוך מעקב התנהגות. הכל מסונכרן עם כרטיס תלמיד. 2026-05-24.
+// standalone-pages.js v2 — simpler, more reliable. 2026-05-24.
 
-// ============== TASKS PAGE (standalone) ==============
+function _shArr(arr) { return Array.isArray(arr) ? arr : []; }
+function _shEsc(s) { return String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+async function _shLoadAllBehaviorData() {
+  try {
+    const [st, tk, pj, ev] = await Promise.all([
+      api('listStudents', []),
+      api('listTasks', []),
+      api('listProjects', []),
+      api('listBehavior', []),
+    ]);
+    window._allStudents = st.data || [];
+    window._tasks = tk.data || [];
+    window._projects = pj.data || [];
+    window._events = ev.data || [];
+  } catch (e) {
+    console.error('data load err', e);
+  }
+}
+
+// =========== TASKS PAGE ===========
 window.renderTasks = async function() {
   const root = document.getElementById('page-tasks');
   if (!root) return;
@@ -9,49 +28,41 @@ window.renderTasks = async function() {
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-list-check"></i> משימות צוות</h3>
-      <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="forceSyncTasks()"><i class="bi bi-arrow-clockwise"></i></button>
-        <button class="btn btn-success" onclick="addTaskModal()"><i class="bi bi-plus"></i> משימה חדשה</button>
-      </div>
+      <button class="btn btn-success" onclick="if(typeof addTaskModal==='function')addTaskModal()"><i class="bi bi-plus"></i> משימה חדשה</button>
     </div>
-    <div id="tasks-page-content"><div class="text-center py-4"><div class="spinner-border"></div> טוען...</div></div>`;
-  // Always load fresh
-  try {
-    const [stRes, tRes] = await Promise.all([api('listStudents',[]), api('listTasks',[])]);
-    window._allStudents = stRes.data || [];
-    window._tasks = tRes.data || [];
-  } catch(e) {}
-  const cont = document.getElementById('tasks-page-content');
-  try {
-    if (typeof renderTasksTab === 'function') {
-      renderTasksTab(cont);
-      if (!cont.innerHTML.trim() || cont.querySelector('.spinner-border')) throw new Error('empty render');
-    } else throw new Error('renderTasksTab missing');
-  } catch (err) {
-    // Fallback: simple list directly
-    const tasks = window._tasks || [];
-    cont.innerHTML = tasks.length ? `<div class="row g-2">${tasks.map(t => `
-      <div class="col-md-6 col-lg-4">
-        <div class="card p-3 h-100" style="cursor:pointer" onclick="if(typeof renderTaskDetails==='function')renderTaskDetails(${t['מזהה']||0})">
-          <strong>${escHtml(t['כותרת']||'(ללא כותרת)')}</strong>
-          <div class="d-flex gap-2 align-items-center mt-2 flex-wrap">
-            <span class="badge bg-${t['סטטוס']==='הושלם'?'success':t['סטטוס']==='בתהליך'?'warning':'secondary'}">${escHtml(t['סטטוס']||'')}</span>
-            ${t['עדיפות']?`<span class="badge bg-${t['עדיפות']==='דחוף'?'danger':t['עדיפות']==='גבוה'?'warning text-dark':'light text-dark'}">${escHtml(t['עדיפות'])}</span>`:''}
-            ${t['תאריך_יעד']?`<small class="text-muted">יעד: ${escHtml(t['תאריך_יעד'])}</small>`:''}
-          </div>
-          ${t['תיאור']?`<div class="small text-muted mt-2">${escHtml(String(t['תיאור']).substring(0,80))}</div>`:''}
-        </div>
-      </div>`).join('')}</div>` : '<div class="text-center py-5 text-muted"><i class="bi bi-list-check fs-1"></i><p>אין משימות עדיין. לחץ "משימה חדשה" להוסיף.</p></div>';
+    <div id="tasks-content"><div class="text-center py-4"><div class="spinner-border"></div></div></div>`;
+  await _shLoadAllBehaviorData();
+  const tasks = _shArr(window._tasks);
+  const cont = document.getElementById('tasks-content');
+  if (!tasks.length) {
+    cont.innerHTML = `<div class="text-center py-5">
+      <div style="font-size:4rem;opacity:0.3">📋</div>
+      <h5 class="text-muted mt-3">אין משימות עדיין</h5>
+      <p class="text-muted">לחץ "משימה חדשה" כדי ליצור את הראשונה.</p>
+    </div>`;
+    return;
   }
-};
-window.forceSyncTasks = async function() {
-  if (typeof pullAllFromSheet === 'function') await pullAllFromSheet();
-  const tr = await api('listTasks', []);
-  window._tasks = tr.data || [];
-  renderTasks();
+  // Group by status
+  const groups = { 'חדש': [], 'בתהליך': [], 'הושלם': [] };
+  tasks.forEach(t => {
+    const s = t['סטטוס'] || 'חדש';
+    if (groups[s]) groups[s].push(t); else groups['חדש'].push(t);
+  });
+  cont.innerHTML = `<div class="row g-3">${Object.entries(groups).map(([status, list]) => `
+    <div class="col-md-4">
+      <div class="card p-2" style="background:#f8fafc">
+        <div class="d-flex justify-content-between mb-2"><strong>${status}</strong><span class="badge bg-secondary">${list.length}</span></div>
+        ${list.map(t => `<div class="card p-2 mb-2" style="cursor:pointer" onclick="if(typeof renderTaskDetails==='function')renderTaskDetails(${t['מזהה']||0});else alert('${_shEsc(t['כותרת']||'')}')">
+          <strong>${_shEsc(t['כותרת']||'(ללא כותרת)')}</strong>
+          ${t['עדיפות']?`<span class="badge bg-${t['עדיפות']==='דחוף'?'danger':t['עדיפות']==='גבוה'?'warning text-dark':'light text-dark'} mt-1">${_shEsc(t['עדיפות'])}</span>`:''}
+          ${t['תאריך_יעד']?`<div class="small text-muted mt-1">יעד: ${_shEsc(t['תאריך_יעד'])}</div>`:''}
+          ${t['אחראי']?`<div class="small text-muted">אחראי: ${_shEsc(t['אחראי'])}</div>`:''}
+        </div>`).join('') || '<div class="text-muted text-center small py-3">ריק</div>'}
+      </div>
+    </div>`).join('')}</div>`;
 };
 
-// ============== PROJECTS PAGE (standalone) ==============
+// =========== PROJECTS PAGE ===========
 window.renderProjects = async function() {
   const root = document.getElementById('page-projects');
   if (!root) return;
@@ -59,50 +70,44 @@ window.renderProjects = async function() {
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-kanban"></i> פרויקטים</h3>
-      <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="forceSyncProjects()"><i class="bi bi-arrow-clockwise"></i></button>
-        <button class="btn btn-success" onclick="addProjectModal()"><i class="bi bi-plus"></i> פרויקט חדש</button>
-      </div>
+      <button class="btn btn-success" onclick="if(typeof addProjectModal==='function')addProjectModal()"><i class="bi bi-plus"></i> פרויקט חדש</button>
     </div>
-    <div id="projects-page-content"><div class="text-center py-4"><div class="spinner-border"></div> טוען...</div></div>`;
-  try {
-    const [stRes, tRes, pRes] = await Promise.all([api('listStudents',[]), api('listTasks',[]), api('listProjects',[])]);
-    window._allStudents = stRes.data || [];
-    window._tasks = tRes.data || [];
-    window._projects = pRes.data || [];
-  } catch(e) {}
-  const cont = document.getElementById('projects-page-content');
-  try {
-    if (typeof renderProjectsTab === 'function') {
-      renderProjectsTab(cont);
-      if (!cont.innerHTML.trim() || cont.querySelector('.spinner-border')) throw new Error('empty');
-    } else throw new Error('missing');
-  } catch (err) {
-    const projects = window._projects || [];
-    cont.innerHTML = projects.length ? `<div class="row g-2">${projects.map(p => `
-      <div class="col-md-6">
-        <div class="card p-3" style="cursor:pointer" onclick="if(typeof renderProjectDetails==='function')renderProjectDetails(${p['מזהה']||0})">
-          <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-            <div>
-              <strong>${escHtml(p['שם']||'')}</strong>
-              <span class="badge bg-${p['סטטוס']==='הושלם'?'success':p['סטטוס']==='בתהליך'?'warning':'info'} ms-2">${escHtml(p['סטטוס']||'')}</span>
-            </div>
-            ${p['אחראי']?`<small class="text-muted">${escHtml(p['אחראי'])}</small>`:''}
-          </div>
-          ${p['תיאור']?`<div class="small text-muted mt-2">${escHtml(String(p['תיאור']).substring(0,100))}</div>`:''}
-          ${p['תאריך_יעד']?`<div class="small mt-2"><i class="bi bi-calendar"></i> יעד: ${escHtml(p['תאריך_יעד'])}</div>`:''}
-        </div>
-      </div>`).join('')}</div>` : '<div class="text-center py-5 text-muted"><i class="bi bi-kanban fs-1"></i><p>אין פרויקטים עדיין.</p></div>';
+    <div id="projects-content"><div class="text-center py-4"><div class="spinner-border"></div></div></div>`;
+  await _shLoadAllBehaviorData();
+  const projs = _shArr(window._projects);
+  const tasks = _shArr(window._tasks);
+  const cont = document.getElementById('projects-content');
+  if (!projs.length) {
+    cont.innerHTML = `<div class="text-center py-5">
+      <div style="font-size:4rem;opacity:0.3">📊</div>
+      <h5 class="text-muted mt-3">אין פרויקטים עדיין</h5>
+      <p class="text-muted">לחץ "פרויקט חדש" כדי ליצור את הראשון.</p>
+    </div>`;
+    return;
   }
-};
-window.forceSyncProjects = async function() {
-  if (typeof pullAllFromSheet === 'function') await pullAllFromSheet();
-  const pr = await api('listProjects', []);
-  window._projects = pr.data || [];
-  renderProjects();
+  cont.innerHTML = `<div class="row g-3">${projs.map(p => {
+    const linked = tasks.filter(t => String(t['פרויקט_מזהה'])===String(p['מזהה']));
+    const done = linked.filter(t => t['סטטוס']==='הושלם').length;
+    const pct = linked.length ? Math.round(done/linked.length*100) : 0;
+    return `<div class="col-md-6">
+      <div class="card p-3 h-100" style="cursor:pointer" onclick="if(typeof renderProjectDetails==='function')renderProjectDetails(${p['מזהה']||0})">
+        <div class="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
+          <h5 class="mb-0">${_shEsc(p['שם']||'(ללא שם)')}</h5>
+          <span class="badge bg-${p['סטטוס']==='הושלם'?'success':p['סטטוס']==='בתהליך'?'warning':'info'}">${_shEsc(p['סטטוס']||'')}</span>
+        </div>
+        ${p['תיאור']?`<div class="small text-muted mb-2">${_shEsc(String(p['תיאור']).substring(0,120))}</div>`:''}
+        <div class="d-flex gap-3 small text-muted flex-wrap">
+          ${p['אחראי']?`<span>👤 ${_shEsc(p['אחראי'])}</span>`:''}
+          ${p['תאריך_יעד']?`<span>📅 ${_shEsc(p['תאריך_יעד'])}</span>`:''}
+          <span>📋 ${done}/${linked.length} משימות</span>
+        </div>
+        ${linked.length?`<div class="progress mt-2" style="height:6px"><div class="progress-bar bg-success" style="width:${pct}%"></div></div>`:''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 };
 
-// ============== FORMS-MGMT PAGE (standalone) ==============
+// =========== FORMS MGMT PAGE ===========
 window.renderFormsMgmt = async function() {
   const root = document.getElementById('page-formsMgmt');
   if (!root) return;
@@ -110,58 +115,47 @@ window.renderFormsMgmt = async function() {
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
       <h3 class="mb-0"><i class="bi bi-clipboard-data"></i> ניהול טפסים וחתימות</h3>
+      <button class="btn btn-primary" onclick="if(typeof newFormLink==='function')newFormLink()"><i class="bi bi-plus"></i> צור קישור חתימה</button>
     </div>
-    <div id="forms-mgmt-content"></div>`;
-  if (!window._allStudents || !window._allStudents.length) {
-    const stRes = await api('listStudents', []);
-    window._allStudents = stRes.data || [];
-  }
-  // Reuse renderFormsTab (which includes manager section)
-  if (typeof renderFormsTab === 'function') {
-    renderFormsTab(document.getElementById('forms-mgmt-content'));
-  }
-};
-
-// ============== REMOVE tasks/projects/forms from behavior page tabs ==============
-const _origRenderBehavior = window.renderBehavior;
-window.renderBehavior = async function() {
-  if (_origRenderBehavior) await _origRenderBehavior();
-  // After render, simplify tabs to only events + card
-  setTimeout(() => {
-    const tabs = document.getElementById('behavior-tabs');
-    if (!tabs) return;
-    // Hide tasks/projects/forms tabs - they have their own pages
-    tabs.querySelectorAll('a').forEach(a => {
-      const oc = a.getAttribute('onclick') || '';
-      if (oc.includes("'forms'") || oc.includes("'tasks'") || oc.includes("'projects'")) {
-        a.parentElement.style.display = 'none';
-      }
-    });
-    // Add info notice
-    if (!document.getElementById('beh-page-notice')) {
-      const notice = document.createElement('div');
-      notice.id = 'beh-page-notice';
-      notice.className = 'alert alert-info small d-flex justify-content-between align-items-center';
-      notice.innerHTML = `<div>📌 משימות, פרויקטים וניהול טפסים עברו לדפים נפרדים מהתפריט הראשי. כאן רק אירועי התנהגות + כרטיס תלמיד.</div>`;
-      tabs.parentNode.insertBefore(notice, tabs.nextSibling);
+    <div id="formsMgmt-content"><div class="text-center py-4"><div class="spinner-border"></div></div></div>`;
+  await _shLoadAllBehaviorData();
+  const cont = document.getElementById('formsMgmt-content');
+  // Try to use renderFormsTab; otherwise show simple panel
+  try {
+    if (typeof renderFormsTab === 'function') {
+      renderFormsTab(cont);
+      if (!cont.innerHTML.trim() || cont.querySelector('.spinner-border')) throw 0;
+      return;
     }
-  }, 200);
+  } catch(_) {}
+  // Fallback: load signatures
+  let sigs = window._bfSignatures || [];
+  if (!sigs.length) {
+    try { const r = await api('listSignatures', []); sigs = r.data || []; window._bfSignatures = sigs; } catch(_) {}
+  }
+  cont.innerHTML = `<div class="card p-3 mb-3">
+    <h5>חתימות הורים שתועדו</h5>
+    ${sigs.length ? `<div class="row g-2 mt-2">${sigs.slice(0,30).map(s => `
+      <div class="col-md-6"><div class="card p-2">
+        <strong>${_shEsc(s['סוג']||'')}</strong>
+        <div class="small text-muted">${_shEsc(s['תיאור']||'').substring(0,80)}</div>
+        <div class="small">${_shEsc(s['סטטוס']||'')} · ${_shEsc(s['תאריך']||'')}</div>
+      </div></div>`).join('')}</div>` : '<div class="text-muted">אין חתימות. צור קישור חתימה ראשון.</div>'}
+  </div>`;
 };
 
-// ============== CAMERAS PAGE — basic placeholder so it shows something ==============
+// =========== CAMERAS PAGE ===========
 window.renderCameras = async function() {
   const root = document.getElementById('page-cameras');
   if (!root) return;
   root.innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-camera-video"></i> מצלמות + AI</h3>
-    </div>
-    <div class="card p-4 text-center">
+    <h3><i class="bi bi-camera-video"></i> מצלמות + AI</h3>
+    <div class="card p-4 text-center mt-3">
       <i class="bi bi-camera-video fs-1 text-muted"></i>
-      <p class="mt-3">פאנל ניטור מצלמות AI - בפיתוח. בקרוב יוצג כאן feed מהמצלמות עם ניתוח AI אוטומטי.</p>
-      <div class="small text-muted">המצלמות פעילות במחשב ושומרות דיווחים. גש למחשב כדי לראות.</div>
+      <p class="mt-3">פאנל ניטור מצלמות AI - בפיתוח.</p>
+      <p class="small text-muted">המצלמות פעילות במחשב המקומי ושומרות דיווחים אוטומטיים.</p>
     </div>`;
 };
 
-console.log('%c✅ standalone pages loaded', 'color:#16a34a;font-weight:bold');
+console.log('%c✅ standalone-pages v2 loaded', 'color:#16a34a;font-weight:bold');
