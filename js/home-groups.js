@@ -30,6 +30,10 @@
         }
       });
     });
+    // After distribution, re-apply permission filter
+    if (typeof filterByPermissions === 'function') {
+      try { filterByPermissions(); } catch(_) {}
+    }
     // Leftovers → group 4
     const leftoverTarget = document.getElementById('home-grp4');
     Object.keys(map).forEach(name => {
