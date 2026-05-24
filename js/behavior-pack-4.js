@@ -184,3 +184,53 @@ if (_origRenderBehavior) {
 }
 
 console.log('%c✅ Pack-4 (sbbs 86-95) loaded', 'color:#16a34a;font-weight:bold');
+
+// SBB 96: Birthday/anniversary banner (if any students born this month)
+window.checkBirthdays = function() {
+  const month = new Date().getMonth() + 1;
+  const day = new Date().getDate();
+  const birthdays = (window._allStudents||[]).filter(s => {
+    const dob = s['תאריך לידה'];
+    if (!dob) return false;
+    const d = new Date(dob);
+    return d.getMonth() + 1 === month && d.getDate() === day;
+  });
+  if (!birthdays.length || sessionStorage.getItem('birthday_notified_'+new Date().toISOString().slice(0,10))) return;
+  sessionStorage.setItem('birthday_notified_'+new Date().toISOString().slice(0,10),'1');
+  const names = birthdays.map(s => `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim()).join(', ');
+  setTimeout(() => {
+    if (typeof toast === 'function') toast(`🎂 יום הולדת היום: ${names}`, 'success');
+  }, 3000);
+};
+setTimeout(checkBirthdays, 3000);
+
+// SBB 97: Smooth scroll on hash change
+window.addEventListener('hashchange', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// SBB 98: Right-click context menu disabled (prevents accidental copy of UI)
+// Actually, keep it - users want copy
+// window.addEventListener('contextmenu', (e) => { if (e.target.closest('.btn,.nav-link')) e.preventDefault(); });
+
+// SBB 99: Display total counts in #whats-new sidebar header
+window.addCountsToWhatsNewHeader = function() {
+  const counts = {
+    events: (window._events||[]).length,
+    tasks: (window._tasks||[]).length,
+    projects: (window._projects||[]).length,
+    students: (window._allStudents||[]).filter(s=>(s['סטטוס']||'פעיל')!=='סיים').length,
+  };
+  const header = document.querySelector('#whats-new-sidebar .wn-header');
+  if (header && !header.dataset.counted) {
+    header.dataset.counted = '1';
+    const stats = document.createElement('div');
+    stats.style.cssText = 'font-size:10px;font-weight:normal;margin-top:2px;opacity:0.85';
+    stats.textContent = `${counts.students} תלמידים · ${counts.events} אירועים · ${counts.tasks} משימות · ${counts.projects} פרויקטים`;
+    header.querySelector('h6')?.appendChild(stats);
+  }
+};
+setInterval(addCountsToWhatsNewHeader, 5000);
+
+// SBB 100: Final milestone log
+console.log('%c🎯 100 סבבי שיפור הושלמו במצטבר!', 'color:#dc2626;font-size:16px;font-weight:bold');
