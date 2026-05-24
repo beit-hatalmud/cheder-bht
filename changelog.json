@@ -1,5 +1,75 @@
 [
   {
+    "id": "2026-05-24-30",
+    "date": "2026-05-24",
+    "title": "Pack-3: 20 שיפורים חדשים",
+    "type": "feature",
+    "desc": "זיהוי כפילויות אירועים, התראות משימות יום, hover preview של תלמידים, idle reload, compact mode, daily summary email, ועוד."
+  },
+  {
+    "id": "2026-05-24-29",
+    "date": "2026-05-24",
+    "title": "סיכום יומי במייל",
+    "type": "feature",
+    "desc": "composeDailySummary() פותח Gmail עם סיכום אירועי היום."
+  },
+  {
+    "id": "2026-05-24-28",
+    "date": "2026-05-24",
+    "title": "עריכה מהירה של תיאור",
+    "type": "feature",
+    "desc": "quickEditDescription() עורך תיאור אירוע בpopup קל."
+  },
+  {
+    "id": "2026-05-24-27",
+    "date": "2026-05-24",
+    "title": "Pause polling on hidden tab",
+    "type": "improvement",
+    "desc": "כשהtab לא בפוקוס - המערכת לא בודקת עדכונים. חוסך CPU וbattery."
+  },
+  {
+    "id": "2026-05-24-26",
+    "date": "2026-05-24",
+    "title": "Idle auto-reload",
+    "type": "improvement",
+    "desc": "אחרי 10 דק חוסר פעילות - המערכת מסנכרנת מ-Sheet אוטומטית."
+  },
+  {
+    "id": "2026-05-24-25",
+    "date": "2026-05-24",
+    "title": "Confirm leaving with unsaved",
+    "type": "improvement",
+    "desc": "אזהרה אם מנסים לסגור tab עם שינויים שלא נשמרו."
+  },
+  {
+    "id": "2026-05-24-24",
+    "date": "2026-05-24",
+    "title": "Compact mode",
+    "type": "feature",
+    "desc": "toggleCompactMode() דוחס cards למסכים קטנים."
+  },
+  {
+    "id": "2026-05-24-23",
+    "date": "2026-05-24",
+    "title": "התראת משימות יום",
+    "type": "feature",
+    "desc": "אם יש משימות שעדיין לא הסתיימו והיעד הוא היום - toast עם תזכורת."
+  },
+  {
+    "id": "2026-05-24-22",
+    "date": "2026-05-24",
+    "title": "זיהוי אירועים כפולים",
+    "type": "feature",
+    "desc": "התראה לפני שמירה אם יש אירוע דומה לאותו תלמיד+קטגוריה ב-10 דק אחרונות."
+  },
+  {
+    "id": "2026-05-24-21",
+    "date": "2026-05-24",
+    "title": "Hover על שמות תלמידים",
+    "type": "improvement",
+    "desc": "ריחוף על שם תלמיד מציג כיתה+טלפון."
+  },
+  {
     "id": "2026-05-24-15",
     "date": "2026-05-24",
     "title": "מקש / לחיפוש מהיר",
