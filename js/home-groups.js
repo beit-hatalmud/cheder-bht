@@ -48,5 +48,13 @@
   // Initial
   setTimeout(distribute, 200);
 
+  // Re-run when DOM changes (new tiles added by other scripts)
+  try {
+    const source = document.getElementById('home-tiles-source');
+    if (source && window.MutationObserver) {
+      new MutationObserver(() => setTimeout(distribute, 30)).observe(source, {childList: true});
+    }
+  } catch(_) {}
+
   console.log('%c✅ home-groups.js loaded', 'color:#2563eb;font-weight:bold');
 })();

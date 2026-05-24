@@ -292,6 +292,12 @@ async function promoteAllConfirm() {
 const PERMISSION_AREAS = [
   { key: 'students', label: 'תלמידים', icon: 'bi-people', desc: 'צפייה והוספה של תלמידים' },
   { key: 'behavior', label: 'מעקב התנהגות', icon: 'bi-clipboard-check', desc: 'תיעוד אירועי התנהגות' },
+  { key: 'writing', label: 'מעקב כתיבה', icon: 'bi-pencil-fill', desc: 'דיווחי כתיבה' },
+  { key: 'reading', label: 'קידום קריאה', icon: 'bi-book-half', desc: 'דיווחי קריאה' },
+  { key: 'lessonsKlein', label: 'שיעורים פרטניים', icon: 'bi-mortarboard', desc: 'דיווחי שיעור פרטני' },
+  { key: 'tasks', label: 'משימות צוות', icon: 'bi-list-check', desc: 'ניהול משימות צוות' },
+  { key: 'projects', label: 'פרויקטים', icon: 'bi-kanban', desc: 'ניהול פרויקטים' },
+  { key: 'formsMgmt', label: 'ניהול טפסים', icon: 'bi-clipboard-data', desc: 'יצירת קישורי חתימה ומעקב' },
   { key: 'functioning', label: 'ציוני תפקוד', icon: 'bi-bar-chart-line', desc: 'ציוני תפקוד 1-5' },
   { key: 'tests', label: 'מבחנים', icon: 'bi-pencil-square', desc: 'ציוני מבחנים לפי פרשה' },
   { key: 'medications', label: 'כדורים ורפואי', icon: 'bi-capsule', desc: 'מעקב תרופות' },
@@ -300,15 +306,17 @@ const PERMISSION_AREAS = [
   { key: 'conversations', label: 'שיחות עם תלמידים', icon: 'bi-chat-dots', desc: 'תיעוד שיחות אישיות עם תלמידים' },
   { key: 'calendar', label: 'לוח שנה', icon: 'bi-calendar3', desc: 'תצוגה חודשית' },
   { key: 'classview', label: 'תצוגת כיתה', icon: 'bi-grid-3x3-gap', desc: 'מבט-על על כיתה' },
+  { key: 'cameras', label: 'מצלמות AI', icon: 'bi-camera-video', desc: 'ניטור מצלמות וסיכומים' },
   { key: 'reports', label: 'דוחות וייצוא', icon: 'bi-file-earmark-pdf', desc: 'דוחות, PDF, מייל להורים' },
-  { key: 'settings', label: 'ניהול משתמשים', icon: 'bi-gear', desc: 'הוספה ועריכה של משתמשים' },
+  { key: 'staff', label: 'ניהול צוות', icon: 'bi-people-fill', desc: 'רשימת רבנים ופרטים אישיים' },
+  { key: 'settings', label: 'הגדרות והרשאות', icon: 'bi-gear', desc: 'הוספה ועריכה של משתמשים' },
 ];
 
 const ROLE_DEFAULTS = {
-  'מנהל': ['students','behavior','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','reports','settings'],
-  'רב': ['students','behavior','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','reports'],
-  'מורה': ['students','behavior','functioning','attendance','conversations','classview','calendar'],
-  'מזכירות': ['students','meetings','reports','attendance','calendar'],
+  'מנהל': ['students','behavior','writing','reading','lessonsKlein','tasks','projects','formsMgmt','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','cameras','reports','staff','settings'],
+  'רב': ['students','behavior','writing','reading','lessonsKlein','functioning','tests','medications','attendance','meetings','conversations','calendar','classview','reports'],
+  'מורה': ['students','behavior','writing','reading','functioning','attendance','conversations','classview','calendar'],
+  'מזכירות': ['students','meetings','reports','attendance','calendar','formsMgmt'],
   'קריאה בלבד': ['students','classview','calendar'],
   'מותאם אישית': [],
 };
@@ -386,6 +394,9 @@ function addUserModal() {
           <label class="form-label">תפקיד <span class="text-danger">*</span></label>
           <select id="nu-role" class="form-select">
             ${Object.keys(ROLE_DEFAULTS).map(r => `<option value="${r}">${r}</option>`).join('')}
+            <optgroup label="—— תפקידי רב ——">
+              ${['הרב יודלוב','הרב קליין','הרב ירושלמי','הרב שניידר','הרב סורוצקין','הרב ארלנגר','הרב פרידלנדר','הרב וינברג','הרב קלצקין','הרב רוקמיל','הרב הינמן','הרב לינצנר','הרב יגר','הרב גולדברג','הרב גליק','הרב ולפסון'].map(r => `<option value="${r}">${r}</option>`).join('')}
+            </optgroup>
           </select>
         </div>
         <div class="col-md-6">
@@ -514,7 +525,7 @@ function addUserModal() {
 
   function updatePerms(){
     const role = document.getElementById('nu-role').value;
-    const defaults = ROLE_DEFAULTS[role] || [];
+    const defaults = ROLE_DEFAULTS[role] || (role.startsWith('הרב') ? ROLE_DEFAULTS['רב'] : []) || [];
     PERMISSION_AREAS.forEach(a => {
       document.getElementById('perm-' + a.key).checked = defaults.includes(a.key);
     });
