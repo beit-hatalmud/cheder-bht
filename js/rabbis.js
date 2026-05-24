@@ -7,38 +7,41 @@ window.RABBIS = {
   lessons:  ['הרב יודלוב', 'הרב קליין', 'הרב ירושלמי', 'הרב שניידר', 'הרב סורוצקין', 'הרב ארלנגר', 'הרב פרידלנדר', 'הרב וינברג', 'הרב קלצקין', 'הרב רוקמיל', 'הרב הינמן', 'הרב לינצנר', 'הרב יגר', 'הרב גולדברג', 'הרב גליק', 'הרב ולפסון', 'אחר'],
 };
 
-// מיפוי משתמש → רב. ניתן לעדכן בהגדרות.
+// מיפוי משתמש → רב. כעת כל המשתמשים בעברית.
 window.USER_TO_RABBI = (() => {
   try {
     const stored = JSON.parse(localStorage.getItem('bht_user_rabbi_map') || '{}');
     return Object.assign({
-      'yudlov': 'הרב יודלוב',
-      'klein': 'הרב קליין',
-      'yerushalmi': 'הרב ירושלמי',
-      'shneider': 'הרב שניידר',
-      'sorotzkin': 'הרב סורוצקין',
-      'erlanger': 'הרב ארלנגר',
-      'friedlander': 'הרב פרידלנדר',
-      'weinberg': 'הרב וינברג',
-      'klatzkin': 'הרב קלצקין',
-      'rockmill': 'הרב רוקמיל',
-      'hineman': 'הרב הינמן',
-      'linzner': 'הרב לינצנר',
-      'yagar': 'הרב יגר',
-      'goldberg': 'הרב גולדברג',
-      'glick': 'הרב גליק',
-      'wolfson': 'הרב ולפסון',
+      'יודלוב': 'הרב יודלוב',
+      'קליין': 'הרב קליין',
+      'ירושלמי': 'הרב ירושלמי',
+      'שניידר': 'הרב שניידר',
+      'סורוצקין': 'הרב סורוצקין',
+      'מרדכי': 'הרב ארלנגר',
+      'ארלנגר': 'הרב ארלנגר',
+      'פרידלנדר': 'הרב פרידלנדר',
+      'שמואל': 'הרב פרידלנדר',
+      'צבי': 'הרב וינברג',
+      'וינברג': 'הרב וינברג',
+      'קלצקין': 'הרב קלצקין',
+      'רוקמיל': 'הרב רוקמיל',
+      'הינמן': 'הרב הינמן',
+      'לינצנר': 'הרב לינצנר',
+      'יגר': 'הרב יגר',
+      'גולדברג': 'הרב גולדברג',
+      'גליק': 'הרב גליק',
+      'ולפסון': 'הרב ולפסון',
     }, stored);
   } catch { return {}; }
 })();
 
 window.currentRabbi = function() {
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
-  const u = (sess.username || '').toLowerCase();
+  const u = sess.username || '';
   if (window.USER_TO_RABBI[u]) return window.USER_TO_RABBI[u];
-  // אם השם כולל את שם הרב (לדוגמה "yudlov" או "klein") - לזהות
+  // התאמה חלקית - אם השם כולל את שם הרב
   for (const [uname, rabbi] of Object.entries(window.USER_TO_RABBI)) {
-    if (u.includes(uname.toLowerCase())) return rabbi;
+    if (u.includes(uname) || uname.includes(u)) return rabbi;
   }
   return '';
 };
