@@ -486,30 +486,34 @@ async function viewStudent(id) {
         const reading = events.filter(e => e['קטגוריה'] === 'קידום קריאה');
         const writing = events.filter(e => e['קטגוריה'] === 'קידום כתיבה');
         // Lessons live in dedicated tab (loaded separately on tab open) — show 0 count for now
-        window._stuExtraSections = {reading, writing, klein: [], yodlov: []};
+        window._stuExtraSections = {reading, writing, lessons: []};
         // Update reading+writing KPI immediately
         setTimeout(() => {
           const rwNum = document.getElementById('kpi-rw-num');
           if (rwNum) rwNum.textContent = String(reading.length + writing.length);
         }, 50);
-        // Async fetch lessons for this student to populate Klein/Yodlov tabs + KPI
-        if (typeof fetchLessons === 'function') {
-          fetchLessons(false).then(all => {
-            const k = all.filter(l => String(l['רב']||'') === 'הרב קליין' && String(l['תלמיד_מזהה']) === String(id));
-            const y = all.filter(l => String(l['רב']||'') === 'הרב יודלוב' && String(l['תלמיד_מזהה']) === String(id));
-            const kc = document.querySelector('a[href="#stu-tab-klein"]');
-            const yc = document.querySelector('a[href="#stu-tab-yodlov"]');
-            if (kc) kc.textContent = `🎓 קליין (${k.length})`;
-            if (yc) yc.textContent = `🎓 יודלוב (${y.length})`;
-            const lsNum = document.getElementById('kpi-lessons-num');
-            if (lsNum) lsNum.textContent = String(k.length + y.length);
-            const kp = document.getElementById('stu-tab-klein');
-            const yp = document.getElementById('stu-tab-yodlov');
-            const renderL = (items, title) => items.length ? items.sort((a,b)=>new Date(b['תאריך'])-new Date(a['תאריך'])).map(l => `<div class="card p-2 mb-2"><div class="d-flex justify-content-between flex-wrap"><div><strong>${escHtml(l['נושא']||'')}</strong></div><small class="text-muted">${escHtml(new Date(l['תאריך']).toLocaleDateString('he-IL'))}${l['משך']?` · ${escHtml(l['משך'])} דק'`:''}</small></div>${l['תוכן']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(l['תוכן'])}</div>`:''}${l['שיעורי_בית']?`<div class="small mt-1 text-warning">📝 שיעורי בית: ${escHtml(l['שיעורי_בית'])}</div>`:''}${l['רושם']?`<div class="small text-muted">😊 ${escHtml(l['רושם'])}</div>`:''}</div>`).join('') : `<p class="text-muted">אין סיכומי שיעור ${title}.</p>`;
-            if (kp) kp.innerHTML = `<h6 class="mt-2">🎓 שיעורים — הרב קליין</h6>` + renderL(k, 'הרב קליין');
-            if (yp) yp.innerHTML = `<h6 class="mt-2">🎓 שיעורים — הרב יודלוב</h6>` + renderL(y, 'הרב יודלוב');
-          });
-        }
+        // Unified lessons tab: all private lessons (any rabbi), shown with rabbi badge
+        const lessonsAll = events.filter(e => String(e['קטגוריה']||'').startsWith('שיעור פרטני'));
+        window._stuExtraSections.lessons = lessonsAll;
+        setTimeout(() => {
+          const lc = document.querySelector('a[href="#stu-tab-lessons"]');
+          if (lc) lc.textContent = `🎓 שיעורים פרטניים (${lessonsAll.length})`;
+          const lsNum = document.getElementById('kpi-lessons-num');
+          if (lsNum) lsNum.textContent = String(lessonsAll.length);
+          const lp = document.getElementById('stu-tab-lessons');
+          if (lp) {
+            lp.innerHTML = lessonsAll.length
+              ? '<h6 class="mt-2">🎓 שיעורים פרטניים</h6>' + lessonsAll.sort((a,b)=>new Date(b['תאריך'])-new Date(a['תאריך'])).map(l => `<div class="card p-2 mb-2">
+                  <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <div>${l['רב']?`<span class="badge bg-primary">${escHtml(l['רב'])}</span> `:''}<strong>${escHtml(l['תיאור']||l['נושא']||'')}</strong></div>
+                    <small class="text-muted">${l['תאריך']?escHtml(new Date(l['תאריך']).toLocaleDateString('he-IL')):''}</small>
+                  </div>
+                  ${l['הערות']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(l['הערות'])}</div>`:''}
+                  ${l['פירוט']?`<div class="small mt-1 text-success">💡 ${escHtml(l['פירוט'])}</div>`:''}
+                </div>`).join('')
+              : '<p class="text-muted">אין סיכומי שיעור פרטני.</p>';
+          }
+        }, 80);
         return '';
       })()}
       <ul class="nav nav-tabs stu-tabs mt-3" id="stu-tabs">
@@ -517,8 +521,7 @@ async function viewStudent(id) {
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-conversations">שיחות (${conversations.length})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-reading">📖 קריאה (${(window._stuExtraSections||{}).reading?.length||0})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-writing">✏️ כתיבה (${(window._stuExtraSections||{}).writing?.length||0})</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-klein">🎓 קליין (${(window._stuExtraSections||{}).klein?.length||0})</a></li>
-        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-yodlov">🎓 יודלוב (${(window._stuExtraSections||{}).yodlov?.length||0})</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-lessons">🎓 שיעורים פרטניים (${(window._stuExtraSections||{}).lessons?.length||0})</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-profile">פרופיל</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#stu-tab-timeline">טיים-ליין</a></li>
       </ul>
@@ -585,12 +588,13 @@ async function viewStudent(id) {
             <textarea id="sp-learning" class="form-control" rows="3" placeholder="הישגים, קשיים, מוטיבציה...">${escHtml(s['פרופיל_לימודי']||'')}</textarea>
           </div>
         </div>
-        ${['reading','writing','klein','yodlov'].map(key => {
-          const labelMap = {reading:'📖 קידום קריאה', writing:'✏️ קידום כתיבה', klein:'🎓 שיעורים פרטניים — הרב קליין', yodlov:'🎓 שיעורים פרטניים — הרב יודלוב'};
+        ${['reading','writing','lessons'].map(key => {
+          const labelMap = {reading:'📖 קידום קריאה', writing:'✏️ קידום כתיבה', lessons:'🎓 שיעורים פרטניים'};
           const items = (window._stuExtraSections||{})[key] || [];
           const itemsHtml = items.length ? items.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך'])).map(e => {
             const dt = e['תאריך'] ? formatDateBoth(e['תאריך']) : '';
-            return `<div class="card p-2 mb-2"><div class="d-flex justify-content-between align-items-center flex-wrap"><div><strong>${escHtml(e['תיאור']||'')}</strong></div><small class="text-muted">${escHtml(dt)} · ${escHtml(e['דווח_עי']||'')}</small></div>${e['פירוט']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(e['פירוט'])}</div>`:''}</div>`;
+            const rabbiBadge = e['רב'] ? `<span class="badge bg-primary me-1">${escHtml(e['רב'])}</span>` : '';
+            return `<div class="card p-2 mb-2"><div class="d-flex justify-content-between align-items-center flex-wrap"><div>${rabbiBadge}<strong>${escHtml(e['תיאור']||'')}</strong></div><small class="text-muted">${escHtml(dt)} · ${escHtml(e['דווח_עי']||'')}</small></div>${e['פירוט']?`<div class="small mt-1" style="white-space:pre-wrap">${escHtml(e['פירוט'])}</div>`:''}</div>`;
           }).join('') : `<p class="text-muted">אין רשומות ${labelMap[key]}.</p>`;
           return `<div class="tab-pane fade" id="stu-tab-${key}"><h6 class="mt-2">${labelMap[key]}</h6>${itemsHtml}</div>`;
         }).join('')}

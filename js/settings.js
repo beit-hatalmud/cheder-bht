@@ -392,7 +392,7 @@ function addUserModal() {
             <option value="behavior">מעקב התנהגות</option>
             <option value="reading">קידום קריאה</option>
             <option value="writing">מעקב כתיבה</option>
-            <option value="lessonsKlein">שיעורים פרטניים — קליין</option>
+            <option value="lessonsKlein">שיעורים פרטניים</option>
             <option value="functioning">ציוני תפקוד</option>
             <option value="tests">מבחנים</option>
             <option value="medications">רפואי</option>

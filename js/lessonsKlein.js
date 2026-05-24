@@ -33,7 +33,7 @@ async function renderLessonsKlein() {
     api('listBehavior', []),
   ]);
   _lAllStudents = stRes.data || [];
-  _lEvents = (evRes.data || []).filter(e => e['קטגוריה'] === LESSONSKLEIN_CAT);
+  _lEvents = (evRes.data || []).filter(e => (e['קטגוריה'] === LESSONSKLEIN_CAT || e['קטגוריה'] === 'שיעור פרטני קליין' || e['קטגוריה'] === 'שיעור פרטני יודלוב' || String(e['קטגוריה']||'').startsWith('שיעור פרטני')));
   _lEvents.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
   activateViewMode('lessonsKlein');
   fillLessonsKleinFilters();
