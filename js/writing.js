@@ -50,7 +50,6 @@ async function renderWriting() {
   document.getElementById('w-fstudent').onchange = applyWritingPageFilters;
   const fr = document.getElementById('w-frabbi');
   if (fr) {
-    fr.innerHTML = '<option value="">כל הרבנים</option>' + (window.RABBIS?.writing||[]).map(r=>`<option value="${r}">${r}</option>`).join('');
     fr.onchange = applyWritingPageFilters;
   }
   document.getElementById('w-fshiur').onchange = applyWritingPageFilters;

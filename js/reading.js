@@ -43,7 +43,6 @@ async function renderReading() {
   stEl.onchange = applyReadingPageFilters;
   const fr = document.getElementById('r-frabbi');
   if (fr) {
-    fr.innerHTML = '<option value="">כל הרבנים</option>' + (window.RABBIS?.reading||[]).map(r=>`<option value="${r}">${r}</option>`).join('');
     fr.onchange = applyReadingPageFilters;
   }
 }
