@@ -23,6 +23,9 @@ async function renderReading() {
         <input id="r-fstudent" class="form-control" list="r-fstudent-list" placeholder="חפש תלמיד...">
         <datalist id="r-fstudent-list"></datalist>
       </div>
+      <div class="col-md-3">
+        <select id="r-frabbi" class="form-select"><option value="">כל הרבנים</option></select>
+      </div>
     </div>
     <div id="r-list"></div>`;
   const [stRes, evRes] = await Promise.all([
@@ -38,6 +41,11 @@ async function renderReading() {
   const stEl = document.getElementById('r-fstudent');
   stEl.oninput = applyReadingPageFilters;
   stEl.onchange = applyReadingPageFilters;
+  const fr = document.getElementById('r-frabbi');
+  if (fr) {
+    fr.innerHTML = '<option value="">כל הרבנים</option>' + (window.RABBIS?.reading||[]).map(r=>`<option value="${r}">${r}</option>`).join('');
+    fr.onchange = applyReadingPageFilters;
+  }
 }
 
 function fillReadingFilters() {
@@ -45,6 +53,7 @@ function fillReadingFilters() {
 }
 
 function applyReadingPageFilters() {
+  const _rabbi = document.getElementById('r-frabbi')?.value || '';
   let f = _rEvents;
   const sLabel = document.getElementById('r-fstudent').value.trim();
   if (sLabel) {
@@ -56,6 +65,7 @@ function applyReadingPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
+  if (_rabbi) f = f.filter(e => (e['רב']||'') === _rabbi);
   drawReadingEvents(f);
 }
 
@@ -81,7 +91,7 @@ function drawReadingEvents(list) {
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
     return `<div class="card p-3 mb-2 border-warning-subtle">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="badge bg-warning text-dark">קידום קריאה</span> <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
+        <div><span class="badge bg-warning text-dark">קידום קריאה</span> ${e['רב'] ? `<span class="badge bg-primary">${escHtml(e['רב'])}</span>` : ''} <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
@@ -102,6 +112,9 @@ function addReadingModal() {
       <div class="mb-3"><label class="form-label">תלמיד</label>
         <input id="nr-student" class="form-control" list="nr-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
         <datalist id="nr-student-list">${studentsDatalistOptions(_rAllStudents, true)}</datalist>
+      </div>
+      <div class="mb-2"><label class="form-label">רב</label>
+        ${window.rabbiDropdownHTML ? window.rabbiDropdownHTML('reading', '', 'nr') : '<input id="nr-rabbi" class="form-control">'}
       </div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
@@ -141,6 +154,7 @@ async function saveReading(event) {
     'תאריך_עברי': info.hdate,
     'פרשה': info.parsha,
     'דווח_עי': reporter,
+    'רב': document.getElementById('nr-rabbi')?.value || (typeof currentRabbi==='function'?currentRabbi():''),
   };
   const r = await api('addBehavior', [obj]);
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');

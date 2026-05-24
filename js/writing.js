@@ -1,4 +1,4 @@
-// מעקב כתיבה — הרב יודלוב
+// מעקב כתיבה
 // מבנה Yudlov: שיעור (ב/ג), תאריך, עבודה_על, הערות, הארות
 // נשמר באותה טבלת אירועים (מעקב_התנהגות) עם קטגוריה 'קידום כתיבה',
 // כדי שיופיע גם במעקב הכללי.
@@ -10,7 +10,7 @@ async function renderWriting() {
   document.getElementById('page-writing').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h3 class="mb-0"><i class="bi bi-pencil-fill text-success"></i> מעקב כתיבה — הרב יודלוב</h3>
+      <h3 class="mb-0"><i class="bi bi-pencil-fill text-success"></i> מעקב כתיבה</h3>
       <div class="d-flex gap-2 align-items-center">
         ${viewModeToggleHTML('writing')}
         <button class="btn btn-success" onclick="addWritingModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
@@ -20,9 +20,12 @@ async function renderWriting() {
       <i class="bi bi-info-circle"></i> דיווחי כתיבה מופיעים גם במסך "מעקב התנהגות" הכללי.
     </div>
     <div class="row g-2 mb-3">
-      <div class="col-md-6">
+      <div class="col-md-5">
         <input id="w-fstudent" class="form-control" list="w-fstudent-list" placeholder="חפש תלמיד...">
         <datalist id="w-fstudent-list"></datalist>
+      </div>
+      <div class="col-md-2">
+        <select id="w-frabbi" class="form-select"><option value="">כל הרבנים</option></select>
       </div>
       <div class="col-md-3">
         <select id="w-fshiur" class="form-select">
@@ -45,6 +48,11 @@ async function renderWriting() {
   drawWritingEvents(_wEvents);
   document.getElementById('w-fstudent').oninput = applyWritingPageFilters;
   document.getElementById('w-fstudent').onchange = applyWritingPageFilters;
+  const fr = document.getElementById('w-frabbi');
+  if (fr) {
+    fr.innerHTML = '<option value="">כל הרבנים</option>' + (window.RABBIS?.writing||[]).map(r=>`<option value="${r}">${r}</option>`).join('');
+    fr.onchange = applyWritingPageFilters;
+  }
   document.getElementById('w-fshiur').onchange = applyWritingPageFilters;
 }
 
@@ -65,7 +73,9 @@ function applyWritingPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
+  const rabbi = document.getElementById('w-frabbi')?.value || '';
   if (shiur) f = f.filter(e => e['שיעור'] === shiur);
+  if (rabbi) f = f.filter(e => (e['רב']||'') === rabbi);
   drawWritingEvents(f);
 }
 
@@ -90,11 +100,12 @@ function drawWritingEvents(list) {
     const parshaBadge = parsha ? `<span class="badge bg-light text-dark border me-1">פר' ${escHtml(parsha)}</span>` : '';
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
     const shiurBadge = e['שיעור'] ? `<span class="badge bg-info text-dark">שיעור ${escHtml(e['שיעור'])}</span>` : '';
+    const rabbiBadge = e['רב'] ? `<span class="badge bg-primary">${escHtml(e['רב'])}</span>` : '';
     return `<div class="card p-3 mb-2 border-success-subtle">
       <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
         <div>
           <span class="badge bg-success">כתיבה</span>
-          ${shiurBadge}
+          ${shiurBadge}${rabbiBadge}
           <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -116,12 +127,15 @@ function addWritingModal(prefill) {
   const today = new Date().toISOString().slice(0,10);
   const p = prefill || {};
   const html = `<div class="modal fade" id="addWritingModal"><div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5><i class="bi bi-pencil-fill text-success"></i> דיווח כתיבה — הרב יודלוב</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header"><h5><i class="bi bi-pencil-fill text-success"></i> דיווח כתיבה</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="row g-2">
-        <div class="col-md-7"><label class="form-label">תלמיד</label>
+        <div class="col-md-5"><label class="form-label">תלמיד</label>
           <input id="nw-student" class="form-control" list="nw-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off" value="${escAttr(p.student||'')}">
           <datalist id="nw-student-list">${studentsDatalistOptions(_wAllStudents, true)}</datalist>
+        </div>
+        <div class="col-md-2"><label class="form-label">רב</label>
+          ${window.rabbiDropdownHTML ? window.rabbiDropdownHTML('writing', p.rabbi, 'nw') : '<input id="nw-rabbi" class="form-control" value="'+(p.rabbi||'')+'">'}
         </div>
         <div class="col-md-2"><label class="form-label">שיעור</label>
           <select id="nw-shiur" class="form-select">
@@ -167,6 +181,7 @@ async function saveWriting(event) {
   const notes = document.getElementById('nw-notes').value.trim();
   const insight = document.getElementById('nw-insight').value.trim();
   const shiur = document.getElementById('nw-shiur').value;
+  const rabbi = document.getElementById('nw-rabbi')?.value || (typeof currentRabbi==='function'?currentRabbi():'');
   const dateStr = document.getElementById('nw-date').value;
   if (!sid) return alert('יש לבחור תלמיד');
   if (!work && !notes && !insight) return alert('חובה למלא לפחות שדה אחד (עבודה / הערות / הארות)');
@@ -192,6 +207,7 @@ async function saveWriting(event) {
     'תאריך_עברי': info.hdate,
     'פרשה': info.parsha,
     'דווח_עי': reporter,
+    'רב': rabbi,
   };
   const r = await api('addBehavior', [obj]);
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');

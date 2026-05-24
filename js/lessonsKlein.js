@@ -2,14 +2,14 @@
 // (כדי שיופיעו גם במעקב התנהגות הכללי, לפי בקשת יוסי 14.5.26).
 // קטגוריה קבועה: "קידום קריאה".
 
-const LESSONSKLEIN_CAT = 'שיעור פרטני קליין';
+const LESSONSKLEIN_CAT = 'שיעור פרטני';
 let _lEvents = [], _lAllStudents = [];
 
 async function renderLessonsKlein() {
   document.getElementById('page-lessonsKlein').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-      <h3 class="mb-0"><i class="bi bi-mortarboard text-primary"></i> שיעור פרטני קליין</h3>
+      <h3 class="mb-0"><i class="bi bi-mortarboard text-primary"></i> שיעורים פרטניים</h3>
       <div class="d-flex gap-2 align-items-center">
         ${viewModeToggleHTML('lessonsKlein')}
         <button class="btn btn-success" onclick="addLessonsKleinModal()"><i class="bi bi-plus"></i> דיווח חדש</button>
@@ -22,6 +22,9 @@ async function renderLessonsKlein() {
       <div class="col-md-6">
         <input id="l-fstudent" class="form-control" list="l-fstudent-list" placeholder="חפש תלמיד...">
         <datalist id="l-fstudent-list"></datalist>
+      </div>
+      <div class="col-md-3">
+        <select id="l-frabbi" class="form-select"><option value="">כל הרבנים</option></select>
       </div>
     </div>
     <div id="l-list"></div>`;
@@ -38,6 +41,11 @@ async function renderLessonsKlein() {
   const stEl = document.getElementById('l-fstudent');
   stEl.oninput = applyLessonsKleinPageFilters;
   stEl.onchange = applyLessonsKleinPageFilters;
+  const fr = document.getElementById('l-frabbi');
+  if (fr) {
+    fr.innerHTML = '<option value="">כל הרבנים</option>' + (window.RABBIS?.lessons||[]).map(r=>`<option value="${r}">${r}</option>`).join('');
+    fr.onchange = applyLessonsKleinPageFilters;
+  }
 }
 
 function fillLessonsKleinFilters() {
@@ -45,6 +53,7 @@ function fillLessonsKleinFilters() {
 }
 
 function applyLessonsKleinPageFilters() {
+  const _rabbi = document.getElementById('l-frabbi')?.value || '';
   let f = _lEvents;
   const sLabel = document.getElementById('l-fstudent').value.trim();
   if (sLabel) {
@@ -56,13 +65,14 @@ function applyLessonsKleinPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
+  if (_rabbi) f = f.filter(e => (e['רב']||'') === _rabbi);
   drawLessonsKleinEvents(f);
 }
 
 function drawLessonsKleinEvents(list) {
   const el = document.getElementById('l-list');
   if (!list.length) {
-    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-mortarboard fs-1"></i><p class="mt-2">אין דיווחי שיעור פרטני קליין</p><p class="small">לחץ "דיווח חדש" כדי להתחיל</p></div>';
+    el.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-mortarboard fs-1"></i><p class="mt-2">אין דיווחי שיעור פרטני</p><p class="small">לחץ "דיווח חדש" כדי להתחיל</p></div>';
     return;
   }
   el.innerHTML = list.map(e => {
@@ -81,7 +91,7 @@ function drawLessonsKleinEvents(list) {
     const hdateBadge = hdate ? `<span class="badge bg-light text-dark border">${escHtml(hdate)}</span>` : '';
     return `<div class="card p-3 mb-2 border-warning-subtle">
       <div class="d-flex justify-content-between flex-wrap gap-2">
-        <div><span class="badge bg-warning text-dark">קידום קריאה</span> <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
+        <div><span class="badge bg-info text-light">שיעור פרטני</span> ${e['רב'] ? `<span class="badge bg-primary">${escHtml(e['רב'])}</span>` : ''} <strong class="mx-2">${escHtml(e['שם תלמיד']||'')}</strong></div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
           ${parshaBadge}${hdateBadge}
           <small class="text-muted">${rel ? `<span class="badge bg-secondary-subtle text-secondary-emphasis border ms-1">${escHtml(rel)}</span>` : ''}${escHtml(date)}</small>
@@ -102,6 +112,9 @@ function addLessonsKleinModal() {
       <div class="mb-3"><label class="form-label">תלמיד</label>
         <input id="nr-student" class="form-control" list="nr-student-list" placeholder="הקלד שם תלמיד..." autocomplete="off">
         <datalist id="nr-student-list">${studentsDatalistOptions(_lAllStudents, true)}</datalist>
+      </div>
+      <div class="mb-2"><label class="form-label">רב</label>
+        ${window.rabbiDropdownHTML ? window.rabbiDropdownHTML('lessons', '', 'nr') : '<input id="nr-rabbi" class="form-control">'}
       </div>
       <div class="mb-3"><label class="form-label">תיאור הקריאה</label><textarea id="nr-desc" class="form-control" rows="4" placeholder="פסוקים שנקראו, רמת ביצוע, הערות..."></textarea></div>
     </div>
@@ -141,6 +154,7 @@ async function saveLessonsKlein(event) {
     'תאריך_עברי': info.hdate,
     'פרשה': info.parsha,
     'דווח_עי': reporter,
+    'רב': document.getElementById('nr-rabbi')?.value || (typeof currentRabbi==='function'?currentRabbi():''),
   };
   const r = await api('addBehavior', [obj]);
   if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');
