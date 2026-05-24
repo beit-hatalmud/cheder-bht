@@ -14,19 +14,17 @@ window.renderTasks = async function() {
         <button class="btn btn-success" onclick="addTaskModal()"><i class="bi bi-plus"></i> משימה חדשה</button>
       </div>
     </div>
-    <div id="tasks-page-content"></div>`;
-  // Make sure data is loaded
-  if (!window._allStudents || !window._allStudents.length) {
-    const stRes = await api('listStudents', []);
+    <div id="tasks-page-content"><div class="text-center py-4"><div class="spinner-border"></div> טוען...</div></div>`;
+  // Always load fresh
+  try {
+    const [stRes, tRes] = await Promise.all([api('listStudents',[]), api('listTasks',[])]);
     window._allStudents = stRes.data || [];
-  }
-  if (!window._tasks || !window._tasks.length) {
-    const tr = await api('listTasks', []);
-    window._tasks = tr.data || [];
-  }
-  // Reuse renderTasksTab logic - pass the local container
+    window._tasks = tRes.data || [];
+  } catch(e) {}
   if (typeof renderTasksTab === 'function') {
     renderTasksTab(document.getElementById('tasks-page-content'));
+  } else {
+    document.getElementById('tasks-page-content').innerHTML = '<div class="alert alert-warning">renderTasksTab לא נטען. רענן את הדף.</div>';
   }
 };
 window.forceSyncTasks = async function() {
@@ -49,17 +47,17 @@ window.renderProjects = async function() {
         <button class="btn btn-success" onclick="addProjectModal()"><i class="bi bi-plus"></i> פרויקט חדש</button>
       </div>
     </div>
-    <div id="projects-page-content"></div>`;
-  if (!window._tasks || !window._tasks.length) {
-    const tr = await api('listTasks', []);
-    window._tasks = tr.data || [];
-  }
-  if (!window._projects || !window._projects.length) {
-    const pr = await api('listProjects', []);
-    window._projects = pr.data || [];
-  }
+    <div id="projects-page-content"><div class="text-center py-4"><div class="spinner-border"></div> טוען...</div></div>`;
+  try {
+    const [stRes, tRes, pRes] = await Promise.all([api('listStudents',[]), api('listTasks',[]), api('listProjects',[])]);
+    window._allStudents = stRes.data || [];
+    window._tasks = tRes.data || [];
+    window._projects = pRes.data || [];
+  } catch(e) {}
   if (typeof renderProjectsTab === 'function') {
     renderProjectsTab(document.getElementById('projects-page-content'));
+  } else {
+    document.getElementById('projects-page-content').innerHTML = '<div class="alert alert-warning">renderProjectsTab לא נטען.</div>';
   }
 };
 window.forceSyncProjects = async function() {
