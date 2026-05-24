@@ -65,7 +65,7 @@ function applyReadingPageFilters() {
       f = f.filter(e => String(e['שם תלמיד']||'').toLowerCase().includes(lc));
     }
   }
-  if (_rabbi) f = f.filter(e => (e['רב']||'') === _rabbi);
+  if (_rabbi) f = f.filter(e => (e['רב']||'') === _rabbi || (e['דווח_עי']||'') === _rabbi);
   drawReadingEvents(f);
 }
 

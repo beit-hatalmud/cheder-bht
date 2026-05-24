@@ -75,7 +75,7 @@ function applyWritingPageFilters() {
   }
   const rabbi = document.getElementById('w-frabbi')?.value || '';
   if (shiur) f = f.filter(e => e['שיעור'] === shiur);
-  if (rabbi) f = f.filter(e => (e['רב']||'') === rabbi);
+  if (rabbi) f = f.filter(e => (e['רב']||'') === rabbi || (e['דווח_עי']||'') === rabbi);
   drawWritingEvents(f);
 }
 
