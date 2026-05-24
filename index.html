@@ -58,7 +58,42 @@
   </div>
 
   <div id="page-home" class="d-none">
-    <div class="row g-3 mt-2">
+    <style>
+      .home-group { margin-top: 1.5rem; }
+      .home-group-title { font-size:1.1rem;font-weight:bold;color:#1e293b;border-right:4px solid #2563eb;padding-right:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px }
+      .home-group .card-tile { transition: transform .15s }
+      .home-group .card-tile:hover { transform: scale(1.02) }
+      .home-group-1 .home-group-title { border-color:#2563eb }
+      .home-group-2 .home-group-title { border-color:#16a34a }
+      .home-group-3 .home-group-title { border-color:#dc2626 }
+      .home-group-4 .home-group-title { border-color:#7c3aed }
+    </style>
+
+    <!-- קבוצה 1: תלמידים ומעקבים -->
+    <div class="home-group home-group-1">
+      <div class="home-group-title"><i class="bi bi-people"></i> תלמידים ומעקבים</div>
+      <div class="row g-3" id="home-grp1"></div>
+    </div>
+
+    <!-- קבוצה 2: ניהול וביצועים -->
+    <div class="home-group home-group-2">
+      <div class="home-group-title"><i class="bi bi-kanban"></i> ניהול וביצועים</div>
+      <div class="row g-3" id="home-grp2"></div>
+    </div>
+
+    <!-- קבוצה 3: אסיפות, שיחות, רפואי -->
+    <div class="home-group home-group-3">
+      <div class="home-group-title"><i class="bi bi-people-fill"></i> אסיפות הורים ושיחות</div>
+      <div class="row g-3" id="home-grp3"></div>
+    </div>
+
+    <!-- קבוצה 4: יתר הכלים -->
+    <div class="home-group home-group-4">
+      <div class="home-group-title"><i class="bi bi-three-dots"></i> כלים נוספים</div>
+      <div class="row g-3" id="home-grp4"></div>
+    </div>
+
+    <div class="row g-3 mt-2" id="home-tiles-source" style="display:none">
       <div class="col-md-6 col-lg-3">
         <div class="card card-tile" onclick="goto('students')">
           <i class="bi bi-people fs-1 text-primary"></i>
@@ -381,6 +416,7 @@
 <script src="js/behavior-pack-8.js?v=20260524k"></script>
 <script src="js/reading.js?v=20260524c"></script>
 <script src="js/rabbis.js?v=20260524a"></script>
+<script src="js/home-groups.js?v=20260524a"></script>
 <script src="js/writing.js?v=20260524c"></script>
 <script src="js/lessonsKlein.js?v=20260524d"></script>
 <script src="js/forms.js?v=20260521b"></script>
