@@ -1,5 +1,12 @@
 [
   {
+    "id": "2026-05-24-71",
+    "date": "2026-05-24",
+    "title": "Pack-7: 130 סבבים במצטבר",
+    "type": "feature",
+    "desc": "right-click menu על אירועים, color-coded categories, glow לאירועי היום, סופר תלמידים בכותרת, time formatting."
+  },
+  {
     "id": "2026-05-24-70",
     "date": "2026-05-24",
     "title": "Pack-6: 10 שיפורים נוספים",
