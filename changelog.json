@@ -1,5 +1,12 @@
 [
   {
+    "id": "2026-05-24-70",
+    "date": "2026-05-24",
+    "title": "Pack-6: 10 שיפורים נוספים",
+    "type": "feature",
+    "desc": "sticky filters, page transitions, last-saved indicator, severity icons, bulk export menu, daily digest (אימייל+WhatsApp)."
+  },
+  {
     "id": "2026-05-24-69",
     "date": "2026-05-24",
     "title": "Pack-5: 10 שיפורי UX",
