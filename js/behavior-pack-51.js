@@ -149,3 +149,21 @@
   `;
   document.head.appendChild(overflowFix);
 })();
+// ===== FIX 10: Convert whats-new-sidebar from negative left to transform =====
+setTimeout(() => {
+  const sidebar = document.getElementById('whats-new-sidebar');
+  if (sidebar) {
+    sidebar.style.left = '0';
+    sidebar.style.right = 'auto';
+    sidebar.style.transform = sidebar.classList.contains('show') ? 'translateX(0)' : 'translateX(-110%)';
+    sidebar.style.transition = 'transform 0.3s';
+  }
+}, 1500);
+setInterval(() => {
+  const sidebar = document.getElementById('whats-new-sidebar');
+  if (sidebar && sidebar.style.left !== '0px') {
+    sidebar.style.left = '0';
+    sidebar.style.right = 'auto';
+    sidebar.style.transform = sidebar.classList.contains('show') ? 'translateX(0)' : 'translateX(-110%)';
+  }
+}, 5000);
