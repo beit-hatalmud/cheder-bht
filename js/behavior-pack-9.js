@@ -81,14 +81,8 @@ if (_origRenderStaff) {
   });
 })();
 
-// BUG 17: prevent navigation when modal open (Esc closes modal first)
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    if (document.querySelectorAll('.modal.show').length) {
-      e.stopPropagation();
-    }
-  }
-}, true);
+// BUG 17 FIXED: allow Esc to bubble so Bootstrap modal can handle it.
+// (was: stopPropagation which broke Bootstrap modal close)
 
 // BUG 18: T.Z. validation
 window.validateIsraeliTZ = function (id) {
