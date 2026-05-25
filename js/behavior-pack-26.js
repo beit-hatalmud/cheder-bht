@@ -11,7 +11,7 @@
       border-radius: 4px;
     }
     .skip-link {
-      position: absolute; left: -9999px; top: 8px; z-index: 99999;
+      position: absolute; right: 8px; top: 8px; transform: translateY(-200%); z-index: 99999;
       background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 4px;
     }
     .skip-link:focus { left: 16px; }
@@ -34,7 +34,7 @@
     _liveRegion.id = 'a11y-live';
     _liveRegion.setAttribute('aria-live', 'polite');
     _liveRegion.setAttribute('aria-atomic', 'true');
-    _liveRegion.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px';
+    _liveRegion.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;padding:0;margin:-1px';
     document.body.appendChild(_liveRegion);
   }
 
