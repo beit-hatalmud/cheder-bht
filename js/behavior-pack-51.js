@@ -132,3 +132,20 @@
   // ===== FIX 8: Console badge =====
   console.warn('%c🧹 Pack-51 — UI cleanup: removed duplicate buttons, limit notifs to 10, prevent overlap', 'color:#16a34a;font-weight:bold');
 })();
+
+// ===== FIX 9: Prevent horizontal scroll from whats-new-sidebar =====
+(function () {
+  const overflowFix = document.createElement('style');
+  overflowFix.textContent = `
+    html, body { overflow-x: hidden !important; max-width: 100vw !important; }
+    #whats-new-sidebar {
+      transition: transform 0.3s ease;
+      transform: translateX(0);
+    }
+    #whats-new-sidebar:not(.show) {
+      transform: translateX(100%) !important;
+      pointer-events: none;
+    }
+  `;
+  document.head.appendChild(overflowFix);
+})();
