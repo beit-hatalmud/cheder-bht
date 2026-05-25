@@ -2,6 +2,22 @@
 (function () {
   'use strict';
 
+  // FORCE HIDE all old floating buttons with permanent CSS
+  const forceHide = document.createElement('style');
+  forceHide.id = 'force-hide-floaters-v2';
+  forceHide.textContent = `
+    #lang-switch, #help-btn, #quick-filters-bar,
+    #voice-cmd-btn, #notif-bell, #quick-action-fab,
+    #theme-btn, #reminder-btn, #quick-add-fab,
+    #active-users-badge, #home-lb-btn, #a11y-toolbar,
+    button[style*="position:fixed"][style*="top:10px"],
+    button[style*="position:fixed"][style*="top:40px"],
+    div[style*="position:fixed"][style*="top:48px"][style*="right:14px"] { display: none !important; visibility: hidden !important; }
+    /* Only master-fab visible */
+    #master-fab { display: flex !important; visibility: visible !important; }
+  `;
+  document.head.appendChild(forceHide);
+
   // ===== FIX 1: Remove duplicate moon (lang-switch) + ? (help) buttons - merged into master-fab =====
   const HIDE_PERM = ['lang-switch', 'help-btn', 'quick-filters-bar', 'sf-show-btn'];
 
