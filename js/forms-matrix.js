@@ -8,9 +8,9 @@ const FMX_SCRIPT = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-
 window._fmxMatrices = {};  // {tplKey: {studentId: {filled:bool, custom:{...}}}}
 
 // Hook into existing forms-mgmt: add a "Matrix" button per template
-const _origRenderFormsTab = window.renderFormsTab;
+window._origRenderFormsTabFM = window._origRenderFormsTabFM || window.renderFormsTab;
 window.renderFormsTab = async function(rootEl) {
-  if (_origRenderFormsTab) await _origRenderFormsTab(rootEl);
+  if (window._origRenderFormsTabFM) await window._origRenderFormsTabFM(rootEl);
   // After main render, inject matrix section
   setTimeout(injectMatrixSection, 300);
 };

@@ -253,18 +253,6 @@ console.log('%c🎓 בית התלמוד - מעקב התנהגות v2.0%c\n%cנט
 );
 
 // SBB 35: Help button + shortcuts modal
-(function injectHelpButton() {
-  if (document.getElementById('bht-help-btn')) return;
-  const btn = document.createElement('button');
-  btn.id = 'bht-help-btn';
-  btn.title = 'עזרה (?)';
-  btn.style.cssText = 'position:fixed;top:14px;left:60px;width:36px;height:36px;border-radius:50%;border:1px solid #d1d5db;background:#fff;cursor:pointer;font-size:16px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.1)';
-  btn.innerHTML = '?';
-  btn.onclick = showHelp;
-  if (document.readyState !== 'loading') document.body.appendChild(btn);
-  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
-})();
-
 window.showHelp = function() {
   const html = `<div class="modal fade" id="help-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff">
@@ -299,7 +287,21 @@ window.showHelp = function() {
   document.body.insertAdjacentHTML('beforeend', html);
   const m = document.getElementById('help-modal');
   new bootstrap.Modal(m).show();
-  m.addEventListener('hidden.bs.modal', () => cleanupModal('help-modal'), { once: true });
+  m.addEventListener('hidden.bs.modal', () => cleanupModal('help-modal'), { once: true }
+
+(function injectHelpButton() {
+  if (document.getElementById('bht-help-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'bht-help-btn';
+  btn.title = 'עזרה (?)';
+  btn.style.cssText = 'position:fixed;top:14px;left:60px;width:36px;height:36px;border-radius:50%;border:1px solid #d1d5db;background:#fff;cursor:pointer;font-size:16px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.1)';
+  btn.innerHTML = '?';
+  btn.onclick = showHelp;
+  if (document.readyState !== 'loading') document.body.appendChild(btn);
+  else document.addEventListener('DOMContentLoaded', () => document.body.appendChild(btn));
+})();
+
+);
 };
 
 document.addEventListener('keydown', (e) => {

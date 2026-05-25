@@ -86,8 +86,8 @@
     _installPrompt = null;
   };
 
-  // ===== 4. Web App Manifest (inject) =====
-  if (!document.querySelector('link[rel="manifest"]')) {
+  // ===== 4. Web App Manifest (inject) - DISABLED due to CSP restrictions =====
+  if (false && !document.querySelector('link[rel="manifest"]')) {
     const manifest = {
       name: 'בית התלמוד',
       short_name: 'BHT',

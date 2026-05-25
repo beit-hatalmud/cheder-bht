@@ -133,15 +133,16 @@
   });
 
   // ===== 9. Defer non-critical scripts (already loaded - log timing) =====
-  if (window.performance && performance.timing) {
+  if (window.performance && performance.now) {
     setTimeout(() => {
-      const t = performance.timing;
-      const loadTime = t.loadEventEnd - t.navigationStart;
-      const domTime = t.domContentLoadedEventEnd - t.navigationStart;
-      if (loadTime > 5000) {
-        console.warn(`[perf] slow load: ${loadTime}ms DOM, total ${loadTime}ms`);
-      } else {
-        console.info(`[perf] load: ${domTime}ms DOM, ${loadTime}ms total`);
+      const navEntries = performance.getEntriesByType ? performance.getEntriesByType('navigation') : [];
+      if (navEntries.length) {
+        const nav = navEntries[0];
+        const loadTime = nav.loadEventEnd - nav.startTime;
+        const domTime = nav.domContentLoadedEventEnd - nav.startTime;
+        if (loadTime > 0 && loadTime < 60000) {
+          console.info(`[perf] load: ${Math.round(domTime)}ms DOM, ${Math.round(loadTime)}ms total`);
+        }
       }
     }, 1000);
   }
