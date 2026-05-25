@@ -104,9 +104,9 @@ function whatsNewInit() {
   loadWhatsNew().then(() => {
     whatsNewToggleBadge();
     // Auto-open on first load if there are unseen items
-    if (whatsNewUnseenCount() > 0 && !sessionStorage.getItem('wn_auto_opened')) {
+    if (false && whatsNewUnseenCount() > 0 && !sessionStorage.getItem('wn_auto_opened')) {
       sessionStorage.setItem('wn_auto_opened', '1');
-      setTimeout(() => toggleWhatsNew(true), 1500);
+      // AUTO-OPEN DISABLED - user opens via FAB
     }
   });
 }

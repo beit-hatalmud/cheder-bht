@@ -167,3 +167,36 @@ setInterval(() => {
     sidebar.style.transform = sidebar.classList.contains('show') ? 'translateX(0)' : 'translateX(-110%)';
   }
 }, 5000);
+
+// ===== FIX 11: Close whats-new sidebar reliably =====
+(function () {
+  // Force-close on load
+  setTimeout(() => {
+    document.getElementById('whats-new-sidebar')?.classList.remove('open');
+    sessionStorage.setItem('wn_auto_opened', '1');
+  }, 500);
+
+  // Esc key closes
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const sb = document.getElementById('whats-new-sidebar');
+      if (sb && sb.classList.contains('open')) {
+        sb.classList.remove('open');
+      }
+    }
+  });
+
+  // Click outside closes
+  document.addEventListener('click', e => {
+    const sb = document.getElementById('whats-new-sidebar');
+    if (!sb || !sb.classList.contains('open')) return;
+    if (sb.contains(e.target)) return;
+    if (e.target.closest('#whats-new-fab')) return;
+    sb.classList.remove('open');
+  });
+
+  // Periodic backup close if user reports stuck
+  if (location.search.includes('closeAll')) {
+    document.getElementById('whats-new-sidebar')?.classList.remove('open');
+  }
+})();
