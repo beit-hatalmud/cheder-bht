@@ -101,7 +101,7 @@
             preview.innerHTML = `<div class="alert alert-info">נטענו ${parsedRows.length} רשומות</div>`;
             goBtn.disabled = false;
           } catch (err) {
-            preview.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+            preview.innerHTML = `<div class="alert alert-danger">${escHtml(err.message)}</div>`;
           }
         });
       } else {

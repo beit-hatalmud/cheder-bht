@@ -218,7 +218,7 @@ window.showUndoToast = function(type) {
   el = document.createElement('div');
   el.id = 'undo-toast';
   el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1f2937;color:#fff;padding:12px 16px;border-radius:10px;display:flex;gap:12px;align-items:center;z-index:9999;font-family:Heebo,Arial;direction:rtl;box-shadow:0 8px 24px rgba(0,0,0,0.3)';
-  el.innerHTML = `<span>${type} נמחק</span> <button onclick="bhtUndo()" style="background:#3b82f6;color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit">בטל</button>`;
+  el.innerHTML = `<span>${escHtml(type)} נמחק</span> <button onclick="bhtUndo()" style="background:#3b82f6;color:#fff;border:0;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:inherit">בטל</button>`;
   document.body.appendChild(el);
   setTimeout(() => el?.remove(), 5000);
 };
