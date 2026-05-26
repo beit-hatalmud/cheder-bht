@@ -3,9 +3,11 @@
   'use strict';
 
   const STORAGE_KEY = 'cameras_live_url';
+  // Default Cloudflare Tunnel URL (Quick Tunnel — temporary, replace with named tunnel for production)
+  const DEFAULT_URL = 'https://pressure-experts-rescue-subscribers.trycloudflare.com';
 
   function getLiveUrl() {
-    return localStorage.getItem(STORAGE_KEY) || '';
+    return localStorage.getItem(STORAGE_KEY) || DEFAULT_URL || '';
   }
   function setLiveUrl(u) {
     if (u) localStorage.setItem(STORAGE_KEY, u);
@@ -32,17 +34,26 @@
         ${isAdmin ? `<button class="btn btn-sm btn-outline-primary ms-auto" onclick="window.openCamerasConfig()"><i class="bi bi-gear"></i> הגדרת URL</button>` : ''}
       </div>
       ${url ? `
-        <div class="ratio ratio-16x9" style="background:#000;border-radius:8px;overflow:hidden">
-          <iframe src="${escAttrLocal(url)}" allow="autoplay; fullscreen" allowfullscreen frameborder="0" style="border:0;width:100%;height:100%"></iframe>
-        </div>
-        <div class="mt-3 d-flex gap-2">
-          <button class="btn btn-outline-secondary btn-sm" onclick="document.querySelector('#page-cameras iframe').src = document.querySelector('#page-cameras iframe').src">
-            <i class="bi bi-arrow-clockwise"></i> רענן
-          </button>
-          <a class="btn btn-outline-primary btn-sm" href="${escAttrLocal(url)}" target="_blank">
-            <i class="bi bi-box-arrow-up-right"></i> פתח בחלון חדש
+        <div class="card p-4 text-center mb-3" style="background:linear-gradient(135deg,#1e3a8a 0%,#3b82f6 100%);color:#fff">
+          <i class="bi bi-broadcast fs-1 mb-2"></i>
+          <h4>מצלמות המכינה - לייב</h4>
+          <p class="mb-3">DVR/NVR ב-LAN הפנימי, נחשף ב-HTTPS דרך Cloudflare Tunnel</p>
+          <a class="btn btn-light btn-lg" href="${escAttrLocal(url)}" target="_blank" rel="noopener">
+            <i class="bi bi-box-arrow-up-right"></i> פתח את כל המצלמות
           </a>
-          <span class="ms-auto small text-muted">מקור: ${escAttrLocal(url.replace(/^https?:\/\//,'').split('/')[0])}</span>
+          <div class="mt-2 small" style="opacity:.85">⚠ דורש התחברות ל-DVR (admin/סיסמה)</div>
+        </div>
+        <div class="alert alert-warning small">
+          <b>למה לא inline?</b> ה-DVR שולח <code>X-Frame-Options: SAMEORIGIN</code> שחוסם הטמעה. הקישור למעלה פותח בחלון חדש.
+        </div>
+        <details class="mb-3">
+          <summary class="text-muted small">נסיון Inline (סביר שיוצג ריק)</summary>
+          <div class="ratio ratio-16x9 mt-2" style="background:#000;border-radius:8px;overflow:hidden">
+            <iframe src="${escAttrLocal(url)}" allow="autoplay; fullscreen" allowfullscreen frameborder="0" style="border:0;width:100%;height:100%"></iframe>
+          </div>
+        </details>
+        <div class="d-flex gap-2 small text-muted">
+          <span>מקור: ${escAttrLocal(url.replace(/^https?:\/\//,'').split('/')[0])}</span>
         </div>
       ` : `
         <div class="card p-4 text-center mt-3">
