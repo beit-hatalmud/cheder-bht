@@ -2,15 +2,10 @@ async function renderSettings() {
   document.getElementById('page-settings').innerHTML = `
     <div class="mb-3"><button class="btn btn-link p-0" onclick="goto('home')"><i class="bi bi-arrow-right"></i> חזרה לתפריט</button></div>
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3><i class="bi bi-gear"></i> הגדרות והרשאות</h3>
-      <button class="btn btn-primary" onclick="addUserModal()"><i class="bi bi-plus"></i> משתמש חדש</button>
+      <h3><i class="bi bi-gear"></i> הגדרות מתקדמות</h3>
     </div>
-    <div class="card p-3 mb-3">
-      <h5>משתמשים</h5>
-      <table class="table table-hover">
-        <thead><tr><th>שם משתמש</th><th>תפקיד</th><th>הרשאות</th><th>כיתות</th><th>פעולות</th></tr></thead>
-        <tbody id="users-tbody"></tbody>
-      </table>
+    <div class="alert alert-info">
+      💡 לניהול משתמשים, סיסמאות והרשאות - <a href="#staff" onclick="goto('staff');return false">עבור לדף ניהול צוות</a>
     </div>
     <div class="card p-3 mb-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -79,7 +74,7 @@ async function renderSettings() {
   renderSyncStatus();
   const r = await api('listUsers', []);
   const users = r.data || [];
-  const tbody = document.getElementById('users-tbody');
+  const tbody = document.getElementById('users-tbody'); if (!tbody) return;
   if (!users.length) {
     tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">אין משתמשים</td></tr>';
     return;
