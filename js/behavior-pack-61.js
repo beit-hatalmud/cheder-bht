@@ -69,19 +69,17 @@
       };
       wrap.appendChild(genBtn);
 
-      // If current value is hashed - show warning + offer reset
+      // If current value is hashed - clear field + show warning
       const val = pwd.value || '';
       if (val.startsWith('sha256:')) {
+        pwd.value = ''; // Clear hash from view
+        pwd.placeholder = 'הזן סיסמה חדשה (הקיימת מוצפנת)';
         const warn = document.createElement('div');
         warn.style.cssText = 'background:#fef3c7;border:1px solid #fbbf24;padding:6px 10px;border-radius:6px;margin-top:6px;font-size:12px;color:#92400e';
-        warn.innerHTML = `🔒 הסיסמה מוצפנת - לא ניתן להציג. <button type="button" class="btn btn-sm btn-warning ms-2" id="pwd-reset-btn">אפס לסיסמה חדשה</button>`;
+        warn.innerHTML = `🔒 סיסמה קיימת מוצפנת - לא ניתן להציג. הזן סיסמה חדשה כדי לאפס.`;
         wrap.parentNode.insertBefore(warn, wrap.nextSibling);
-        warn.querySelector('#pwd-reset-btn').onclick = () => {
-          pwd.value = '';
-          pwd.focus();
-          warn.remove();
-          if (typeof toast === 'function') toast('הזן סיסמה חדשה', 'info');
-        };
+        // Mark as reset-mode so save knows it's intentional
+        pwd.dataset.resetMode = '1';
       }
     }, 100);
   });

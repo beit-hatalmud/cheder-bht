@@ -255,23 +255,7 @@ async function api(fn, args) {
       if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
       const matches = await verifyPassword(user.password_hash, p);
       if (!matches) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
-      // Auto-migrate plaintext to hash on successful login
-      // (markLocalChange in case sheet write fails — prevents pull from clobbering local hash)
-      if (!String(user.password_hash || '').startsWith(PWD_PREFIX)) {
-        user.password_hash = await hashPassword(p);
-        saveStored(_data);
-        markLocalChange();
-        // Bug #4 fix: ensure pending writes stay queued and pull is blocked while we sync
-        const sheetObj = {
-          'שם משתמש': user.username, 'סיסמה': user.password_hash,
-          'תפקיד': user.role, 'הרשאות': user.permissions,
-          'תלמידים_מורשים': user.visible_students || 'all',
-          'קטגוריות_מורשות': user.visible_categories || 'all',
-          'שם מלא': user.full_name || '', 'אימייל': user.email || '',
-          'טלפון': user.phone || '', 'הערות_משתמש': user.notes || '',
-        };
-        syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', user.username).then(updateSyncIndicator);
-      }
+      // AUTO-HASH DISABLED per user request (2026-05-26) - keep passwords plain
       return { ok: true, data: { ok: true, user: { username: u, role: user.role } } };
     }
     case 'listStudents': {
