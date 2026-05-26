@@ -23,7 +23,7 @@
     if (m) sid = parseInt(m);
     if (!sid) return;
 
-    const student = (window._data?.students || []).find(s => String(s['מזהה']) === String(sid));
+    const student = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(s => String(s['מזהה']) === String(sid));
     if (!student) return;
 
     // Insert tab link (before פרופיל)
@@ -92,9 +92,17 @@
     tabsContent.appendChild(pane);
   }
 
-  // Watch for student modal opening
+  // Watch for student modal opening — use Bootstrap event
+  document.addEventListener('shown.bs.modal', (e) => {
+    if (e.target?.id === 'viewStuModal') {
+      setTimeout(injectTlaTab, 50);
+    }
+  });
+  // Fallback MutationObserver (single-shot per modal instance)
   const observer = new MutationObserver(() => {
-    if (document.getElementById('viewStuModal')) {
+    const m = document.getElementById('viewStuModal');
+    if (m && !m.dataset.tlaInjected) {
+      m.dataset.tlaInjected = '1';
       setTimeout(injectTlaTab, 100);
     }
   });
@@ -102,7 +110,7 @@
 
   // ===== Actions =====
   window.tlaShare = function (sid) {
-    const s = (window._data?.students || []).find(x => String(x['מזהה']) === String(sid));
+    const s = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(x => String(x['מזהה']) === String(sid));
     if (!s || !s['תלא_pdf_url']) return alert('אין URL לתל"א');
     navigator.clipboard.writeText(s['תלא_pdf_url']).then(() => {
       if (typeof toast === 'function') toast('הקישור הועתק ללוח', 'success');
@@ -111,7 +119,7 @@
   };
 
   window.tlaWhats = function (sid) {
-    const s = (window._data?.students || []).find(x => String(x['מזהה']) === String(sid));
+    const s = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(x => String(x['מזהה']) === String(sid));
     if (!s || !s['תלא_pdf_url']) return alert('אין URL לתל"א');
     const nm = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
     const msg = `תיק התל"א של ${nm}:\n${s['תלא_pdf_url']}`;
@@ -119,7 +127,7 @@
   };
 
   window.tlaSendEmail = function (sid) {
-    const s = (window._data?.students || []).find(x => String(x['מזהה']) === String(sid));
+    const s = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(x => String(x['מזהה']) === String(sid));
     if (!s || !s['תלא_pdf_url']) return alert('אין URL לתל"א');
     const nm = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
     const subj = encodeURIComponent(`תיק תל"א - ${nm}`);
@@ -137,7 +145,7 @@
     const pptxM = pptxUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
     const pptxId = pptxM ? pptxM[1] : '';
 
-    const s = (window._data?.students || []).find(x => String(x['מזהה']) === String(sid));
+    const s = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(x => String(x['מזהה']) === String(sid));
     if (!s) return;
     const updated = Object.assign({}, s, {
       'תלא_pdf_id': id,
@@ -156,14 +164,14 @@
   };
 
   window.tlaGenerate = async function (sid) {
-    const s = (window._data?.students || []).find(x => String(x['מזהה']) === String(sid));
+    const s = ((typeof getVisibleData === 'function' ? (getVisibleData().students || []) : [])).find(x => String(x['מזהה']) === String(sid));
     if (!s) return;
     const nm = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
     if (!confirm(`לבנות תל"א ראשוני עבור ${nm} מנתוני ההתנהגות והשיחות הקיימים?`)) return;
 
     // Gather behavior events + conversations for this student
-    const events = (window._data?.behavior || []).filter(e => String(e['תלמיד_מזהה']) === String(sid));
-    const convs = (window._data?.conversations || []).filter(c => String(c['תלמיד_מזהה']) === String(sid));
+    const events = ((typeof getVisibleData === 'function' ? (getVisibleData().behavior || []) : [])).filter(e => String(e['תלמיד_מזהה']) === String(sid));
+    const convs = ((typeof getVisibleData === 'function' ? (getVisibleData().conversations || []) : [])).filter(c => String(c['תלמיד_מזהה']) === String(sid));
 
     if (!events.length && !convs.length) {
       alert('אין נתוני התנהגות/שיחות לתלמיד זה. אי אפשר לבנות תל"א אוטומטי.');
