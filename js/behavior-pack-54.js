@@ -74,17 +74,16 @@
   }
   window.toggleFabMenu = toggleFabMenu54;
 
-  // Force-attach to FAB every 2s
+  // Force-attach to FAB every 2s - SINGLE handler only
   setInterval(() => {
     const fab = document.getElementById('master-fab');
     if (fab && !fab.dataset.fixed54) {
       fab.dataset.fixed54 = '1';
-      fab.onclick = toggleFabMenu54;
-      fab.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+      // Use only onclick, no addEventListener (avoids double-trigger that closes menu immediately)
+      fab.onclick = function (e) {
+        e?.preventDefault();
         toggleFabMenu54();
-      });
+      };
     }
   }, 2000);
 
