@@ -9,7 +9,8 @@
   function escA(s) { return String(s || '').replace(/[&"'<>]/g, c => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c])); }
 
   // Add TLA tab to student modal after it's rendered
-  function injectTlaTab() {
+  window.injectTlaTab = function () { return injectTlaTabImpl(); };
+  function injectTlaTabImpl() {
     const modal = document.getElementById('viewStuModal');
     if (!modal) return;
     if (modal.querySelector('#stu-tab-tla')) return;
@@ -95,7 +96,7 @@
   // Watch for student modal opening — use Bootstrap event
   document.addEventListener('shown.bs.modal', (e) => {
     if (e.target?.id === 'viewStuModal') {
-      setTimeout(injectTlaTab, 50);
+      setTimeout(injectTlaTabImpl, 50);
     }
   });
   // Fallback MutationObserver (single-shot per modal instance)
@@ -103,7 +104,7 @@
     const m = document.getElementById('viewStuModal');
     if (m && !m.dataset.tlaInjected) {
       m.dataset.tlaInjected = '1';
-      setTimeout(injectTlaTab, 100);
+      setTimeout(injectTlaTabImpl, 100);
     }
   });
   observer.observe(document.body, { childList: true });
