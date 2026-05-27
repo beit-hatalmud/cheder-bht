@@ -1,0 +1,63 @@
+name: Deploy Apps Script (NetFree bypass)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps-script/**'
+      - '.github/workflows/deploy-appscript.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@3.3.0
+
+      - name: Restore clasp credentials
+        env:
+          CLASPRC: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC" ]; then
+            echo "::error::Set CLASPRC_JSON secret in repo settings"
+            exit 1
+          fi
+          echo "$CLASPRC" > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+      - name: Clone target Apps Script
+        run: |
+          mkdir -p _deploy && cd _deploy
+          npx clasp clone 1TrAsYVo_NNoXb-JcLuOcq3e4IlYanQUDUEPb5Irga2Si7tWjpUDehNID
+
+      - name: Copy v2 files into clone
+        run: |
+          cp apps-script/AuthV2.js _deploy/AuthV2.js
+          cp apps-script/ValidateV2.js _deploy/ValidateV2.js
+          ls -la _deploy/
+
+      - name: Push to Apps Script
+        working-directory: _deploy
+        run: |
+          npx clasp push --force
+
+      - name: Create deployment version
+        working-directory: _deploy
+        run: |
+          npx clasp deploy --description "v2-auth+validate $(date -u +%Y%m%d-%H%M)"
+
+      - name: Verify deployment
+        run: |
+          curl -sL -m 10 "https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec?action=ping&token=BHT_AGENT_2026" | head -c 500
+          echo ""
+          echo "::notice::Apps Script deployed. AGENT_TOKEN still works (legacy). New endpoints: action=login, action=refreshSession"
