@@ -7,7 +7,7 @@
   if (!document.querySelector('meta[http-equiv="Content-Security-Policy"]')) {
     const csp = document.createElement('meta');
     csp.httpEquiv = 'Content-Security-Policy';
-    csp.content = "default-src 'self' https://*.googleapis.com https://*.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; img-src * data: blob:; connect-src *;";
+    csp.content = "default-src 'self' https://*.googleapis.com https://*.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; img-src * data: blob:; media-src * data: blob:; frame-src *; connect-src *;";
     document.head.appendChild(csp);
   }
 
