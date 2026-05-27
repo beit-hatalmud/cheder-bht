@@ -1,15 +1,27 @@
 // sw.js — Service Worker for offline support
-// Cheder-BHT Production. 2026-05-27
+// Cheder-BHT Production. 2026-05-27 (v2 — network-first for api.js, skip dynamic data)
 
-const CACHE_NAME = 'bht-cache-v1-20260527';
+const CACHE_NAME = 'bht-cache-v2-20260527';
 const CORE_ASSETS = [
   '/cheder-bht/',
   '/cheder-bht/index.html',
-  '/cheder-bht/api.js',
   '/cheder-bht/app.js',
   '/cheder-bht/css/main.css',
   '/cheder-bht/css/theme.css',
   '/cheder-bht/js/schema.js',
+];
+
+// Files that MUST always come from network (avoid stale data):
+// - api.js (changes frequently, contains data sync logic)
+// - All behavior-pack-*.js (changes frequently)
+// - monitor.js, sync-engine-v2.js (sync logic)
+const NETWORK_FIRST = [
+  /\/api\.js(\?|$)/,
+  /\/behavior-pack-\d+\.js(\?|$)/,
+  /\/monitor\.js(\?|$)/,
+  /\/sync-engine-v2?\.js(\?|$)/,
+  /\/students\.js(\?|$)/,
+  /\/settings\.js(\?|$)/,
 ];
 
 self.addEventListener('install', e => {
@@ -31,30 +43,50 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Don't cache: Apps Script, mediamtx, cloudflare tunnels, Drive
+  // Pass through external dynamic sources
   if (url.host.includes('script.google.com') ||
       url.host.includes('trycloudflare.com') ||
       url.host.includes('googleusercontent.com') ||
       url.host.includes('drive.google.com')) {
-    return; // Pass through
+    return;
   }
 
-  // Cache-first for same-origin static assets
-  if (url.origin === self.location.origin) {
+  // Only handle same-origin
+  if (url.origin !== self.location.origin) return;
+
+  // Network-first for sync-critical files
+  if (NETWORK_FIRST.some(re => re.test(url.pathname + url.search))) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        if (cached) {
-          // Refresh in background
-          fetch(e.request).then(net => {
-            caches.open(CACHE_NAME).then(c => c.put(e.request, net.clone())).catch(() => {});
-          }).catch(() => {});
-          return cached;
-        }
-        return fetch(e.request).then(net => {
+      fetch(e.request).then(net => {
+        // Update cache for offline fallback only
+        if (net.ok) {
           caches.open(CACHE_NAME).then(c => c.put(e.request, net.clone())).catch(() => {});
-          return net;
-        }).catch(() => caches.match('/cheder-bht/index.html'));
-      })
+        }
+        return net;
+      }).catch(() => caches.match(e.request))
     );
+    return;
   }
+
+  // Cache-first for static (images, css, libs)
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      if (cached) {
+        // Refresh in background
+        fetch(e.request).then(net => {
+          if (net.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, net.clone())).catch(() => {});
+        }).catch(() => {});
+        return cached;
+      }
+      return fetch(e.request).then(net => {
+        if (net.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, net.clone())).catch(() => {});
+        return net;
+      }).catch(() => caches.match('/cheder-bht/index.html'));
+    })
+  );
+});
+
+// Listen for skipWaiting message from client
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });

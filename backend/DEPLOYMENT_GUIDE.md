@@ -1,8 +1,38 @@
 # Backend Refactor — Deployment Guide
 
 **Phase 1: Authentication (Session Tokens)** — 2026-05-27
+**Phase 2: Validation Mirror** — 2026-05-27
 
-This document describes how to deploy `apps-script-v2-auth.gs` to your Google Apps Script project.
+This document describes how to deploy backend phases to your Google Apps Script project.
+
+## Phases Overview
+
+| Phase | File | What It Does | Status |
+|---|---|---|---|
+| 1 | `apps-script-v2-auth.gs` | JWT sessions + password hashing + rate-limit | Ready |
+| 2 | `apps-script-v2-validate.gs` | Server-side validation (mirrors `js/validate.js`) | Ready |
+| 3 | (TBD) | Per-action role enforcement | Planned |
+| 4 | (TBD) | IP rate-limit + abuse detection | Planned |
+
+## Phase 2 Setup (Validation Mirror)
+
+Add `apps-script-v2-validate.gs` as a new Script file. Then in `routeRequest_v2`:
+
+```javascript
+// Inside routeRequest_v2, before delegating to existing handlers:
+const mutationActions = ['addStudent', 'updateStudent', 'addBehavior', 'updateBehavior'];
+if (mutationActions.includes(action)) {
+  const errResp = enforceValidation(action, e.parameter);
+  if (errResp) return errResp;  // 422-like response
+}
+// continue with original handler
+```
+
+This ensures the same validation logic exists on both sides:
+- Frontend (`js/validate.js`): UX feedback
+- Backend (`apps-script-v2-validate.gs`): security enforcement
+
+
 
 ## What Changes
 
