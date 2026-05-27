@@ -11,7 +11,20 @@
   }
 
   function parseTlaData(s) {
-    try { return JSON.parse(s['תלא_data'] || '{}'); } catch { return {}; }
+    // Use the global override (pack-95) if available
+    if (typeof window.parseTlaData === 'function') {
+      try { return window.parseTlaData(s) || {}; } catch {}
+    }
+    if (s['תלא_data']) {
+      try { return JSON.parse(s['תלא_data']); } catch {}
+    }
+    // Fallback: extract from דוח_אישי
+    const doch = s['דוח_אישי'] || '';
+    const m = doch.match(/\[TLA_JSON_START\]([\s\S]*?)\[TLA_JSON_END\]/);
+    if (m) {
+      try { return JSON.parse(m[1]); } catch {}
+    }
+    return {};
   }
 
   // ===== OVERRIDE pack-90's injectTlaTab with PPTX-matching design =====
