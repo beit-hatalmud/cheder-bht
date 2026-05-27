@@ -113,6 +113,8 @@ function actionLogin(params) {
   const usernameIdx = headers.indexOf('שם משתמש');
   const passwordIdx = headers.indexOf('סיסמה');
   const roleIdx = headers.indexOf('תפקיד');
+  const permIdx = headers.indexOf('הרשאות');
+  const landingIdx = headers.indexOf('דף_כניסה');
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][usernameIdx] === username) {
@@ -125,8 +127,11 @@ function actionLogin(params) {
         // Clear fail count, issue session
         SCRIPT_PROPS.deleteProperty(failKey);
         const role = data[i][roleIdx] || 'צוות';
+        const permissions = permIdx >= 0 ? String(data[i][permIdx] || '') : '';
+        const landingPage = landingIdx >= 0 ? String(data[i][landingIdx] || '') : '';
         const session = issueSession(username, role);
-        return { ok: true, session: session, role: role, username: username };
+        // Frontend gets identity + permissions ONLY — never the user table.
+        return { ok: true, session: session, role: role, username: username, permissions: permissions, landingPage: landingPage };
       }
       break;
     }
