@@ -1374,7 +1374,7 @@ function handleWebhook(e) {
           const behSheet = ss.getSheetByName('מעקב_התנהגות');
           if (behSheet) {
             const behHeadersNow = behSheet.getRange(1, 1, 1, behSheet.getLastColumn()).getValues()[0];
-            const extraB = ['מזהה', 'פירוט', 'הערות', 'פרשה', 'תאריך_עברי', 'שיעור', 'רב'];
+            const extraB = ['מזהה', 'פירוט', 'הערות', 'פרשה', 'תאריך_עברי', 'שיעור'];
             extraB.forEach(col => {
               if (!behHeadersNow.includes(col)) {
                 const newCol = behSheet.getLastColumn() + 1;
@@ -1388,7 +1388,7 @@ function handleWebhook(e) {
           const usrSheet = ss.getSheetByName('משתמשים');
           if (usrSheet) {
             const uHeadersNow = usrSheet.getRange(1, 1, 1, usrSheet.getLastColumn()).getValues()[0];
-            const extraU = ['תלמידים_מורשים', 'קטגוריות_מורשות', 'כיתות_מורשות', 'שם מלא', 'אימייל', 'טלפון', 'הערות_משתמש', 'תז', 'תאריך_לידה', 'כתובת', 'טלפון_בית', 'בנק', 'סניף', 'חשבון', 'מספר_עובד', 'תיק_אישי', 'דף_כניסה'];
+            const extraU = ['תלמידים_מורשים', 'קטגוריות_מורשות', 'כיתות_מורשות', 'שם מלא', 'אימייל', 'טלפון', 'הערות_משתמש'];
             extraU.forEach(col => {
               if (!uHeadersNow.includes(col)) {
                 const newCol = usrSheet.getLastColumn() + 1;

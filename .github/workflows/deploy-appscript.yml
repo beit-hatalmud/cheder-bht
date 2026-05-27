@@ -42,8 +42,10 @@ jobs:
 
       - name: Clone target Apps Script
         run: |
+          # PRODUCTION script = the one whose /exec the frontend actually calls.
+          # Verified by matching deployment AKfycbzhRqTLE4... to its owning script.
           mkdir -p _deploy && cd _deploy
-          npx clasp clone 1TrAsYVo_NNoXb-JcLuOcq3e4IlYanQUDUEPb5Irga2Si7tWjpUDehNID
+          npx clasp clone 1Dby8H-Jp86gCbZ6-pzSK8s5LSsVOsrkFT5tVOZirNT6gHHvqZ_JJx09P
 
       - name: Copy v2 files into clone
         run: |
@@ -59,13 +61,25 @@ jobs:
         run: |
           npx clasp push --force
 
-      - name: Create deployment version
+      - name: Update PRODUCTION deployment in place
         working-directory: _deploy
         run: |
-          npx clasp deploy --description "v2-auth+validate $(date -u +%Y%m%d-%H%M)"
+          # Update the existing /exec deployment the frontend uses — NOT a new
+          # one. This points the live URL at the freshly pushed code.
+          npx clasp deploy -i AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt --description "v2-auth+validate $(date -u +%Y%m%d-%H%M)"
 
-      - name: Verify deployment
+      - name: Verify deployment (login must return JSON, not HTML)
         run: |
-          curl -sL -m 10 "https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec?action=ping&token=BHT_AGENT_2026" | head -c 500
-          echo ""
-          echo "::notice::Apps Script deployed. AGENT_TOKEN still works (legacy). New endpoints: action=login, action=refreshSession"
+          URL="https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec"
+          echo "--- ping ---"
+          curl -sL -m 15 "$URL?action=ping&token=BHT_AGENT_2026" | head -c 300; echo ""
+          echo "--- login (bogus creds; must be JSON with ok:false, NOT 'unknown action') ---"
+          BODY=$(curl -sL -m 15 "$URL?action=login&username=__probe__&password=__probe__")
+          echo "$BODY" | head -c 300; echo ""
+          if echo "$BODY" | grep -q "unknown action"; then
+            echo "::error::login still routes to 'unknown action' — wiring not live"; exit 1
+          fi
+          if echo "$BODY" | grep -qi "<!doctype html"; then
+            echo "::error::login returned HTML login page — deployment access misconfigured"; exit 1
+          fi
+          echo "::notice::AuthV2 wired & live. login returns JSON."
