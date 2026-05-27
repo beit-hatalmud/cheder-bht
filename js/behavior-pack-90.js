@@ -86,7 +86,7 @@
         <div class="card-header bg-light"><b>1. פרטים אישיים</b></div>
         <div class="card-body">
           <div class="row g-2">
-            <div class="col-md-4"><label class="form-label small">שם דליה</label><input id="tla-fullname-${sid}" class="form-control form-control-sm" value="${escA(fullName)}"></div>
+            <div class="col-md-4"><label class="form-label small">שם מלא</label><input id="tla-fullname-${sid}" class="form-control form-control-sm" value="${escA(fullName)}"></div>
             <div class="col-md-3"><label class="form-label small">ת.ז.</label><input id="tla-tz-${sid}" class="form-control form-control-sm" value="${escA(s['תז']||'')}"></div>
             <div class="col-md-2"><label class="form-label small">שיעור</label><input id="tla-shiur-${sid}" class="form-control form-control-sm" value="${escA(s['מחזור']||'')}"></div>
             <div class="col-md-3"><label class="form-label small">מחנך</label><input id="tla-mechanech-${sid}" class="form-control form-control-sm" value="${escA(tla.mechanech || 'הרב סורוצקין')}"></div>
