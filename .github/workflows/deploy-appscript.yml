@@ -26,10 +26,15 @@ jobs:
 
       - name: Restore clasp credentials
         env:
-          CLASPRC: ${{ secrets.CLASPRC_JSON }}
+          CLASPRC: ${{ secrets.CLASPRC_JSON || secrets.NAME }}
         run: |
           if [ -z "$CLASPRC" ]; then
-            echo "::error::Set CLASPRC_JSON secret in repo settings"
+            echo "::error::Set CLASPRC_JSON secret (or NAME) in repo settings"
+            exit 1
+          fi
+          # Sanity: must contain refresh_token to be a valid clasprc.json
+          if ! echo "$CLASPRC" | grep -q "refresh_token"; then
+            echo "::error::Secret content is not a valid .clasprc.json (no refresh_token field)"
             exit 1
           fi
           echo "$CLASPRC" > ~/.clasprc.json
