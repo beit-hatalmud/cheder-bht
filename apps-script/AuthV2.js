@@ -141,6 +141,22 @@ function authorizeRequest(params) {
   return { authorized: true, user: { username: v.username, role: v.role } };
 }
 
+// ===== Safe gate helper — used by Webhook.js handleWebhook() =====
+// Returns true ONLY if params carries a cryptographically valid, unexpired
+// session token. NEVER throws: if JWT_SECRET isn't configured yet, or the
+// token is malformed, it returns false so the caller falls back to the legacy
+// WEBHOOK_TOKEN check. This keeps email/WhatsApp/Yemot flows safe during rollout.
+function hasValidSession_(params) {
+  try {
+    const s = (params && (params.session || params.sessionToken)) || '';
+    if (!s) return false;
+    const v = verifySession(s);
+    return v && v.valid === true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ===== Refresh session (sliding expiry) =====
 function actionRefreshSession(params) {
   const auth = authorizeRequest(params);
