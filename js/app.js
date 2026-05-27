@@ -183,20 +183,38 @@ document.addEventListener('keydown', (e) => {
   } catch (_) {}
 })();
 
+let _loginInFlight = false;
 async function doLogin(){
+  if (_loginInFlight) return;  // prevent double-submit
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
-  if (!u || !p) return;
-  const r = await api('authenticate', [u, p]);
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  if (err) err.classList.add('d-none');
+  if (!u || !p) {
+    if (err) { err.textContent = 'נא להזין שם משתמש וסיסמה'; err.classList.remove('d-none'); }
+    return;
+  }
+  // ── Loading state: disable button + spinner, block double-clicks ──
+  _loginInFlight = true;
+  let btnOrig = '';
+  if (btn) {
+    btnOrig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>מתחבר...';
+  }
+  let r;
+  try {
+    r = await api('authenticate', [u, p]);
+  } finally {
+    _loginInFlight = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = btnOrig; }
+  }
   if (r.ok && r.data && r.data.ok) {
     resetModuleState();  // Round-6 fix: clear stale UI state from previous user
+    // Identity + permissions come straight from the server login response.
+    // No client-side user-table lookup.
     currentUser = r.data.user;
-    // Augment with permissions from users array
-    const userRow = (await api('listUsers',[])).data.find(x=>x['שם משתמש']===u);
-    if (userRow) {
-      currentUser.permissions = userRow['הרשאות'] || '';
-      currentUser.landingPage = userRow['דף_כניסה'] || '';
-    }
     sessionStorage.setItem('user', JSON.stringify(currentUser));
     document.getElementById('user-info').innerHTML = escHtml(currentUser.username) + ' (' + escHtml(currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
     // Landing page: if user has a "דף_כניסה" column, go there.

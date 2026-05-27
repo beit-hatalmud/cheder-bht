@@ -251,12 +251,25 @@ async function api(fn, args) {
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
-      const user = _data.users.find(x => x.username === u);
-      if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
-      const matches = await verifyPassword(user.password_hash, p);
-      if (!matches) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
-      // AUTO-HASH DISABLED per user request (2026-05-26) - keep passwords plain
-      return { ok: true, data: { ok: true, user: { username: u, role: user.role } } };
+      // Server-authoritative login (AuthV2). The browser NEVER validates the
+      // password locally and NEVER receives the user table — it only gets a
+      // signed JWT session token from the server.
+      let resp;
+      try {
+        resp = await postToProxy({ action: 'login', username: u, password: p, instance: INSTANCE });
+      } catch (e) {
+        return { ok: true, data: { ok: false, error: 'אין חיבור לשרת — נסה שוב' } };
+      }
+      if (resp && resp.ok && resp.session) {
+        try { sessionStorage.setItem('bht_jwt', resp.session); } catch {}
+        return { ok: true, data: { ok: true, session: resp.session, user: {
+          username: resp.username || u,
+          role: resp.role || 'צוות',
+          permissions: resp.permissions || '',
+          landingPage: resp.landingPage || '',
+        } } };
+      }
+      return { ok: true, data: { ok: false, error: (resp && resp.error === 'invalid credentials') ? 'משתמש או סיסמה שגויים' : ((resp && resp.error) || 'משתמש או סיסמה שגויים') } };
     }
     case 'listStudents': {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
