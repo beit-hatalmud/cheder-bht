@@ -4,6 +4,8 @@
 
   const HLS_BASE_KEY = 'cameras_hls_base';
   const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+  const WEBRTC_BASE_KEY = 'cameras_webrtc_base';
+  const DEFAULT_WEBRTC_BASE = 'https://participation-seek-indexes-burner.trycloudflare.com';
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
     { path: 'chadar_rm',      name: 'חדר רמ"מ',     channel: 2,  emoji: '👨‍🏫' },
@@ -19,6 +21,7 @@
   ];
 
   function getBase() { return localStorage.getItem(HLS_BASE_KEY) || DEFAULT_HLS_BASE; }
+  function getWebRtcBase() { return localStorage.getItem(WEBRTC_BASE_KEY) || DEFAULT_WEBRTC_BASE; }
   function escA(s) { return String(s||'').replace(/[&"'<>]/g,c=>({'&':'&amp;','"':'&quot;',"'":'&#39;','<':'&lt;','>':'&gt;'}[c])); }
 
   // WHEP client - WebRTC pull from mediamtx
@@ -75,7 +78,7 @@
   function renderCamerasWebRtc() {
     const root = document.getElementById('page-cameras');
     if (!root) return;
-    const base = getBase().replace(/\/$/, '');
+    const base = getWebRtcBase().replace(/\/$/, '');
 
     if (!document.getElementById('cam-webrtc-style-82')) {
       const st = document.createElement('style');
