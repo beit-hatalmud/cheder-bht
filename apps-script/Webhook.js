@@ -123,6 +123,8 @@ function handleWebhook(e) {
         return jsonOut(validateBackendRecord(params.type || params.action, params));
       case 'initAuthSecrets':
         return jsonOut(actionInitAuthSecrets(params));
+      case 'getUsersSafe':
+        return jsonOut(actionGetUsersSafe(params));
 
       case 'killAllTriggers': {
         const before = ScriptApp.getProjectTriggers();

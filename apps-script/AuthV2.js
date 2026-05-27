@@ -178,6 +178,38 @@ function hasValidSession_(params) {
   }
 }
 
+// ===== Admin-only: list users WITHOUT the password column =====
+// Zero-trust: the browser never receives password hashes. Requires either a
+// valid JWT whose role is מנהל, or the legacy AGENT_TOKEN (transition period).
+function actionGetUsersSafe(params) {
+  const auth = (function () {
+    try {
+      if (params.token && params.token === SCRIPT_PROPS.getProperty('AGENT_TOKEN')) return { ok: true, role: 'מנהל' };
+    } catch (e) {}
+    const v = hasValidSession_(params) ? verifySession(params.session || params.sessionToken) : { valid: false };
+    if (v.valid && v.role === 'מנהל') return { ok: true, role: v.role };
+    return { ok: false };
+  })();
+  if (!auth.ok) return { ok: false, error: 'admin only' };
+
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  if (!data.length) return { ok: true, users: [] };
+  const headers = data[0];
+  const pwdIdx = headers.indexOf('סיסמה');
+  const users = [];
+  for (let i = 1; i < data.length; i++) {
+    const obj = {};
+    for (let c = 0; c < headers.length; c++) {
+      if (c === pwdIdx) continue; // never expose passwords
+      obj[headers[c]] = data[i][c];
+    }
+    if (obj['שם משתמש']) users.push(obj);
+  }
+  return { ok: true, users: users };
+}
+
 // ===== Refresh session (sliding expiry) =====
 function actionRefreshSession(params) {
   const auth = authorizeRequest(params);
