@@ -121,6 +121,8 @@ function handleWebhook(e) {
         return jsonOut(actionLogout(params));
       case 'validateRecord':
         return jsonOut(validateBackendRecord(params.type || params.action, params));
+      case 'initAuthSecrets':
+        return jsonOut(actionInitAuthSecrets(params));
 
       case 'killAllTriggers': {
         const before = ScriptApp.getProjectTriggers();

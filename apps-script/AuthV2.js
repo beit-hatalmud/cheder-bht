@@ -209,6 +209,33 @@ function routeRequest_v2(e) {
 }
 
 // ============================================================
+// BOOTSTRAP — set JWT_SECRET / PWD_SALT once, autonomously.
+// Reachable only behind the WEBHOOK_TOKEN gate (handleWebhook protects it).
+// Idempotent: never overwrites an existing value, never returns the secret.
+// ============================================================
+function actionInitAuthSecrets(params) {
+  function rand(nChars) {
+    let s = '';
+    while (s.length < nChars) s += Utilities.getUuid().replace(/-/g, '');
+    return s.slice(0, nChars);
+  }
+  const result = { ok: true, jwt_secret: 'exists', pwd_salt: 'exists' };
+  if (!SCRIPT_PROPS.getProperty('JWT_SECRET')) {
+    SCRIPT_PROPS.setProperty('JWT_SECRET', rand(64));
+    result.jwt_secret = 'created';
+  }
+  if (!SCRIPT_PROPS.getProperty('PWD_SALT')) {
+    SCRIPT_PROPS.setProperty('PWD_SALT', rand(32));
+    result.pwd_salt = 'created';
+  }
+  if (!SCRIPT_PROPS.getProperty('AGENT_TOKEN') && params && params.agentToken) {
+    SCRIPT_PROPS.setProperty('AGENT_TOKEN', String(params.agentToken));
+    result.agent_token = 'created';
+  }
+  return result;
+}
+
+// ============================================================
 // MIGRATION HELPER — call once to hash all plaintext passwords
 // ============================================================
 function migrateLegacyPasswords() {
