@@ -28,6 +28,20 @@ function getSecret(key) {
   return v;
 }
 
+// ===== Resolve the cheder spreadsheet (standalone script — open by ID) =====
+function getChederSheet_(sheetName, params) {
+  const propKey = (typeof _chederSheetIdProp === 'function')
+    ? _chederSheetIdProp(params)
+    : ((params && params.instance === 'bht') ? 'BHT_CHEDER_SHEET_ID' : 'CHEDER_SHEET_ID');
+  const id = SCRIPT_PROPS.getProperty(propKey);
+  if (!id) return null;
+  try {
+    return SpreadsheetApp.openById(id).getSheetByName(sheetName);
+  } catch (e) {
+    return null;
+  }
+}
+
 // ===== Session token issued on successful login =====
 // Format: base64(payload).base64(signature)
 // payload = {username, role, exp}, signature = HMAC-SHA256(payload, JWT_SECRET)
@@ -89,9 +103,11 @@ function actionLogin(params) {
     return { ok: false, error: 'too many attempts. wait 5 minutes' };
   }
 
-  // Lookup user in משתמשים sheet
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('משתמשים');
-  if (!sheet) return { ok: false, error: 'users sheet not found' };
+  // Lookup user in משתמשים sheet. This script is standalone (not container-
+  // bound), so resolve the cheder spreadsheet by its Script Property ID — same
+  // mechanism the cheder_* handlers use. instance=bht → BHT_CHEDER_SHEET_ID.
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const usernameIdx = headers.indexOf('שם משתמש');
@@ -238,9 +254,9 @@ function actionInitAuthSecrets(params) {
 // ============================================================
 // MIGRATION HELPER — call once to hash all plaintext passwords
 // ============================================================
-function migrateLegacyPasswords() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('משתמשים');
-  if (!sheet) throw new Error('users sheet not found');
+function migrateLegacyPasswords(params) {
+  const sheet = getChederSheet_('משתמשים', params || { instance: 'bht' });
+  if (!sheet) throw new Error('users sheet not configured');
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const pwdIdx = headers.indexOf('סיסמה');
