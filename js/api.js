@@ -297,7 +297,7 @@ async function api(fn, args) {
         : /too many attempts/i.test(errKey) ? 'יותר מדי ניסיונות — נסה שוב בעוד 5 דקות'
         : errKey ? 'אין חיבור לשרת — נסה שוב'
         : 'משתמש או סיסמה שגויים';
-      return { ok: true, data: { ok: false, error: userMsg, _attempts: tries } };
+      return { ok: true, data: { ok: false, error: userMsg, _ms: resp && resp._ms } };
     }
     case 'listStudents': {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
