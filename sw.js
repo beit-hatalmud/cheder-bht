@@ -13,10 +13,12 @@ const CORE_ASSETS = [
 
 // Files that MUST always come from network (avoid stale data):
 // - api.js (changes frequently, contains data sync logic)
-// - All behavior-pack-*.js (changes frequently)
+// - dist/main.bundle.js (concatenated packs — rebuilt on each deploy)
+// - Legacy behavior-pack-*.js (transitional; individual files still served if linked)
 // - monitor.js, sync-engine-v2.js (sync logic)
 const NETWORK_FIRST = [
   /\/api\.js(\?|$)/,
+  /\/dist\/main\.bundle\.js(\?|$)/,
   /\/behavior-pack-\d+\.js(\?|$)/,
   /\/monitor\.js(\?|$)/,
   /\/sync-engine-v2?\.js(\?|$)/,
