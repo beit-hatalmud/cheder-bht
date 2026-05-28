@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const WEBHOOK = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+  const WEBHOOK = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   let lastHealthCheck = 0;
   let webhookStatus = 'unknown';
 

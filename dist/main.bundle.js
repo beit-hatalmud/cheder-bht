@@ -1,4 +1,4 @@
-// === main.bundle.js — built 2026-05-28T12:15:29.801Z ===
+// === main.bundle.js — built 2026-05-28T12:19:08.992Z ===
 // Source: 142 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
@@ -11441,7 +11441,7 @@ try {
 // behavior-pack-66.js — TLA (תוכנית לימודית אישית) tab in student card. 2026-05-26
 // Adds a "תל\"א" tab with: PDF preview + view/edit/share/send actions.
 (function () {
-const WH_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+const WH_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   const TOKEN = 'BHT_AGENT_2026';
 
   function escA(s) { return String(s || '').replace(/[&"'<>]/g, c => ({ '&': '&amp;', '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;' }[c])); }
@@ -12087,7 +12087,7 @@ const SOLO_KEY = 'cameras_solo_mode';
 try {
 // behavior-pack-71.js — Bug fix round 5: TLA send via webhook + better generation. 2026-05-26
 (function () {
-const WH_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+const WH_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   const TOKEN = 'BHT_AGENT_2026';
 
   // ===== Improved tlaSendEmail with attachment via webhook =====
@@ -19643,7 +19643,7 @@ try {
 try {
 // behavior-pack-132.js — Live sync indicator + webhook health probe + auto-recovery. 2026-05-27
 (function () {
-const WEBHOOK = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+const WEBHOOK = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   let lastHealthCheck = 0;
   let webhookStatus = 'unknown';
 
@@ -20320,7 +20320,7 @@ try {
 // After backend deploy of AuthV2.js+ValidateV2.js, this pack tells admin what's still pending
 // (Script Properties: PWD_SALT, JWT_SECRET) without ever changing the actual login flow.
 (function () {
-const WEBHOOK = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+const WEBHOOK = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   const DISMISS_KEY = 'bht_v2_probe_dismissed_v1';
   const PROBE_CACHE_KEY = 'bht_v2_probe_result';
   const PROBE_CACHE_TTL = 10 * 60 * 1000; // 10 min

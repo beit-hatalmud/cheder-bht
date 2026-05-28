@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const WH_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+  const WH_URL = window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
   const TOKEN = 'BHT_AGENT_2026';
 
   // ===== Improved tlaSendEmail with attachment via webhook =====
