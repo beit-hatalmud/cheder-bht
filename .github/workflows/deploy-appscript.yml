@@ -54,6 +54,8 @@ jobs:
           # Webhook.js carries the router wiring (login/refreshSession/logout +
           # JWT gate). Repo copy = fresh production pull + surgical edits.
           cp apps-script/Webhook.js _deploy/Webhook.js
+          # Monitoring.gs — daily backup + health snapshot to Drive
+          cp apps-script/Monitoring.gs _deploy/Monitoring.gs 2>/dev/null || true
           ls -la _deploy/ | head -20
 
       - name: Push to Apps Script
