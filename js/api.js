@@ -1225,15 +1225,25 @@ async function _sendPayload(payload) {
 }
 
 async function pullFromSheet(tab) {
+  // 45s timeout — Apps Script's cheder_listRows on large tabs (490+ rows
+  // behavior, 42 students) can take 5-20s through NetFree. Hard limit
+  // prevents a stalled response from blocking the next pull cycle indefinitely.
+  const ctl = new AbortController();
+  const timeoutId = setTimeout(() => ctl.abort(), 45000);
   try {
     const params = new URLSearchParams({
       action: 'cheder_listRows', token: AGENT_TOKEN, instance: INSTANCE, tab,
     });
-    const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors' });
+    const r = await fetch(APPS_SCRIPT_URL + '?' + params.toString(), { method: 'GET', mode: 'cors', signal: ctl.signal });
     if (!r.ok) return null;
     const d = await r.json();
     return d.ok ? d.rows : null;
-  } catch { return null; }
+  } catch (e) {
+    if (e && e.name === 'AbortError') {
+      try { console.warn('[pullFromSheet] timeout 45s on', tab); } catch {}
+    }
+    return null;
+  } finally { clearTimeout(timeoutId); }
 }
 
 // Track local changes — pause pull-from-sheet while user is making changes
