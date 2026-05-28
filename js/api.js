@@ -1211,8 +1211,17 @@ async function syncDeleteRow(tab, matchKey, matchValue) {
 async function _sendPayload(payload) {
   try {
     const d = await postToProxy(payload);
-    return d && d.ok === true;
-  } catch { return false; }
+    if (d && d.ok === true) return true;
+    // Surface server-side rejection to the error log (pack-103) so admin can
+    // diagnose later. Don't toast — caller decides UX.
+    if (d && d.error) {
+      try { console.warn('[sync] server rejected', payload && payload.action, '→', d.error, d.code || ''); } catch {}
+    }
+    return false;
+  } catch (e) {
+    try { console.warn('[sync] exception', payload && payload.action, '→', (e && e.message) || e); } catch {}
+    return false;
+  }
 }
 
 async function pullFromSheet(tab) {
