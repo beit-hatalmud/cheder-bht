@@ -48,7 +48,12 @@ function getChederSheet_(sheetName, params) {
 function issueSession(username, role, ttlSec) {
   const exp = Date.now() + (ttlSec || 8 * 60 * 60) * 1000;
   const payload = JSON.stringify({ u: username, r: role, e: exp });
-  const payloadB64 = Utilities.base64EncodeWebSafe(payload).replace(/=+$/, '');
+  // Force UTF-8 byte encoding (Hebrew safe) — base64Encode on a raw String
+  // can mishandle non-ASCII depending on runtime. Going through a Blob
+  // guarantees UTF-8 bytes round-trip symmetrically with verifySession's
+  // newBlob(...).getDataAsString().
+  const payloadBytes = Utilities.newBlob(payload).getBytes();
+  const payloadB64 = Utilities.base64EncodeWebSafe(payloadBytes).replace(/=+$/, '');
   const sig = Utilities.computeHmacSha256Signature(payloadB64, getSecret('JWT_SECRET'));
   const sigB64 = Utilities.base64EncodeWebSafe(sig).replace(/=+$/, '');
   return payloadB64 + '.' + sigB64;
