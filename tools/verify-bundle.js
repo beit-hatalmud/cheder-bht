@@ -164,10 +164,14 @@ const expectedGlobals = [
   ['pack-138', 'getSmartAlerts'],
   ['pack-139', 'openChangePasswordModal'],
   ['pack-141', 'refreshCommandCenter'],
+  ['pack-142', 'bhtSkeleton'],
 ];
 let missing = [];
 for (const [pack, key] of expectedGlobals) {
-  if (typeof ctx[key] !== 'function') missing.push(`${pack} → window.${key}`);
+  const v = ctx[key];
+  // Accept either a function or a non-null object (some packs export a namespace).
+  const ok = (typeof v === 'function') || (v && typeof v === 'object');
+  if (!ok) missing.push(`${pack} → window.${key}`);
 }
 if (missing.length) {
   console.error('[verify] ✗ missing globals:', missing.join(', '));
