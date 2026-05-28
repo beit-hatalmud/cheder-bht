@@ -1,5 +1,12 @@
 [
   {
+    "id": "2026-05-28-grand-bundle",
+    "date": "2026-05-28",
+    "title": "📦 Grand Bundle — 137 packs → קובץ אחד",
+    "type": "performance",
+    "desc": "כל ה-behavior packs מאוחדים ל-dist/main.bundle.js (954KB). 137 בקשות HTTP נפרדות → בקשה אחת. כל pack עטוף ב-try/catch בתוך ה-bundle כדי שכשל באחד לא יקרוס את האחרים (מצב כשל חדש שיצר ה-bundling). נוצרו tools/build-bundle.js + tools/verify-bundle.js (Node + vm-sandbox עם DOM מדומה) — בנייה ואימות headless לפני dpחיפה. אומת חי על Pages: HTTP 200, parses, 137 packs נוכחים, אפס תגי-script מיותרים ב-index.html."
+  },
+  {
     "id": "2026-05-27-auth-v2-live",
     "date": "2026-05-27",
     "title": "🔐 התחברות מאובטחת (AuthV2) פעילה בייצור",
