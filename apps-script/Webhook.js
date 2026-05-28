@@ -133,6 +133,8 @@ function handleWebhook(e) {
         return jsonOut(actionBhtHealth(params));
       case 'bhtSetupMonitoring':
         return jsonOut(actionBhtSetupMonitoring(params));
+      case 'getLatestHealth':
+        return jsonOut(actionGetLatestHealth(params));
       case 'validateRecord':
         return jsonOut(validateBackendRecord(params.type || params.action, params));
       case 'initAuthSecrets':

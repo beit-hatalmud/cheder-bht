@@ -1,5 +1,5 @@
-// === main.bundle.js — built 2026-05-28T12:41:30.901Z ===
-// Source: 142 behavior packs concatenated in numeric order.
+// === main.bundle.js — built 2026-05-28T12:55:08.030Z ===
+// Source: 145 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
 // ─── behavior-pack-2.js ─────────────────────────────────────────────
@@ -21293,3 +21293,357 @@ try {
   console.warn('%c♻ Pack-143 — Silent JWT auto-refresh (30min before 8h expiry) + window.refreshJwtNow()', 'color:#0891b2;font-weight:bold');
 })();
 } catch (e) { (console && console.error) ? console.error('[behavior-pack-143.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-145.js ─────────────────────────────────────────────
+try {
+// behavior-pack-145.js — Auto-Recovery (silent self-healing). 2026-05-28
+// Every 5 minutes, while the tab is foreground:
+//   • Pending writes stuck >10 min? → flushPending()
+//   • _data.students empty >1h after login? → pullAllFromSheet()
+//   • JWT exp <30 min? → refreshJwtNow()
+// All silent. No banners. Logs to console.warn for diagnostics.
+(function () {
+const TICK_MS = 5 * 60 * 1000;
+  const STUCK_QUEUE_MS = 10 * 60 * 1000;
+  const STALE_DATA_MS = 60 * 60 * 1000;
+  const JWT_REFRESH_SLACK_MS = 30 * 60 * 1000;
+  let _lastFlushAttempt = 0;
+  let _lastPullAttempt  = 0;
+  let _loginAtMs        = 0;
+
+  function jwtExpMs() {
+    try {
+      const t = sessionStorage.getItem('bht_jwt');
+      if (!t || t.indexOf('.') < 0) return 0;
+      const [p] = t.split('.');
+      const fixed = p.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = fixed + '==='.slice((fixed.length + 3) % 4);
+      const json = atob(padded);
+      return Number(JSON.parse(json).e) || 0;
+    } catch { return 0; }
+  }
+
+  function isLoggedIn() {
+    try { return !!(sessionStorage.getItem('user') && JSON.parse(sessionStorage.getItem('user')).username); }
+    catch { return false; }
+  }
+
+  function pendingCount() {
+    try { return JSON.parse(localStorage.getItem('cheder_pending_writes') || '[]').length; }
+    catch { return 0; }
+  }
+
+  function oldestPendingMs() {
+    try {
+      const list = JSON.parse(localStorage.getItem('cheder_pending_writes') || '[]');
+      if (!list.length) return 0;
+      let oldest = Infinity;
+      for (const op of list) if (op.queuedAt && op.queuedAt < oldest) oldest = op.queuedAt;
+      return oldest === Infinity ? 0 : oldest;
+    } catch { return 0; }
+  }
+
+  function dataEmpty() {
+    try {
+      if (typeof getData === 'function') {
+        const d = getData();
+        return !d || !Array.isArray(d.students) || d.students.length === 0;
+      }
+    } catch {}
+    return false;
+  }
+
+  async function tick() {
+    if (document.hidden) return;
+    if (!isLoggedIn()) return;
+    if (!_loginAtMs) _loginAtMs = Date.now();
+
+    // 1. Stuck queue?
+    const count = pendingCount();
+    if (count > 0) {
+      const oldest = oldestPendingMs();
+      if (oldest && (Date.now() - oldest) > STUCK_QUEUE_MS && (Date.now() - _lastFlushAttempt) > TICK_MS) {
+        _lastFlushAttempt = Date.now();
+        try { if (typeof flushPending === 'function') flushPending(); console.warn('[recovery] flushPending triggered, queue=' + count); }
+        catch (e) { console.warn('[recovery] flushPending failed:', e.message); }
+      }
+    }
+
+    // 2. Stale/empty data?
+    if (dataEmpty() && (Date.now() - _loginAtMs) > STALE_DATA_MS && (Date.now() - _lastPullAttempt) > STALE_DATA_MS) {
+      _lastPullAttempt = Date.now();
+      try { if (typeof pullAllFromSheet === 'function') pullAllFromSheet(); console.warn('[recovery] pullAllFromSheet triggered (data empty 1h)'); }
+      catch (e) { console.warn('[recovery] pull failed:', e.message); }
+    }
+
+    // 3. JWT near expiry?
+    const exp = jwtExpMs();
+    if (exp && (exp - Date.now()) < JWT_REFRESH_SLACK_MS && (exp - Date.now()) > 0) {
+      try { if (typeof window.refreshJwtNow === 'function') { await window.refreshJwtNow(); console.warn('[recovery] JWT refreshed pre-expiry'); } }
+      catch (e) { console.warn('[recovery] JWT refresh failed:', e.message); }
+    }
+  }
+
+  setInterval(tick, TICK_MS);
+  // Also tick immediately on regain-focus
+  window.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(tick, 1500); });
+  // Mark login moment when a fresh JWT lands
+  let _seenJwt = '';
+  setInterval(() => {
+    try {
+      const cur = sessionStorage.getItem('bht_jwt') || '';
+      if (cur && cur !== _seenJwt) { _seenJwt = cur; _loginAtMs = Date.now(); }
+    } catch {}
+  }, 30000);
+
+  console.warn('%c🩹 Pack-145 — Auto-recovery (stuck queue / stale data / JWT pre-expiry)', 'color:#0891b2;font-weight:bold');
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-145.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-146.js ─────────────────────────────────────────────
+try {
+// behavior-pack-146.js — Dead-Letter queue manager. 2026-05-28
+// When writes fail >10 times, they land in localStorage.cheder_failed_writes.
+// This pack: (a) auto-purges entries >30 days old, (b) shows admin banner
+// when ≥5 dead letters exist, (c) provides bhtDeadLetters API for inspection.
+(function () {
+const KEY = 'cheder_failed_writes';
+  const PURGE_AFTER_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+  const BANNER_THRESHOLD = 5;
+  const DISMISS_KEY = 'bht_dl_dismissed_today';
+
+  function loadList() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+    catch { return []; }
+  }
+  function saveList(list) {
+    try { localStorage.setItem(KEY, JSON.stringify(list.slice(-100))); } catch {}
+  }
+  function purgeOld() {
+    const list = loadList();
+    if (!list.length) return 0;
+    const cutoff = Date.now() - PURGE_AFTER_MS;
+    const kept = list.filter(op => (op.failedAt || op.queuedAt || 0) >= cutoff);
+    if (kept.length !== list.length) {
+      saveList(kept);
+      return list.length - kept.length;
+    }
+    return 0;
+  }
+
+  window.bhtDeadLetters = {
+    list: () => loadList(),
+    count: () => loadList().length,
+    clear: () => { try { localStorage.removeItem(KEY); } catch {} },
+    purgeOld,
+  };
+
+  function isAdmin() {
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+      return u.role === 'מנהל' || u.username === 'admin' || u.permissions === 'all';
+    } catch { return false; }
+  }
+
+  function ensureStyle() {
+    if (document.getElementById('dl-style-146')) return;
+    const s = document.createElement('style');
+    s.id = 'dl-style-146';
+    s.textContent = `
+      #dl-banner-146 { position:fixed; bottom:14px; right:14px; z-index:9986;
+        background:linear-gradient(135deg,#92400e,#f59e0b); color:#fff;
+        border-radius:10px; padding:10px 14px; max-width:380px; direction:rtl;
+        font-family:Heebo,sans-serif; font-size:13px;
+        box-shadow:0 6px 20px rgba(0,0,0,.25);
+        display:flex; align-items:center; gap:10px; }
+      #dl-banner-146 button { background:rgba(255,255,255,.2); color:#fff; border:0;
+        padding:4px 10px; border-radius:6px; cursor:pointer; font-size:11px; }
+      #dl-banner-146 button:hover { background:rgba(255,255,255,.35); }
+      @media print { #dl-banner-146 { display:none !important; } }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function showBannerIfNeeded() {
+    if (!isAdmin()) return;
+    const list = loadList();
+    if (list.length < BANNER_THRESHOLD) {
+      const old = document.getElementById('dl-banner-146'); if (old) old.remove();
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(DISMISS_KEY) === today) return;
+    if (document.getElementById('dl-banner-146')) return;
+    ensureStyle();
+    const div = document.createElement('div');
+    div.id = 'dl-banner-146';
+    div.className = 'no-print';
+    div.innerHTML = `
+      <span style="font-size:20px">⚠</span>
+      <span style="flex:1">
+        <b>${list.length} שינויים נכשלו</b><br>
+        <small style="opacity:.9">לחץ "פרטים" לבדיקה</small>
+      </span>
+      <button id="dl-details-146">פרטים</button>
+      <button id="dl-dismiss-146">×</button>
+    `;
+    document.body.appendChild(div);
+    document.getElementById('dl-dismiss-146').onclick = () => {
+      try { localStorage.setItem(DISMISS_KEY, today); } catch {}
+      div.remove();
+    };
+    document.getElementById('dl-details-146').onclick = () => {
+      const lines = loadList().map((op, i) => {
+        const when = op.failedAt ? new Date(op.failedAt).toLocaleString('he-IL') : '?';
+        const what = `${op.kind || '?'} ${op.tab || ''} ${op.matchValue || ''}`;
+        return `${i + 1}. ${when} — ${what} (${op.attempts || '?'} ניסיונות)`;
+      }).join('\n');
+      if (typeof window.toast === 'function') window.toast('פרטים בקונסול (F12)', 'info', 3000);
+      console.group('🔥 Dead-letter queue (' + loadList().length + ')');
+      console.log(lines || '(empty)');
+      console.log('פעולות: bhtDeadLetters.clear() למחיקה, bhtDeadLetters.list() לרשימה');
+      console.groupEnd();
+    };
+  }
+
+  // Purge old on every page load + every 6 hours
+  function lifecycle() {
+    const p = purgeOld();
+    if (p > 0) console.warn('[dl] purged ' + p + ' dead-letter entries older than 30 days');
+    showBannerIfNeeded();
+  }
+  setInterval(lifecycle, 6 * 60 * 60 * 1000);
+  if (document.readyState === 'complete') setTimeout(lifecycle, 4000);
+  else window.addEventListener('load', () => setTimeout(lifecycle, 4000));
+
+  console.warn('%c🔥 Pack-146 — Dead-letter queue manager (auto-purge 30d + admin banner ≥5)', 'color:#f59e0b;font-weight:bold');
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-146.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-147.js ─────────────────────────────────────────────
+try {
+// behavior-pack-147.js — Anomalies banner from nightly health snapshot. 2026-05-28
+// On admin login, fetches the latest health-YYYY-MM-DD.json (via action=getLatestHealth)
+// and surfaces any anomalies (plain-passwords, missing-tab, row-drop, etc.).
+// Cached 12h in localStorage so the network call is rare.
+(function () {
+const CACHE_KEY = 'bht_latest_health_v1';
+  const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+  const DISMISS_KEY = 'bht_health_anomaly_dismissed_v1';
+
+  function getWebhookUrl() {
+    return window.APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+  }
+  function isAdmin() {
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+      return u.role === 'מנהל' || u.username === 'admin' || u.permissions === 'all';
+    } catch { return false; }
+  }
+
+  async function fetchLatest() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      if (cached && Date.now() - cached.ts < CACHE_TTL_MS) return cached.data;
+    } catch {}
+    const session = sessionStorage.getItem('bht_jwt') || '';
+    if (!session) return null;
+    try {
+      const body = new URLSearchParams({ action: 'getLatestHealth', session, instance: 'bht' });
+      const r = await fetch(getWebhookUrl(), { method: 'POST', mode: 'cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+      if (!r.ok) return null;
+      const j = await r.json().catch(() => null);
+      if (!j || !j.ok) return null;
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: j })); } catch {}
+      return j;
+    } catch { return null; }
+  }
+
+  function ensureStyle() {
+    if (document.getElementById('hb-style-147')) return;
+    const s = document.createElement('style');
+    s.id = 'hb-style-147';
+    s.textContent = `
+      #hb-banner-147 { position:fixed; top:64px; left:14px; z-index:9984;
+        background:#1e3a8a; color:#fff; border-left:4px solid #fbbf24;
+        border-radius:8px; padding:10px 14px; max-width:380px; direction:rtl;
+        font-family:Heebo,sans-serif; font-size:12.5px;
+        box-shadow:0 6px 20px rgba(0,0,0,.22); }
+      #hb-banner-147 .hb-title { font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+      #hb-banner-147 ul { margin:4px 0 6px; padding-inline-start:18px; line-height:1.5; }
+      #hb-banner-147 button { background:rgba(255,255,255,.18); border:0; color:#fff;
+        padding:3px 8px; border-radius:5px; cursor:pointer; font-size:11px; margin-inline-start:4px; }
+      @media print { #hb-banner-147 { display:none !important; } }
+    `;
+    document.head.appendChild(s);
+  }
+
+  function renderBanner(data) {
+    const health = data && data.health;
+    if (!health || !Array.isArray(health.anomalies) || health.anomalies.length === 0) return;
+
+    // Filter to ACTIONABLE anomalies only — ignore noisy ones
+    const ACTIONABLE = health.anomalies.filter(a => /^plain-passwords:|^row-drop:|^missing-tab:|^empty-tab:/.test(a));
+    if (ACTIONABLE.length === 0) return;
+
+    const dismissedKey = (data.name || '') + '::' + ACTIONABLE.join('|');
+    if (localStorage.getItem(DISMISS_KEY) === dismissedKey) return;
+    if (document.getElementById('hb-banner-147')) return;
+    ensureStyle();
+
+    const lines = ACTIONABLE.slice(0, 6).map(a => {
+      if (a.startsWith('plain-passwords:')) return `${a.split(':')[1]} משתמשים עם סיסמה plain — לעודד החלפה`;
+      if (a.startsWith('row-drop:'))        return `ירידה משמעותית: ${a.slice(9)}`;
+      if (a.startsWith('missing-tab:'))     return `לשונית חסרה: ${a.slice(12)}`;
+      if (a.startsWith('empty-tab:'))       return `לשונית ריקה: ${a.slice(10)}`;
+      return a;
+    });
+
+    const div = document.createElement('div');
+    div.id = 'hb-banner-147';
+    div.className = 'no-print';
+    div.innerHTML = `
+      <div class="hb-title">🛡 דוח בריאות לילי — ${data.name || ''}</div>
+      <ul>${lines.map(l => `<li>${l.replace(/</g, '&lt;')}</li>`).join('')}</ul>
+      <div style="text-align:left">
+        <button id="hb-dismiss-147">סמן כנקרא</button>
+      </div>
+    `;
+    document.body.appendChild(div);
+    document.getElementById('hb-dismiss-147').onclick = () => {
+      try { localStorage.setItem(DISMISS_KEY, dismissedKey); } catch {}
+      div.remove();
+    };
+  }
+
+  async function run() {
+    if (!isAdmin()) return;
+    const data = await fetchLatest();
+    if (data) renderBanner(data);
+  }
+
+  // Run shortly after admin lands on home
+  function schedule() {
+    // delayed start to let login flow settle
+    setTimeout(run, 7000);
+  }
+  if (document.readyState === 'complete') schedule();
+  else window.addEventListener('load', schedule);
+
+  // Manual re-check
+  window.checkLatestHealth = async function () {
+    try { localStorage.removeItem(CACHE_KEY); } catch {}
+    try { localStorage.removeItem(DISMISS_KEY); } catch {}
+    const d = await fetchLatest();
+    console.group('🛡 Latest health');
+    if (d && d.health) {
+      console.log('File:', d.name);
+      console.log('Summary:', d.health.summary);
+      console.log('Anomalies:', d.health.anomalies);
+      console.log('Tabs:', d.health.tabs);
+    } else console.log('(no health data)');
+    console.groupEnd();
+    return d;
+  };
+
+  console.warn('%c🛡 Pack-147 — Nightly health anomalies banner (admin only) + window.checkLatestHealth()', 'color:#1e3a8a;font-weight:bold');
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-147.js] init failed:', (e && e.message) || e) : null; }

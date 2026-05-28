@@ -199,3 +199,23 @@ function actionBhtSetupMonitoring(params) {
   if (!a.ok) return { ok: false, error: a.error };
   try { return setupBhtMonitoring(); } catch (e) { return { ok: false, error: e.message }; }
 }
+
+/**
+ * Return the JSON content of the latest health snapshot (admin only).
+ * Used by pack-147 to surface nightly anomalies in the admin's browser.
+ */
+function actionGetLatestHealth(params) {
+  const a = adminGate_(params);
+  if (!a.ok) return { ok: false, error: a.error };
+  try {
+    const folder = _bhtGetOrCreateFolder(_BHT_HEALTH_FOLDER);
+    const files = folder.getFiles();
+    let latest = null;
+    while (files.hasNext()) {
+      const f = files.next();
+      if (!latest || f.getLastUpdated() > latest.getLastUpdated()) latest = f;
+    }
+    if (!latest) return { ok: true, health: null };
+    return { ok: true, name: latest.getName(), health: JSON.parse(latest.getBlob().getDataAsString()) };
+  } catch (e) { return { ok: false, error: e.message }; }
+}
