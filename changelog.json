@@ -1,5 +1,12 @@
 [
   {
+    "id": "2026-05-28-login-stability",
+    "date": "2026-05-28",
+    "title": "🔧 יציבות התחברות + תיקון ReferenceError",
+    "type": "fix",
+    "desc": "QA-bot מצא באג שקט: ReferenceError 'tries' בפונקציית login → התחברות נכשלת בשקט בלי הודעת שגיאה. תוקן. בנוסף: postToProxy timeout 30s→60s, retry רק על fast-fail (<8s), self-host של xlsx.full.min.js (היה חסום ORB מ-cdn.jsdelivr), pre-fetch של נתוני שיטס מיד אחרי התחברות, ו-pack-143 רענון JWT אוטומטי שקט 30 דק' לפני פקיעה. נרשם BHT_QA_Cycle ב-Windows Task Scheduler — סבב QA כל שעה גם אחרי שהסשן הזה ייסגר."
+  },
+  {
     "id": "2026-05-28-zero-trust-frontend",
     "date": "2026-05-28",
     "title": "🛡️ Zero-Trust Frontend — סיסמאות לא יוצאות מהשרת",
