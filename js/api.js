@@ -618,19 +618,38 @@ async function api(fn, args) {
       const lookupUsername = obj['שם משתמש קודם'] || newUsername;
       const idx = _data.users.findIndex(u => u.username === lookupUsername);
       if (idx < 0) return { ok: false, error: 'not found' };
-      // Hash password if provided as plain text
-      let newPwd = obj['סיסמה'] || obj.password_hash || _data.users[idx].password_hash;
-      if (newPwd && !String(newPwd).startsWith(PWD_PREFIX) && obj['סיסמה']) {
-        // Only hash if it's a new plain-text password being set
-        newPwd = await hashPassword(obj['סיסמה']);
+
+      // Zero-trust path: send a PARTIAL update to the server. Only fields the
+      // admin actually changed go on the wire — server preserves the password
+      // (and every other unchanged column). Client no longer needs to cache
+      // the password hash to keep edits from blanking it.
+      const partial = { action: 'updateUserPartial', instance: INSTANCE, username: lookupUsername };
+      const session = sessionStorage.getItem('bht_jwt');
+      if (session) partial.session = session;
+      else partial.token = AGENT_TOKEN;  // transition fallback
+      const FIELD_MAP = {
+        'תפקיד': 'תפקיד',
+        'הרשאות': 'הרשאות',
+        'תלמידים_מורשים': 'תלמידים_מורשים',
+        'קטגוריות_מורשות': 'קטגוריות_מורשות',
+        'כיתות_מורשות': 'כיתות_מורשות',
+        'שם מלא': 'שם מלא',
+        'אימייל': 'אימייל',
+        'טלפון': 'טלפון',
+        'הערות_משתמש': 'הערות_משתמש',
+      };
+      for (const k in FIELD_MAP) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) partial[FIELD_MAP[k]] = String(obj[k] ?? '');
       }
+      if (obj['סיסמה']) partial.newPassword = obj['סיסמה'];
+
+      // Optimistic local cache update — no password_hash cached.
       const updated = {
         username: newUsername,
-        password_hash: newPwd,
         role: obj['תפקיד'] ?? obj.role ?? _data.users[idx].role,
         permissions: obj['הרשאות'] ?? obj.permissions ?? _data.users[idx].permissions ?? '',
-        visible_students: obj['תלמידים_מורשים'] ?? obj.visible_students ?? 'all',
-        visible_categories: obj['קטגוריות_מורשות'] ?? obj.visible_categories ?? 'all',
+        visible_students: obj['תלמידים_מורשים'] ?? obj.visible_students ?? _data.users[idx].visible_students ?? 'all',
+        visible_categories: obj['קטגוריות_מורשות'] ?? obj.visible_categories ?? _data.users[idx].visible_categories ?? 'all',
         visible_classes: obj['כיתות_מורשות'] ?? obj.visible_classes ?? _data.users[idx].visible_classes ?? 'all',
         full_name: obj['שם מלא'] ?? _data.users[idx].full_name ?? '',
         email: obj['אימייל'] ?? _data.users[idx].email ?? '',
@@ -640,27 +659,36 @@ async function api(fn, args) {
       _data.users[idx] = updated;
       saveStored(_data);
       markLocalChange();
-      // Build clean sheet payload (no internal-only field)
-      const sheetObj = {
-        'שם משתמש': newUsername,
-        'סיסמה': updated.password_hash,
-        'תפקיד': updated.role,
-        'הרשאות': updated.permissions,
-        'תלמידים_מורשים': updated.visible_students,
-        'קטגוריות_מורשות': updated.visible_categories,
-        'כיתות_מורשות': updated.visible_classes,
-        'שם מלא': updated.full_name,
-        'אימייל': updated.email,
-        'טלפון': updated.phone,
-        'הערות_משתמש': updated.notes,
-      };
-      // If renamed, delete old + add new in sheet; otherwise update
-      if (lookupUsername !== newUsername) {
-        syncDeleteRow('משתמשים', 'שם משתמש', lookupUsername).then(() =>
-          syncRowToSheet('משתמשים', sheetObj).then(updateSyncIndicator));
-      } else {
-        syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', newUsername).then(updateSyncIndicator);
+
+      // Fire-and-forget the partial update. On failure, queue (best-effort).
+      try {
+        const resp = await postToProxy(partial);
+        if (!resp || resp.ok !== true) {
+          console.warn('[updateUser] server returned non-ok:', resp && resp.error);
+        }
+      } catch (e) {
+        // Network failure — fall back to the legacy queueable path WITHOUT
+        // sending a password (server will keep existing on next pull).
+        const sheetObj = {
+          'שם משתמש': newUsername,
+          'תפקיד': updated.role,
+          'הרשאות': updated.permissions,
+          'תלמידים_מורשים': updated.visible_students,
+          'קטגוריות_מורשות': updated.visible_categories,
+          'כיתות_מורשות': updated.visible_classes,
+          'שם מלא': updated.full_name,
+          'אימייל': updated.email,
+          'טלפון': updated.phone,
+          'הערות_משתמש': updated.notes,
+        };
+        if (lookupUsername !== newUsername) {
+          syncDeleteRow('משתמשים', 'שם משתמש', lookupUsername).then(() =>
+            syncRowToSheet('משתמשים', sheetObj).then(updateSyncIndicator));
+        } else {
+          syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', newUsername).then(updateSyncIndicator);
+        }
       }
+
       _auditLog('עדכון', 'משתמשים', newUsername, `עדכון משתמש: ${newUsername} (${updated.role})`);
       // If session belongs to renamed user, refresh session
       const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -1335,12 +1363,15 @@ async function pullAllFromSheet() {
   _data.students.forEach(s => { if (!s['סטטוס']) s['סטטוס'] = 'פעיל'; });
   _data.behavior = safeReplace(_data.behavior, behavior);
   if (users !== null) {
-    // Only apply users with valid schema
-    const valid = users.filter(u => u['שם משתמש'] && u['סיסמה'] !== undefined && u['סיסמה'] !== '');
+    // ZERO-TRUST: do NOT cache the password column on the client. Login is
+    // server-authoritative (AuthV2). The user table is still cached for
+    // permission filtering (visible_classes/students/categories) but the
+    // 'סיסמה' column is dropped on the way in.
+    const valid = users.filter(u => u['שם משתמש']);
     if (!(valid.length === 0 && _data.users.length > 0)) {
       _data.users = valid.map(u => ({
         username: u['שם משתמש'],
-        password_hash: String(u['סיסמה']),
+        // password_hash intentionally absent — server holds the only copy
         role: u['תפקיד'],
         permissions: u['הרשאות'],
         visible_students: u['תלמידים_מורשים'] || 'all',
@@ -1352,7 +1383,7 @@ async function pullAllFromSheet() {
         notes: u['הערות_משתמש'] || '',
       }));
       if (!_data.users.find(u => u.role === 'מנהל')) {
-        _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
+        _data.users.unshift({username:'admin',role:'מנהל',permissions:'all'});
       }
     }
   }
