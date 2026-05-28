@@ -1259,12 +1259,18 @@ function _loadPending() {
 function _savePending(list) {
   try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch {}
   // Mirror to IndexedDB for durability — survives localStorage quota wipes.
-  // Best-effort and silent: localStorage remains the authoritative queue.
+  // Single transaction (replaceAll) instead of 1+N (clear + N puts) — faster
+  // when the queue grows large during long offline stretches.
   try {
-    if (typeof window !== 'undefined' && window.bhtIdbQueue && window.bhtIdbQueue.clear) {
-      window.bhtIdbQueue.clear()
-        .then(() => Promise.all(list.map(op => window.bhtIdbQueue.put(op).catch(() => null))))
-        .catch(() => null);
+    if (typeof window !== 'undefined' && window.bhtIdbQueue) {
+      if (window.bhtIdbQueue.replaceAll) {
+        window.bhtIdbQueue.replaceAll(list).catch(() => null);
+      } else if (window.bhtIdbQueue.clear) {
+        // backward-compat for cached older idb-queue.js
+        window.bhtIdbQueue.clear()
+          .then(() => Promise.all(list.map(op => window.bhtIdbQueue.put(op).catch(() => null))))
+          .catch(() => null);
+      }
     }
   } catch (e) { /* never let durability mirror break the live queue */ }
   updateSyncIndicator();

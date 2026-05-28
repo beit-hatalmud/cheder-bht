@@ -107,9 +107,30 @@
     });
   }
 
+  // Batched replace: clear + put-many in ONE transaction (was 1+N transactions).
+  // Used by api.js _savePending — called on every queued write, so this is the
+  // hot path for offline-heavy sessions.
+  async function replaceAll(ops) {
+    const db = await openDb();
+    if (!db || !Array.isArray(ops)) return false;
+    return new Promise((resolve) => {
+      try {
+        const t = db.transaction(STORE, 'readwrite');
+        const s = t.objectStore(STORE);
+        s.clear();
+        for (const op of ops) {
+          try { s.add({ op, queuedAt: (op && op.queuedAt) || Date.now() }); } catch {}
+        }
+        t.oncomplete = () => resolve(true);
+        t.onerror = () => resolve(false);
+        t.onabort = () => resolve(false);
+      } catch (e) { resolve(false); }
+    });
+  }
+
   window.bhtIdbQueue = {
     ready: openDb().then((db) => !!db),
-    put, remove, list, count, clear,
+    put, remove, list, count, clear, replaceAll,
   };
 
   // On load, restore any IDB items missing from localStorage (after a quota wipe).
