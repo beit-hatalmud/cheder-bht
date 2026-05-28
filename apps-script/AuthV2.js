@@ -235,10 +235,18 @@ function actionChangePassword(params) {
   try { v = verifySession(sessionToken); } catch (e) { return { ok: false, error: 'session check failed' }; }
   if (!v || !v.valid) return { ok: false, error: 'invalid session: ' + ((v && v.error) || 'unknown') };
 
-  const username = v.username;
   const newPwd = String(params.newPassword || params.new_password || '');
   if (!newPwd || newPwd.length < 4) return { ok: false, error: 'סיסמה חייבת לפחות 4 תווים' };
   if (newPwd.length > 100) return { ok: false, error: 'סיסמה ארוכה מדי' };
+
+  // Normalize username on both sides — Hebrew strings may carry NFC/NFD
+  // differences or invisible RTL marks once they go through JWT base64 encode.
+  function norm(s) {
+    s = String(s == null ? '' : s);
+    if (typeof s.normalize === 'function') { try { s = s.normalize('NFC'); } catch (e) {} }
+    return s.replace(/[‎‏‪-‮﻿]/g, '').trim();
+  }
+  const username = norm(v.username);
 
   const sheet = getChederSheet_('משתמשים', params);
   if (!sheet) return { ok: false, error: 'users sheet not configured' };
@@ -250,7 +258,7 @@ function actionChangePassword(params) {
   if (userIdx < 0 || pwdIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][userIdx] === username) {
+    if (norm(data[i][userIdx]) === username) {
       let hashed;
       try { hashed = 'sha256:' + hashPassword(newPwd); }
       catch (e) { return { ok: false, error: 'PWD_SALT not configured' }; }
