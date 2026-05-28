@@ -1,3 +1,8 @@
 create_sheet.py
 .tmp_docx/
 index.html.before-bundle.bak
+node_modules/
+package-lock.json
+qa_fail_context.json
+qa_deep_report.json
+qa_deep_fast_report.json

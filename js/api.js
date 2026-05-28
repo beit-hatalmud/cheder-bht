@@ -3,6 +3,8 @@
 
 const STORAGE_KEY = 'cheder_bht_data';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec';
+// Expose as a window global so packs don't need to hardcode the URL.
+try { window.APPS_SCRIPT_URL = APPS_SCRIPT_URL; } catch (e) {}
 const AGENT_TOKEN = 'BHT_AGENT_2026';
 const INSTANCE = 'bht';
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1-GFdXr0diOlof-mMAp2Qci0fVjq0QHf21rv3FNFHQOs/edit';

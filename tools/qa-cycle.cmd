@@ -18,8 +18,8 @@ REM Run the bot — output discarded (report file holds the data)
 "%NODE%" tools\qa-bot-real.js > tools\qa-cycle-last.log 2>&1
 set EXIT=%ERRORLEVEL%
 
-REM Extract a one-line summary from the report
-"%NODE%" -e "try{const d=JSON.parse(require('fs').readFileSync('qa_real_report.json','utf8'));const t=d.totals||{};console.log(`ok=${d.ok} login_ms=${(d.login&&d.login.ms)||'?'} pageErrors=${t.pageErrors||0} stalls=${t.stalls||0} clicks=${t.clicks||0} errs=${t.perPageErrors||0}`);}catch(e){console.log('no-report '+e.message);}" > tools\qa-cycle-summary.log
+REM Extract a structured status line — format requested by Yosef
+"%NODE%" -e "try{const d=JSON.parse(require('fs').readFileSync('qa_real_report.json','utf8'));const t=d.totals||{};const ok=d.ok===true;const pageErr=t.pageErrors||0;const stalls=t.stalls||0;const errs=t.perPageErrors||0;const clicks=t.clicks||0;const total=clicks+(d.login&&d.login.loggedIn?1:0)+1;const failed=errs+stalls+pageErr+(d.login&&d.login.loggedIn?0:1);const reliability=Math.max(0,Math.round((total-failed)/Math.max(1,total)*100));const status=ok?'GREEN':'RED';const next=ok?'continue':(d.login&&!d.login.loggedIn?'login-flow':'click-stalls');console.log(`[Status: ${status}] [pageErr=${pageErr} stalls=${stalls} clickErr=${errs}] [Reliability: ${reliability}%] [Next: ${next}]`);}catch(e){console.log('[Status: UNKNOWN] [report-missing: '+e.message+']');}" > tools\qa-cycle-summary.log
 
 set /p SUMMARY=<tools\qa-cycle-summary.log
-echo %TS% ^| QA-cycle (exit=%EXIT%) ^| %SUMMARY% >> "%LOG%"
+echo %TS% ^| %SUMMARY% >> "%LOG%"
