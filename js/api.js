@@ -244,7 +244,11 @@ window.jsAttr = jsAttr;
 
 // Compatibility shim: old api() function maps to local operations
 async function api(fn, args) {
-  await ensureLoaded();
+  // Auth flows must NOT wait for the full sheet pull — through a slow filter
+  // (NetFree) ensureLoaded() can take 30s+, making login appear hung.
+  // QA-bot caught this: login click silently waited on pullAllFromSheet.
+  const AUTH_OPS = new Set(['authenticate', 'logout', 'refreshSession']);
+  if (!AUTH_OPS.has(fn)) await ensureLoaded();
   args = args || [];
   // Round-13 guard: ensure _data exists before any mutation
   if (!_data) _data = { students: [], behavior: [], users: [], categories: [], classes: [], functioning: [], tests: [], medications: [], meetings: [], attendance: [], conversations: [] };
