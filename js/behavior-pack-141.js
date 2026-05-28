@@ -93,9 +93,21 @@
         animation: cc141-shimmer 1.4s infinite;
       }
       @keyframes cc141-shimmer { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+      #cmd-center-141 .cc-foot { font-size:11px; color:var(--bht-gray-500,#6b7280); text-align:left; margin-top:6px; padding-inline-end:4px; }
       @media print { #cmd-center-141 { display:none !important; } }
     `;
     document.head.appendChild(s);
+  }
+
+  function fmtAgo(ms) {
+    if (!ms) return '';
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 5)  return 'עכשיו';
+    if (s < 60) return `לפני ${s} שניות`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `לפני ${m} ד׳`;
+    const h = Math.floor(m / 60);
+    return `לפני ${h} שע׳`;
   }
 
   function buildShell() {
@@ -113,6 +125,7 @@
         <div class="cc-card cc-amber is-skel"  data-w="tasks">   <i class="bi bi-list-check cc-icon"></i>           <div class="cc-label">משימות פתוחות</div>       <div class="cc-num">—</div></div>
         <div class="cc-card cc-purple is-skel" data-w="sigs">    <i class="bi bi-file-earmark-text cc-icon"></i>    <div class="cc-label">טפסים ממתינים לחתימה</div> <div class="cc-num">—</div></div>
       </div>
+      <div class="cc-foot" data-foot-141>—</div>
     `;
     // Insert as the FIRST child of #page-home (above existing groups)
     home.insertBefore(wrap, home.firstChild);
@@ -134,7 +147,16 @@
     setCard('severe', metrics.severeWeek);
     setCard('tasks', metrics.openTasks);
     setCard('sigs', metrics.pendingSigs);
+    // Footer: freshness — when did getData() last refresh from sheet?
+    const foot = wrap.querySelector('[data-foot-141]');
+    if (foot) {
+      const last = (window._bhtLastDataSync || 0) || Date.now();
+      foot.textContent = 'מעודכן ' + fmtAgo(last);
+    }
   }
+
+  // Listen for sheet-data refresh events to set the timestamp
+  window.addEventListener('cheder-data-refreshed', () => { window._bhtLastDataSync = Date.now(); });
 
   function tick() {
     if (!isAdmin()) {
