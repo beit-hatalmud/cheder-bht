@@ -9,28 +9,10 @@ const AGENT_TOKEN = 'BHT_AGENT_2026';
 const INSTANCE = 'bht';
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1-GFdXr0diOlof-mMAp2Qci0fVjq0QHf21rv3FNFHQOs/edit';
 
-// Password hashing — SHA-256 with site-wide salt
-const PWD_SALT = 'BHT2026!cheder';
-const PWD_PREFIX = 'sha256:';
-
-async function hashPassword(pw) {
-  if (!pw) return '';
-  const data = new TextEncoder().encode(PWD_SALT + ':' + pw);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  const hex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
-  return PWD_PREFIX + hex;
-}
-
-async function verifyPassword(stored, attempt) {
-  if (!stored || !attempt) return false;
-  if (stored.startsWith(PWD_PREFIX)) {
-    return (await hashPassword(attempt)) === stored;
-  }
-  // Backward compat: plain-text stored password (will be migrated on next login).
-  // Refuse the auto-injected default admin/6742 unless online (sheet was reached at least once).
-  if (stored === '6742' && !_online && !_sheetEverReached) return false;
-  return String(stored) === String(attempt);
-}
+// Note: PWD_SALT / hashPassword / verifyPassword were removed 2026-05-28
+// after the zero-trust migration. Login is server-authoritative; the browser
+// never hashes or compares passwords. Server PWD_SALT (Script Properties)
+// holds the only salt; AuthV2.hashPassword on the server is the only hasher.
 
 let _sheetEverReached = false;
 
