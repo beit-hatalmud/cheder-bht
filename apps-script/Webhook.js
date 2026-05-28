@@ -121,6 +121,12 @@ function handleWebhook(e) {
         return jsonOut(actionLogout(params));
       case 'changePassword':
         return jsonOut(actionChangePassword(params));
+      case 'createUser':
+        return jsonOut(actionCreateUser(params));
+      case 'updateUserPartial':
+        return jsonOut(actionUpdateUserPartial(params));
+      case 'deleteUser':
+        return jsonOut(actionDeleteUser(params));
       case 'validateRecord':
         return jsonOut(validateBackendRecord(params.type || params.action, params));
       case 'initAuthSecrets':

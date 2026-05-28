@@ -222,6 +222,157 @@ function actionGetUsersSafe(params) {
   return { ok: true, users: users };
 }
 
+// ============================================================
+// ADMIN USER CRUD (zero-trust — admin JWT or legacy AGENT_TOKEN required)
+// ============================================================
+function adminGate_(params) {
+  try {
+    const agentTok = SCRIPT_PROPS.getProperty('AGENT_TOKEN');
+    if (agentTok && params.token === agentTok) return { ok: true, by: 'legacy' };
+  } catch (e) {}
+  const s = params.session || params.sessionToken;
+  if (!s) return { ok: false, error: 'admin only' };
+  let v;
+  try { v = verifySession(s); } catch (e) { return { ok: false, error: 'session check failed' }; }
+  if (!v || !v.valid) return { ok: false, error: 'invalid session' };
+  if (v.role !== 'מנהל') return { ok: false, error: 'admin only' };
+  return { ok: true, by: 'jwt', user: v.username };
+}
+
+// ===== createUser =====
+// Required: username, password. Optional: role, permissions, fullName, email, phone, etc.
+function actionCreateUser(params) {
+  const auth = adminGate_(params);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const username = String(params.username || '').trim();
+  const password = String(params.password || '');
+  if (!username) return { ok: false, error: 'שם משתמש חובה' };
+  if (!password || password.length < 4) return { ok: false, error: 'סיסמה חייבת לפחות 4 תווים' };
+
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const userIdx = headers.indexOf('שם משתמש');
+  if (userIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
+
+  // refuse if username taken
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][userIdx] || '').trim() === username) return { ok: false, error: 'שם משתמש כבר קיים' };
+  }
+
+  // hash password
+  let hashed;
+  try { hashed = 'sha256:' + hashPassword(password); }
+  catch (e) { return { ok: false, error: 'PWD_SALT not configured' }; }
+
+  // build a full row in header order; only fill known cols.
+  const KNOWN = {
+    'שם משתמש': username,
+    'סיסמה': hashed,
+    'תפקיד': String(params.role || 'צוות'),
+    'הרשאות': String(params.permissions || ''),
+    'תאריך_הוספה': new Date().toISOString().slice(0, 10),
+    'שם מלא': String(params.fullName || params['שם מלא'] || ''),
+    'אימייל': String(params.email || params['אימייל'] || ''),
+    'טלפון': String(params.phone || params['טלפון'] || ''),
+    'דף_כניסה': String(params.landingPage || ''),
+  };
+  const row = headers.map(h => (h in KNOWN ? KNOWN[h] : ''));
+  sheet.appendRow(row);
+  return { ok: true, username };
+}
+
+// ===== updateUserPartial =====
+// Updates ONLY the columns explicitly provided in params. Never blanks the
+// password column if newPassword isn't supplied — closes the "edit user
+// without changing password" hole. Requires admin OR self (a user can update
+// their own non-privileged fields, but role/permissions are admin-only).
+function actionUpdateUserPartial(params) {
+  const username = String(params.username || '').trim();
+  if (!username) return { ok: false, error: 'שם משתמש חובה' };
+
+  // Determine caller identity + privilege level
+  const auth = adminGate_(params);
+  const isAdmin = auth.ok;
+  let selfMatch = false;
+  if (!isAdmin) {
+    const s = params.session || params.sessionToken;
+    if (!s) return { ok: false, error: 'admin only' };
+    let v; try { v = verifySession(s); } catch (e) { return { ok: false, error: 'session check failed' }; }
+    if (!v || !v.valid) return { ok: false, error: 'invalid session' };
+    selfMatch = String(v.username || '').trim() === username;
+    if (!selfMatch) return { ok: false, error: 'admin only' };
+  }
+
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const userIdx = headers.indexOf('שם משתמש');
+  if (userIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
+
+  // Map: which header keys this caller is allowed to mutate
+  const ADMIN_KEYS = ['שם מלא','אימייל','טלפון','תפקיד','הרשאות','דף_כניסה','כיתות_מורשות','קטגוריות_מורשות','תלמידים_מורשים','הערות_משתמש'];
+  const SELF_KEYS  = ['שם מלא','אימייל','טלפון','הערות_משתמש']; // self can update profile, NOT role/permissions
+  const allowed = new Set(isAdmin ? ADMIN_KEYS : SELF_KEYS);
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][userIdx] || '').trim() !== username) continue;
+    // Apply per-column updates, but ONLY if the param was actually present.
+    let changes = 0;
+    for (const h of headers) {
+      if (!allowed.has(h)) continue;
+      if (Object.prototype.hasOwnProperty.call(params, h)) {
+        const col = headers.indexOf(h);
+        sheet.getRange(i + 1, col + 1).setValue(String(params[h]));
+        changes++;
+      }
+    }
+    // Optional password rotation (admin or self)
+    if (params.newPassword || params.new_password) {
+      const pwd = String(params.newPassword || params.new_password);
+      if (pwd.length < 4) return { ok: false, error: 'סיסמה חייבת לפחות 4 תווים' };
+      let hashed;
+      try { hashed = 'sha256:' + hashPassword(pwd); }
+      catch (e) { return { ok: false, error: 'PWD_SALT not configured' }; }
+      const pwdIdx = headers.indexOf('סיסמה');
+      if (pwdIdx < 0) return { ok: false, error: 'no password column' };
+      sheet.getRange(i + 1, pwdIdx + 1).setValue(hashed);
+      changes++;
+    }
+    return { ok: true, username, changes };
+  }
+  return { ok: false, error: 'user not found' };
+}
+
+// ===== deleteUser =====
+// Admin only. Refuses to delete the admin account or the caller themselves.
+function actionDeleteUser(params) {
+  const auth = adminGate_(params);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const username = String(params.username || '').trim();
+  if (!username) return { ok: false, error: 'שם משתמש חובה' };
+  if (username === 'admin') return { ok: false, error: 'אסור למחוק admin' };
+  if (auth.by === 'jwt' && auth.user && String(auth.user).trim() === username) {
+    return { ok: false, error: 'אסור למחוק את עצמך' };
+  }
+
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const userIdx = headers.indexOf('שם משתמש');
+  if (userIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][userIdx] || '').trim() === username) {
+      sheet.deleteRow(i + 1); // 1-based; +1 for the header row
+      return { ok: true, username };
+    }
+  }
+  return { ok: false, error: 'user not found' };
+}
+
 // ===== Refresh session (sliding expiry) =====
 function actionRefreshSession(params) {
   const auth = authorizeRequest(params);
