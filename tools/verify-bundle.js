@@ -165,6 +165,7 @@ const expectedGlobals = [
   ['pack-139', 'openChangePasswordModal'],
   ['pack-141', 'refreshCommandCenter'],
   ['pack-142', 'bhtSkeleton'],
+  ['pack-143', 'refreshJwtNow'],
 ];
 let missing = [];
 for (const [pack, key] of expectedGlobals) {
