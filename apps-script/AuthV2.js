@@ -119,10 +119,14 @@ function actionLogin(params) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][usernameIdx] === username) {
       const storedPwd = String(data[i][passwordIdx] || '');
-      // Support both: hashed (sha256:...) and plain (legacy)
+      // Rescue rule (2026-05-28): staff rows with EMPTY/missing passwords
+      // accept the universal default '1234'. Real plain or hashed passwords
+      // still require an exact match — we don't override real credentials.
       const isMatch = storedPwd.startsWith('sha256:')
         ? storedPwd.slice(7) === hashPassword(password)
-        : storedPwd === password;
+        : (storedPwd === ''
+            ? password === '1234'
+            : storedPwd === password);
       if (isMatch) {
         // Clear fail count, issue session
         SCRIPT_PROPS.deleteProperty(failKey);
@@ -216,6 +220,44 @@ function actionRefreshSession(params) {
   if (!auth.authorized) return { ok: false, error: auth.error };
   const newSession = issueSession(auth.user.username, auth.user.role);
   return { ok: true, session: newSession, expires: Date.now() + 8 * 60 * 60 * 1000 };
+}
+
+// ===== Change own password (JWT-authenticated) =====
+// Requires a valid session JWT. Writes sha256:<hash> back to the משתמשים row
+// for the AUTHENTICATED user — clients cannot change another user's password.
+function actionChangePassword(params) {
+  const sessionToken = params.session || params.sessionToken;
+  if (!sessionToken) return { ok: false, error: 'missing session' };
+  let v;
+  try { v = verifySession(sessionToken); } catch (e) { return { ok: false, error: 'session check failed' }; }
+  if (!v || !v.valid) return { ok: false, error: 'invalid session: ' + ((v && v.error) || 'unknown') };
+
+  const username = v.username;
+  const newPwd = String(params.newPassword || params.new_password || '');
+  if (!newPwd || newPwd.length < 4) return { ok: false, error: 'סיסמה חייבת לפחות 4 תווים' };
+  if (newPwd.length > 100) return { ok: false, error: 'סיסמה ארוכה מדי' };
+
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  if (!data.length) return { ok: false, error: 'empty users sheet' };
+  const headers = data[0];
+  const userIdx = headers.indexOf('שם משתמש');
+  const pwdIdx = headers.indexOf('סיסמה');
+  if (userIdx < 0 || pwdIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][userIdx] === username) {
+      let hashed;
+      try { hashed = 'sha256:' + hashPassword(newPwd); }
+      catch (e) { return { ok: false, error: 'PWD_SALT not configured' }; }
+      // Row index in the sheet is i+1 (1-based, accounting for header).
+      // Column is pwdIdx+1 (1-based).
+      sheet.getRange(i + 1, pwdIdx + 1).setValue(hashed);
+      return { ok: true, message: 'הסיסמה עודכנה' };
+    }
+  }
+  return { ok: false, error: 'user not found' };
 }
 
 // ===== Logout (informational - server can't invalidate JWT directly) =====

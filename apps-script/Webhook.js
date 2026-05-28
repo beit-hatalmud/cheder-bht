@@ -119,6 +119,8 @@ function handleWebhook(e) {
         return jsonOut(actionRefreshSession(params));
       case 'logout':
         return jsonOut(actionLogout(params));
+      case 'changePassword':
+        return jsonOut(actionChangePassword(params));
       case 'validateRecord':
         return jsonOut(validateBackendRecord(params.type || params.action, params));
       case 'initAuthSecrets':
