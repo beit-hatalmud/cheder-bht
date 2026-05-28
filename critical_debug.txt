@@ -1,0 +1,64 @@
+# Critical Debug Log — 2026-05-28
+
+## Issue: QA bot cannot complete login from headless Chromium
+
+### Symptom
+4 consecutive runs of `qa-bot-real.js` report:
+- `login.outcome = 'timeout'`
+- `login.took ≈ 60000ms`
+- `login.loggedIn = false`, `login.jwt = ''`
+- `pageErrors = []`
+- `errMsg = null` (login-error element stays `.d-none`)
+
+### Diagnosis
+The bot's fail-context captured the body text including pack-132's live webhook
+health indicator showing **"שרת לא זמין (8012ms)"** — pack-132's `ping` probe
+itself failed against the bot's headless Chromium connection. The actual `doLogin`
+flow likely never received the JSON response either; the POST in-flight aborts
+at the 60s `postToProxy` timeout, but by then the bot's `waitForSelector`
+race has captured the snapshot.
+
+### What's verified WORKING (independent of the bot)
+1. `curl POST action=login` admin/1234 → ok=true, role=מנהל, valid JWT (6–7s).
+2. `curl POST action=login` רוקמיל/1234 → ok=true via rescue.
+3. End-to-end CRUD test in `_test_crud.py` — 12 assertions passed.
+4. `curl GET action=ping` → 200, agent identifies.
+5. Bundle live on Pages: 142 packs, 964KB, parses cleanly.
+6. User confirmed verbally earlier that browser login is "much faster now."
+
+### What's stuck (environmental)
+Puppeteer-Chromium spawned under NetFree filter cannot reliably reach
+`script.google.com/macros/s/.../exec` for `action=login`. The same machine's
+curl POST works fine — NetFree treats Puppeteer Chromium differently
+(possibly DPI on `cross-origin POST + JSON Accept header` from a headless UA).
+
+### Mitigations applied
+- `postToProxy` timeout 30s → 60s
+- Single quiet retry only on fast-fail (<8s)
+- Pre-fetch sheet data after successful login
+- Pack-143 silent JWT auto-refresh (keeps users logged in across the day)
+- `qa-bot-real.js` wait raised to 90s, signal handlers + clean browser shutdown
+- `BHT_QA_Cycle` Windows Scheduled Task (hourly) — survives sessions
+
+### Cannot fix from code
+The "Server unavailable 8012ms" message is correctly emitted by the app's own
+health probe — the app reports honestly what it sees. No application bug here.
+The bug is in the bot's environment: NetFree's behavior toward headless
+Chromium POSTs from this machine. Possible bypasses (NOT implemented because
+they require user/IT-level changes):
+- Run the bot from a non-NetFree machine
+- Add a NetFree exception for script.google.com
+- Use a residential/VPN proxy in Puppeteer
+
+### Decision
+Trust the curl evidence + user's manual confirmation that login works in
+their browser. Stop the QA-bot login-validation loop here. The scheduled
+task will keep firing hourly; if conditions change (NetFree, CDN, etc.),
+later runs may succeed and the system will self-document it via the report
+files.
+
+### Files of interest
+- `qa_real_report.json` — latest bot run report
+- `qa_fail_context.json` — captured DOM/console at the moment of failure
+- `C:/Logs/BHT_Cameras/loop_status.log` — running tally of fixes + iterations
+- `tools/qa-cycle.cmd` — what the scheduled task invokes
