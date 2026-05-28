@@ -1158,9 +1158,11 @@ async function ensureSchemaOnce() {
 // without hitting URL length limits or NetFree's URL filter.
 async function postToProxy(params) {
   const form = new URLSearchParams(params);
-  // Round-15: 30-second timeout to prevent hanging requests
+  // 60s timeout — accommodates slow filtered networks (NetFree adds 5–15s
+  // per request). Was 30s; bot iterations showed POSTs taking 30–45s through
+  // headless Chromium, causing premature aborts.
   const ctl = new AbortController();
-  const timeoutId = setTimeout(() => ctl.abort(), 30000);
+  const timeoutId = setTimeout(() => ctl.abort(), 60000);
   let r;
   try {
     r = await fetch(APPS_SCRIPT_URL, {
