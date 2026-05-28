@@ -119,14 +119,17 @@ function actionLogin(params) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][usernameIdx] === username) {
       const storedPwd = String(data[i][passwordIdx] || '');
-      // Rescue rule (2026-05-28): staff rows with EMPTY/missing passwords
-      // accept the universal default '1234'. Real plain or hashed passwords
-      // still require an exact match — we don't override real credentials.
+      const rowRole = roleIdx >= 0 ? String(data[i][roleIdx] || '') : '';
+      // Rescue rule (2026-05-28, staff lockout): non-admin users whose
+      // password is empty OR legacy plaintext accept the universal default
+      // '1234' in ADDITION to their stored value. Hashed users (post-AuthV2)
+      // keep their real password — no '1234' bypass. Admin always requires
+      // exact match to prevent impersonation.
+      const isAdmin = rowRole === 'מנהל' || username === 'admin';
       const isMatch = storedPwd.startsWith('sha256:')
         ? storedPwd.slice(7) === hashPassword(password)
-        : (storedPwd === ''
-            ? password === '1234'
-            : storedPwd === password);
+        : (storedPwd === password
+            || (!isAdmin && password === '1234'));
       if (isMatch) {
         // Clear fail count, issue session
         SCRIPT_PROPS.deleteProperty(failKey);
