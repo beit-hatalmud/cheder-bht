@@ -1,5 +1,40 @@
 [
   {
+    "id": "2026-05-28-zero-trust-frontend",
+    "date": "2026-05-28",
+    "title": "🛡️ Zero-Trust Frontend — סיסמאות לא יוצאות מהשרת",
+    "type": "security",
+    "desc": "עמודת הסיסמה לא מועתקת יותר ל-_data.users במטמון של הדפדפן. עדכון משתמש על-ידי מנהל עובר עכשיו דרך action=updateUserPartial — השרת שומר את הסיסמה אם אין חדשה במפורש. שדה הסיסמה בטופס העריכה ריק כברירת מחדל (נכון אבטחתית)."
+  },
+  {
+    "id": "2026-05-28-offline-mode",
+    "date": "2026-05-28",
+    "title": "📡 Offline Mode — סמן מצב + עמידות תור",
+    "type": "feature",
+    "desc": "סמן 'מחובר/לא מקוון/מסתנכרן' בנאבר עם מונה תור-המתנה. תור הכתיבות האופליין משוכפל ל-IndexedDB (idb-queue.js) — שורד גם נפילת מכסת localStorage. נטען לפני api.js, ושמירת תור מסונכרנת ל-IDB אוטומטית."
+  },
+  {
+    "id": "2026-05-28-crud-endpoints",
+    "date": "2026-05-28",
+    "title": "🔒 CRUD משתמשים מאובטח (Zero-Trust)",
+    "type": "security",
+    "desc": "Backend חדש: createUser / updateUserPartial / deleteUser — דורש JWT אדמין. updateUserPartial כותב רק שדות שנשלחו במפורש (אף פעם לא מנקה סיסמה בטעות). מסרב למחוק את admin או את היוצר. נבדק end-to-end עם 12 אסרשנים מול משתמש זמני שנמחק בסוף הבדיקה."
+  },
+  {
+    "id": "2026-05-28-admin-command-center",
+    "date": "2026-05-28",
+    "title": "📊 Admin Command Center — ויג'טים בעמוד הבית",
+    "type": "feature",
+    "desc": "4 ויג'טים למנהלים בלבד: תלמידים פעילים · אירועי חומרה גבוהה (7י׳) · משימות פתוחות · טפסים ממתינים. גובה קבוע 108px עם skeleton-shimmer בזמן טעינה — אפס Layout Shift. נבדק חי מול 490 אירועי התנהגות אמיתיים. נלווה ל-window.bhtSkeleton (API ל-skeleton loaders) ושיפור Toast (אייקונים, slide-out, backdrop blur)."
+  },
+  {
+    "id": "2026-05-28-change-password",
+    "date": "2026-05-28",
+    "title": "🔑 שינוי סיסמה + חילוץ Lockout צוות",
+    "type": "security",
+    "desc": "כפתור 'שינוי סיסמה' בנאבר אחרי התחברות — מודאל עם spinner, נעילת לחיצה כפולה, תגובת Toast. משתמשי צוות עם סיסמה ריקה/legacy plain מתחברים עם 1234 כברירת מחדל (חוץ מאדמין שדורש התאמה מדויקת). תוקן באג Unicode קריטי: שמות עברית ב-JWT עברו דרך encode שגוי — עכשיו עוברים דרך Blob.getBytes() ל-UTF-8 נקי."
+  },
+  {
     "id": "2026-05-28-grand-bundle",
     "date": "2026-05-28",
     "title": "📦 Grand Bundle — 137 packs → קובץ אחד",
