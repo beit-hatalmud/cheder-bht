@@ -1204,6 +1204,15 @@ function _loadPending() {
 }
 function _savePending(list) {
   try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch {}
+  // Mirror to IndexedDB for durability — survives localStorage quota wipes.
+  // Best-effort and silent: localStorage remains the authoritative queue.
+  try {
+    if (typeof window !== 'undefined' && window.bhtIdbQueue && window.bhtIdbQueue.clear) {
+      window.bhtIdbQueue.clear()
+        .then(() => Promise.all(list.map(op => window.bhtIdbQueue.put(op).catch(() => null))))
+        .catch(() => null);
+    }
+  } catch (e) { /* never let durability mirror break the live queue */ }
   updateSyncIndicator();
 }
 function _hasPending() { return _loadPending().length > 0; }
