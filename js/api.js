@@ -727,6 +727,8 @@ async function api(fn, args) {
       return { ok: true };
     }
     case 'deleteUser': {
+      // Zero-trust: route through server's deleteUser endpoint which enforces
+      // admin-only + can't-delete-admin + can't-delete-self guards.
       const username = args[0];
       const idx = _data.users.findIndex(u => u.username === username);
       if (idx < 0) return { ok: false, error: 'not found' };
@@ -735,22 +737,53 @@ async function api(fn, args) {
       if (target.role === 'מנהל' && adminCount === 1) {
         return { ok: false, error: 'לא ניתן למחוק את המנהל היחיד' };
       }
+      const session = sessionStorage.getItem('bht_jwt') || '';
+      const params = { action: 'deleteUser', instance: INSTANCE, username };
+      if (session) params.session = session;
+      else params.token = AGENT_TOKEN;
+
+      let resp;
+      try { resp = await postToProxy(params); }
+      catch (e) { return { ok: false, error: 'אין חיבור לשרת' }; }
+      if (!resp || resp.ok !== true) return { ok: false, error: (resp && resp.error) || 'שגיאה במחיקת משתמש' };
+
       _data.users.splice(idx, 1);
       saveStored(_data);
       markLocalChange();
-      syncDeleteRow('משתמשים', 'שם משתמש', username).then(updateSyncIndicator);
       _auditLog('מחיקה', 'משתמשים', username, `נמחק משתמש: ${username}`);
       return { ok: true };
     }
     case 'addUser': {
+      // Zero-trust: send to server's createUser endpoint. Server hashes the
+      // password with its own PWD_SALT and stores sha256:hash. Browser never
+      // sees the hash and never sends the column directly.
       const obj = args[0];
-      const rawPwd = obj['סיסמה'] || '';
-      const hashed = rawPwd && !rawPwd.startsWith(PWD_PREFIX) ? await hashPassword(rawPwd) : rawPwd;
+      const session = sessionStorage.getItem('bht_jwt') || '';
+      const params = {
+        action: 'createUser',
+        instance: INSTANCE,
+        username: obj['שם משתמש'] || '',
+        password: obj['סיסמה'] || '',
+        role: obj['תפקיד'] || 'צוות',
+        permissions: obj['הרשאות'] || '',
+        fullName: obj['שם מלא'] || '',
+        email: obj['אימייל'] || '',
+        phone: obj['טלפון'] || '',
+        landingPage: obj['דף_כניסה'] || '',
+      };
+      if (session) params.session = session;
+      else params.token = AGENT_TOKEN;
+
+      let resp;
+      try { resp = await postToProxy(params); }
+      catch (e) { return { ok: false, error: 'אין חיבור לשרת' }; }
+      if (!resp || resp.ok !== true) return { ok: false, error: (resp && resp.error) || 'שגיאה ביצירת משתמש' };
+
+      // Optimistic local cache (NO password hash).
       const newUser = {
-        username: obj['שם משתמש'],
-        password_hash: hashed,
-        role: obj['תפקיד'],
-        permissions: obj['הרשאות'],
+        username: params.username,
+        role: params.role,
+        permissions: params.permissions,
         visible_students: obj['תלמידים_מורשים'] || 'all',
         visible_categories: obj['קטגוריות_מורשות'] || 'all',
         visible_classes: obj['כיתות_מורשות'] || 'all',
@@ -760,16 +793,10 @@ async function api(fn, args) {
         notes: obj['הערות_משתמש'] || '',
       };
       const idx = _data.users.findIndex(u => u.username === newUser.username);
-      if (idx >= 0) {
-        _data.users[idx] = newUser;
-      } else {
-        _data.users.push(newUser);
-      }
+      if (idx >= 0) _data.users[idx] = newUser;
+      else _data.users.push(newUser);
       saveStored(_data);
       markLocalChange();
-      // Use hashed password in sheet, never plain
-      const sheetObj = { ...obj, 'סיסמה': hashed };
-      syncRowToSheet('משתמשים', sheetObj).then(updateSyncIndicator);
       _auditLog('הוספה', 'משתמשים', newUser.username, `משתמש חדש: ${newUser.username} (${newUser.role})`);
       return { ok: true, data: { rowCount: _data.users.length } };
     }
