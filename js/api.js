@@ -258,14 +258,34 @@ async function api(fn, args) {
       // Server-authoritative login (AuthV2). The browser NEVER validates the
       // password locally and NEVER receives the user table — it only gets a
       // signed JWT session token from the server.
-      let resp;
-      try {
-        resp = await postToProxy({ action: 'login', username: u, password: p, instance: INSTANCE });
-      } catch (e) {
-        return { ok: true, data: { ok: false, error: 'אין חיבור לשרת — נסה שוב' } };
+      //
+      // Silent retry: transient network/token failures get 2 quiet retries
+      // with exponential backoff before surfacing an error to the user.
+      // 'invalid credentials' and 'too many attempts' are deterministic —
+      // we DON'T retry those (no point + would hit rate limit).
+      const DETERMINISTIC_ERRORS = /invalid credentials|too many attempts|missing credentials|user not found/i;
+      async function attempt() {
+        try {
+          return await postToProxy({ action: 'login', username: u, password: p, instance: INSTANCE });
+        } catch (e) {
+          return { _exception: (e && e.message) || String(e) };
+        }
+      }
+      let resp = await attempt();
+      let tries = 1;
+      while (tries < 3 && (!resp || (resp.ok !== true && !DETERMINISTIC_ERRORS.test(resp.error || '')))) {
+        const backoff = 800 * tries; // 800ms, 1600ms
+        await new Promise(r => setTimeout(r, backoff));
+        const next = await attempt();
+        if (next && next.ok === true) { resp = next; break; }
+        if (next && DETERMINISTIC_ERRORS.test(next.error || '')) { resp = next; break; }
+        resp = next;
+        tries++;
       }
       if (resp && resp.ok && resp.session) {
         try { sessionStorage.setItem('bht_jwt', resp.session); } catch {}
+        // Pre-fetch sheet data in the background so subsequent nav is instant.
+        try { if (typeof ensureLoaded === 'function') ensureLoaded().catch(() => {}); } catch {}
         return { ok: true, data: { ok: true, session: resp.session, user: {
           username: resp.username || u,
           role: resp.role || 'צוות',
@@ -273,7 +293,12 @@ async function api(fn, args) {
           landingPage: resp.landingPage || '',
         } } };
       }
-      return { ok: true, data: { ok: false, error: (resp && resp.error === 'invalid credentials') ? 'משתמש או סיסמה שגויים' : ((resp && resp.error) || 'משתמש או סיסמה שגויים') } };
+      const errKey = (resp && resp.error) || (resp && resp._exception) || '';
+      const userMsg = /invalid credentials/i.test(errKey) ? 'משתמש או סיסמה שגויים'
+        : /too many attempts/i.test(errKey) ? 'יותר מדי ניסיונות — נסה שוב בעוד 5 דקות'
+        : errKey ? 'אין חיבור לשרת — נסה שוב'
+        : 'משתמש או סיסמה שגויים';
+      return { ok: true, data: { ok: false, error: userMsg, _attempts: tries } };
     }
     case 'listStudents': {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
