@@ -265,22 +265,21 @@ async function api(fn, args) {
       // we DON'T retry those (no point + would hit rate limit).
       const DETERMINISTIC_ERRORS = /invalid credentials|too many attempts|missing credentials|user not found/i;
       async function attempt() {
+        const t0 = Date.now();
         try {
-          return await postToProxy({ action: 'login', username: u, password: p, instance: INSTANCE });
+          const r = await postToProxy({ action: 'login', username: u, password: p, instance: INSTANCE });
+          return { ...r, _ms: Date.now() - t0 };
         } catch (e) {
-          return { _exception: (e && e.message) || String(e) };
+          return { _exception: (e && e.message) || String(e), _ms: Date.now() - t0 };
         }
       }
+      // Retry ONLY on fast-fail (<8s) — slow timeouts mean the network is
+      // genuinely slow and retries just compound the wait. One retry max.
       let resp = await attempt();
-      let tries = 1;
-      while (tries < 3 && (!resp || (resp.ok !== true && !DETERMINISTIC_ERRORS.test(resp.error || '')))) {
-        const backoff = 800 * tries; // 800ms, 1600ms
-        await new Promise(r => setTimeout(r, backoff));
-        const next = await attempt();
-        if (next && next.ok === true) { resp = next; break; }
-        if (next && DETERMINISTIC_ERRORS.test(next.error || '')) { resp = next; break; }
-        resp = next;
-        tries++;
+      if (resp && resp.ok !== true && !DETERMINISTIC_ERRORS.test(resp.error || '') && (resp._ms || 0) < 8000) {
+        await new Promise(r => setTimeout(r, 600));
+        const r2 = await attempt();
+        if (r2 && (r2.ok === true || DETERMINISTIC_ERRORS.test(r2.error || ''))) resp = r2;
       }
       if (resp && resp.ok && resp.session) {
         try { sessionStorage.setItem('bht_jwt', resp.session); } catch {}
