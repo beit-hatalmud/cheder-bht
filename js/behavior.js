@@ -150,12 +150,16 @@ function renderEventsTab(root) {
     </div>` : '';
   root.innerHTML = pendingHtml + `
     <div class="row g-2 mb-3">
-      <div class="col-md-4"><select id="b-fstudent" class="form-select"><option value="">כל התלמידים</option></select></div>
+      <div class="col-md-4">
+        <input id="b-fstudent" class="form-control" list="b-fstudent-list" placeholder="הקלד שם תלמיד או השאר ריק לכולם" autocomplete="off">
+        <datalist id="b-fstudent-list"></datalist>
+      </div>
       <div class="col-md-4"><select id="b-fcat" class="form-select"><option value="">כל הקטגוריות</option></select></div>
     </div>
     <div id="b-list"></div>`;
   fillFilters();
   drawEvents(_events.filter(e => e['סטטוס_אישור'] !== 'ממתין לאישור'));
+  document.getElementById('b-fstudent').oninput = applyFilters;
   document.getElementById('b-fstudent').onchange = applyFilters;
   document.getElementById('b-fcat').onchange = applyFilters;
 }
@@ -196,11 +200,10 @@ window.approveEvent = async function(id) {
 };
 
 function fillFilters() {
-  const stSel = document.getElementById('b-fstudent');
-  _allStudents.forEach(s => {
-    const fn = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
-    stSel.innerHTML += `<option value="${escHtml(s['מזהה'])}">${escHtml(fn)}</option>`;
-  });
+  const stList = document.getElementById('b-fstudent-list');
+  if (stList && typeof studentsDatalistOptions === 'function') {
+    stList.innerHTML = studentsDatalistOptions(_allStudents, true);
+  }
   const catSel = document.getElementById('b-fcat');
   _categories.forEach(c => {
     catSel.innerHTML += `<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`;
@@ -209,9 +212,18 @@ function fillFilters() {
 
 function applyFilters() {
   let f = _events;
-  const s = document.getElementById('b-fstudent').value;
+  const typed = (document.getElementById('b-fstudent').value || '').trim();
   const c = document.getElementById('b-fcat').value;
-  if (s) f = f.filter(e => String(e['תלמיד_מזהה']) === s);
+  if (typed) {
+    const stu = (typeof resolveStudent === 'function') ? resolveStudent(typed, _allStudents) : null;
+    if (stu) {
+      f = f.filter(e => String(e['תלמיד_מזהה']) === String(stu['מזהה']));
+    } else {
+      // Partial match: filter by name substring on the event's שם תלמיד
+      const q = typed.toLowerCase();
+      f = f.filter(e => (e['שם תלמיד']||'').toLowerCase().includes(q));
+    }
+  }
   if (c) f = f.filter(e => e['קטגוריה'] === c);
   drawEvents(f);
 }
@@ -271,7 +283,12 @@ function editEvent(id) {
   addEventModal();
   const modalEl = document.getElementById('addEvModal');
   const populate = () => {
-    document.getElementById('ne-student').value = e['תלמיד_מזהה'] || '';
+    const stuInput = document.getElementById('ne-student');
+    if (stuInput && stuInput.tagName === 'INPUT' && typeof setStudentTypeaheadValue === 'function') {
+      setStudentTypeaheadValue('ne-student', e['תלמיד_מזהה'], _allStudents, e['שם תלמיד']);
+    } else if (stuInput) {
+      stuInput.value = e['תלמיד_מזהה'] || '';
+    }
     document.getElementById('ne-cat').value = e['קטגוריה'] || '';
     document.getElementById('ne-desc').value = e['תיאור'] || '';
     document.getElementById('ne-sev').value = e['חומרה'] || 'בינונית';
@@ -313,10 +330,13 @@ window.newFormForEvent = function(eventId) {
 };
 
 function addEventModal() {
+  const studentInput = (typeof studentTypeaheadHTML === 'function')
+    ? studentTypeaheadHTML('ne-student', _allStudents, { placeholder: 'הקלד שם תלמיד...', className: 'form-control' })
+    : `<select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select>`;
   const html = `<div class="modal fade" id="addEvModal"><div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5>אירוע חדש</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="mb-3"><label class="form-label">תלמיד</label><select id="ne-student" class="form-select"><option value="">בחר</option>${_allStudents.filter(s => (s['סטטוס']||'פעיל') !== 'סיים').map(s=>`<option value="${escHtml(s['מזהה'])}">${escHtml((s['שם פרטי']||'') + ' ' + (s['שם משפחה']||''))}</option>`).join('')}</select></div>
+      <div class="mb-3"><label class="form-label">תלמיד</label>${studentInput}</div>
       <div class="mb-3"><label class="form-label">קטגוריה</label><select id="ne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
       <div class="mb-3"><label class="form-label">תיאור</label><textarea id="ne-desc" class="form-control" rows="3"></textarea></div>
       <div class="mb-3"><label class="form-label">חומרה</label><select id="ne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
@@ -335,10 +355,32 @@ async function saveEvent(event) {
   if (btn && btn.disabled) return;
   if (btn) {
     btn.disabled = true;
-    setTimeout(() => { btn.disabled = false; }, 3000);
+    btn.dataset._origText = btn.textContent;
+    btn.textContent = 'שומר...';
+    setTimeout(() => {
+      if (btn.disabled) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset._origText || 'שמור';
+      }
+    }, 15000);
   }
-  const sid = document.getElementById('ne-student').value;
-  const stu = _allStudents.find(s => String(s['מזהה']) === sid);
+  const stuInput = document.getElementById('ne-student');
+  let sid = '';
+  let stu = null;
+  if (stuInput && stuInput.tagName === 'INPUT') {
+    const typed = (stuInput.value || '').trim();
+    stu = (typeof resolveStudent === 'function') ? resolveStudent(typed, _allStudents) : null;
+    if (!stu && typed) {
+      // Fallback: case-insensitive substring match on full name
+      const q = typed.toLowerCase();
+      const matches = _allStudents.filter(s => `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase().includes(q));
+      if (matches.length === 1) stu = matches[0];
+    }
+    if (stu) sid = String(stu['מזהה']||'');
+  } else if (stuInput) {
+    sid = stuInput.value;
+    stu = _allStudents.find(s => String(s['מזהה']) === sid);
+  }
   const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
   const reporter = sess.username || 'admin';
   const obj = {
@@ -348,7 +390,14 @@ async function saveEvent(event) {
     'תיאור': document.getElementById('ne-desc').value,
     'חומרה': document.getElementById('ne-sev').value,
   };
-  if (!obj['תלמיד_מזהה'] || !obj['קטגוריה'] || !obj['תיאור']) return alert('כל השדות חובה');
+  if (!obj['תלמיד_מזהה']) {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset._origText || 'שמור'; }
+    return alert('יש לבחור תלמיד מהרשימה (הקלד שם והרשימה תציע)');
+  }
+  if (!obj['קטגוריה'] || !obj['תיאור']) {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset._origText || 'שמור'; }
+    return alert('כל השדות חובה');
+  }
   const editId = document.getElementById('addEvModal').dataset.editId;
   let r;
   if (editId) {
@@ -369,7 +418,10 @@ async function saveEvent(event) {
     obj['דווח_עי'] = reporter;
     r = await api('addBehavior', [obj]);
   }
-  if (r && !r.ok) return alert(r.error || 'שגיאה בשמירה');
+  if (r && !r.ok) {
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset._origText || 'שמור'; }
+    return alert(r.error || 'שגיאה בשמירה');
+  }
   hideModal('addEvModal');
   renderBehavior();
   loadStats();

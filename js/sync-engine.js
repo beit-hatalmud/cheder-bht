@@ -44,9 +44,19 @@
     'settings': 'renderSettings',
   };
 
+  // Skip auto-render whenever a Bootstrap modal is currently open or while the
+  // user is actively typing in a form — re-rendering kills the modal/input state.
+  function shouldSkipAutoRender() {
+    if (document.querySelector('.modal.show')) return true;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return true;
+    return false;
+  }
+
   // ===== Cross-tab sync via storage event (multiple windows of same site) =====
   window.addEventListener('storage', e => {
     if (e.key === 'cheder_bht_data') {
+      if (shouldSkipAutoRender()) { console.log('[sync] skip render — modal/input active'); return; }
       console.log('[sync] data changed in another tab, refreshing current view');
       const currentPage = (location.hash || '#home').replace('#', '');
       const fn = RENDER_FNS[currentPage];
@@ -66,7 +76,10 @@
     if (screens.includes(currentPage)) {
       const fn = RENDER_FNS[currentPage];
       if (fn && typeof window[fn] === 'function') {
-        setTimeout(() => { try { window[fn](); } catch (_) { } }, 100);
+        setTimeout(() => {
+          if (shouldSkipAutoRender()) { console.log('[sync] skip auto-render — modal/input active'); return; }
+          try { window[fn](); } catch (_) { }
+        }, 100);
       }
     }
   });

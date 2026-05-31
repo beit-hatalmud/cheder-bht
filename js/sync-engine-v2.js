@@ -124,6 +124,14 @@
       reports: 'renderReports', formsMgmt: 'renderFormsMgmt',
       functioning: 'renderFunctioning', calendar: 'renderCalendar',
     };
+    // Skip render whenever a modal is open or user is editing — prevents
+    // mid-edit page wipes that were killing "save new event" flow.
+    const skipAutoRender = () => {
+      if (document.querySelector('.modal.show')) return true;
+      const ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) return true;
+      return false;
+    };
     screens.forEach(screen => {
       const fn = renderMap[screen];
       if (fn && typeof window[fn] === 'function') {
@@ -131,6 +139,7 @@
           // Only re-render if user is currently on that page
           const hash = location.hash.replace('#', '');
           if (hash === screen) {
+            if (skipAutoRender()) { console.log('[Sync-v2] skip render — modal/input active'); return; }
             window[fn]();
           }
         } catch (e) {
@@ -155,6 +164,7 @@
   // ===== Cross-tab sync via storage event =====
   window.addEventListener('storage', e => {
     if (e.key !== 'cheder_bht_data') return;
+    if (document.querySelector('.modal.show')) { console.warn('[Sync-v2] skip cross-tab render — modal open'); return; }
     console.warn('[Sync-v2] data changed in another tab');
     const hash = location.hash.replace('#', '') || 'home';
     const renderMap = { students: 'renderStudents', behavior: 'renderBehavior' };
