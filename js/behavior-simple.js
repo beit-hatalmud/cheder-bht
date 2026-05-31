@@ -168,10 +168,14 @@
 
     let saved = false;
 
-    // Try the real api first
+    // Try the real api first — with a 8s timeout so a hung ensureLoaded()
+    // never blocks the save flow. If timeout hits, we fall through to the
+    // local-cache path which the background sync will pick up later.
     try {
       if (typeof window.api === 'function') {
-        const r = await window.api('addBehavior', [obj]);
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('api timeout 8s')), 8000));
+        const apiCall = window.api('addBehavior', [obj]);
+        const r = await Promise.race([apiCall, timeout]);
         if (r && r.ok !== false) {
           saved = true;
         } else {
@@ -179,7 +183,7 @@
         }
       }
     } catch (e) {
-      console.warn('[simple] api threw:', e);
+      console.warn('[simple] api threw / timed out:', e && e.message);
     }
 
     if (!saved) {
