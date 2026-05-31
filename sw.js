@@ -1,7 +1,7 @@
 // sw.js — Service Worker for offline support
 // Cheder-BHT Production. 2026-05-27 (v2 — network-first for api.js, skip dynamic data)
 
-const CACHE_NAME = 'bht-cache-v4-20260531b';
+const CACHE_NAME = 'bht-cache-v5-20260531c';
 const CORE_ASSETS = [
   '/cheder-bht/',
   '/cheder-bht/index.html',
@@ -17,6 +17,8 @@ const CORE_ASSETS = [
 // - Legacy behavior-pack-*.js (transitional; individual files still served if linked)
 // - monitor.js, sync-engine-v2.js (sync logic)
 const NETWORK_FIRST = [
+  /\/cheder-bht\/?$/,
+  /\/cheder-bht\/index\.html(\?|$)/,
   /\/api\.js(\?|$)/,
   /\/dist\/main\.bundle\.js(\?|$)/,
   /\/behavior-pack-\d+\.js(\?|$)/,
@@ -32,6 +34,8 @@ const NETWORK_FIRST = [
   /\/behavior-enhancements\.js(\?|$)/,
   /\/behavior-extras\.js(\?|$)/,
   /\/behavior-v2\.js(\?|$)/,
+  /\/app\.js(\?|$)/,
+  /\/studentSearch\.js(\?|$)/,
 ];
 
 self.addEventListener('install', e => {
@@ -42,12 +46,14 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-    ))
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+    // Tell every open tab to refresh once so they pick up the new bundle.
+    const all = await self.clients.matchAll({ type: 'window' });
+    all.forEach(c => c.postMessage({ type: 'SW_NEW_VERSION', cache: CACHE_NAME }));
+  })());
 });
 
 self.addEventListener('fetch', e => {

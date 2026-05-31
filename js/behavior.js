@@ -423,6 +423,23 @@ async function saveEvent(event) {
     return alert(r.error || 'שגיאה בשמירה');
   }
   hideModal('addEvModal');
-  renderBehavior();
+  // Optimistic local update — drawEvents directly, before triggering renderBehavior.
+  // Multiple packs (50, 107, 4) debounce renderBehavior up to 3s, which caused the
+  // post-save list to appear unchanged → users thought save failed.
+  try {
+    if (!editId) {
+      _events.unshift(obj);
+    } else {
+      const idx = _events.findIndex(e => String(e['מזהה']) === String(obj['מזהה']));
+      if (idx >= 0) _events[idx] = Object.assign({}, _events[idx], obj);
+    }
+    _events.sort((a,b) => new Date(b['תאריך']) - new Date(a['תאריך']));
+    if (typeof drawEvents === 'function') drawEvents(_events.filter(e => e['סטטוס_אישור'] !== 'ממתין לאישור'));
+    if (typeof updateTabBadges === 'function') updateTabBadges();
+    if (typeof toast === 'function') toast(editId ? '✓ עודכן' : '✓ נשמר', 'success');
+  } catch(e) { console.warn('optimistic update failed:', e); }
+  // Then trigger full render (bypass debounce so dependent screens refresh)
+  window._forceRender = true;
+  try { renderBehavior(); } finally { setTimeout(() => { window._forceRender = false; }, 100); }
   loadStats();
 }
