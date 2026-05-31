@@ -36,6 +36,7 @@ const NETWORK_FIRST = [
   /\/behavior-v2\.js(\?|$)/,
   /\/app\.js(\?|$)/,
   /\/studentSearch\.js(\?|$)/,
+  /\/behavior-simple\.js(\?|$)/,
 ];
 
 self.addEventListener('install', e => {
