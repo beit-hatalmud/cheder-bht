@@ -20,9 +20,13 @@
         }
       }
     });
-    // Also unwrap any pack-18 wrappers
+    // Also unwrap any pack-18 wrappers — but ONLY if the user isn't actively
+    // typing in this textarea (insertBefore on a focused element steals focus
+    // every tick → users were being kicked out of the input every second).
     document.querySelectorAll('textarea[data-mic-added]').forEach(t => {
+      if (document.activeElement === t || t.contains(document.activeElement)) return;
       const wrapper = t.parentNode;
+      if (wrapper && wrapper.contains(document.activeElement)) return;
       if (wrapper && wrapper.style?.position === 'relative' && wrapper.children.length === 2) {
         const grandparent = wrapper.parentNode;
         if (grandparent) {

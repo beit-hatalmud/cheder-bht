@@ -1,7 +1,7 @@
 // sw.js — Service Worker for offline support
 // Cheder-BHT Production. 2026-05-27 (v2 — network-first for api.js, skip dynamic data)
 
-const CACHE_NAME = 'bht-cache-v3-20260531';
+const CACHE_NAME = 'bht-cache-v4-20260531b';
 const CORE_ASSETS = [
   '/cheder-bht/',
   '/cheder-bht/index.html',
