@@ -103,17 +103,49 @@
       else modalEl.classList.add('show'), modalEl.style.display = 'block', modalEl.style.background = 'rgba(0,0,0,0.5)';
     } catch (e) { console.warn('[simple] modal show err', e); }
 
-    // Wire up the save button (NOT via inline onclick, to avoid any wrapped saveEvent)
-    document.getElementById('ne-save').addEventListener('click', simpleSaveEvent);
+    // Wire up the save button — multiple layers so the click cannot be lost:
+    // 1) addEventListener  2) inline onclick fallback  3) document-level capture listener
+    const saveBtn = document.getElementById('ne-save');
+    saveBtn.addEventListener('click', simpleSaveEvent);
+    saveBtn.onclick = function (ev) { ev && ev.preventDefault && ev.preventDefault(); simpleSaveEvent(); return false; };
+    // Capture-phase delegated handler — fires even if some pack stops bubble
+    const captureHandler = function (ev) {
+      const t = ev.target && ev.target.closest ? ev.target.closest('#ne-save') : null;
+      if (t) { ev.stopPropagation(); simpleSaveEvent(); }
+    };
+    document.addEventListener('click', captureHandler, true);
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      document.removeEventListener('click', captureHandler, true);
+    }, { once: true });
 
     // Focus the student input
     setTimeout(() => { try { document.getElementById('ne-student').focus(); } catch {} }, 200);
   };
 
+  // Persistent on-screen debug overlay so every step is visible without DevTools
+  function dbgBanner(msg, color) {
+    let el = document.getElementById('bht-save-dbg');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'bht-save-dbg';
+      el.style.cssText = 'position:fixed;top:60px;right:20px;min-width:300px;max-width:480px;background:#1e3a8a;color:#fff;padding:14px 18px;border-radius:10px;z-index:99999;font-family:Heebo,Arial,sans-serif;font-size:14px;direction:rtl;box-shadow:0 8px 24px rgba(0,0,0,0.3);white-space:pre-wrap;line-height:1.6';
+      document.body.appendChild(el);
+    }
+    el.style.background = color || '#1e3a8a';
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function dbgClear() {
+    const el = document.getElementById('bht-save-dbg');
+    if (el) setTimeout(() => el.style.display = 'none', 5000);
+  }
+
   async function simpleSaveEvent() {
+    dbgBanner('🔵 לחיצה זוהתה — מתחיל שמירה...');
     const btn = document.getElementById('ne-save');
     const statusEl = document.getElementById('ne-status');
     const showStatus = (msg, type='info') => {
+      if (!statusEl) return;
       statusEl.className = 'alert alert-' + type;
       statusEl.textContent = msg;
       statusEl.classList.remove('d-none');
@@ -135,14 +167,18 @@
     }
 
     if (!stu) {
+      dbgBanner('⚠️ לא נבחר תלמיד. הקלד שם מהרשימה. (' + students.length + ' תלמידים זמינים)', '#b45309');
       showStatus('יש להקליד שם תלמיד מהרשימה. נמצאו ' + students.length + ' תלמידים זמינים.', 'warning');
       return;
     }
-    if (!cat) { showStatus('יש לבחור קטגוריה', 'warning'); return; }
-    if (!desc) { showStatus('יש להוסיף תיאור', 'warning'); return; }
+    if (!cat) { dbgBanner('⚠️ לא נבחרה קטגוריה', '#b45309'); showStatus('יש לבחור קטגוריה', 'warning'); return; }
+    if (!desc) { dbgBanner('⚠️ חסר תיאור', '#b45309'); showStatus('יש להוסיף תיאור', 'warning'); return; }
 
-    btn.disabled = true;
-    btn.textContent = '⏳ שומר...';
+    dbgBanner('🟡 שומר את האירוע של ' + studentName(stu) + '...');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ שומר...';
+    }
     showStatus('שומר באופן מקומי...', 'info');
 
     const now = new Date();
@@ -168,39 +204,46 @@
 
     let saved = false;
 
-    // Try the real api first — with a 8s timeout so a hung ensureLoaded()
+    // Try the real api first — with a 6s timeout so a hung ensureLoaded()
     // never blocks the save flow. If timeout hits, we fall through to the
     // local-cache path which the background sync will pick up later.
+    dbgBanner('🟡 שלב 1/3: שולח לשרת...');
     try {
       if (typeof window.api === 'function') {
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('api timeout 8s')), 8000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('api timeout 6s')), 6000));
         const apiCall = window.api('addBehavior', [obj]);
         const r = await Promise.race([apiCall, timeout]);
         if (r && r.ok !== false) {
           saved = true;
+          dbgBanner('🟢 שלב 1/3 הצליח: השרת קיבל');
         } else {
+          dbgBanner('🟠 שלב 1/3 נכשל - נשמור מקומית: ' + ((r && r.error) || 'תשובה ריקה'), '#b45309');
           console.warn('[simple] api addBehavior failed:', r);
         }
+      } else {
+        dbgBanner('🟠 אין api - שומר מקומית', '#b45309');
       }
     } catch (e) {
+      dbgBanner('🟠 שגיאה: ' + (e && e.message) + ' - שומר מקומית', '#b45309');
       console.warn('[simple] api threw / timed out:', e && e.message);
     }
 
-    if (!saved) {
-      // Fallback: write directly to local cache so UI shows it
-      try {
-        const data = JSON.parse(localStorage.getItem('cheder_bht_data') || '{}');
-        if (!Array.isArray(data.behavior)) data.behavior = [];
-        data.behavior.push(obj);
-        localStorage.setItem('cheder_bht_data', JSON.stringify(data));
-        saved = true;
-        showStatus('נשמר מקומית (לא הצלחנו לסנכרן עם השרת — ננסה שוב מאוחר יותר)', 'warning');
-      } catch (e) {
-        showStatus('שגיאה: ' + e.message, 'danger');
-        btn.disabled = false;
-        btn.textContent = '💾 שמור אירוע';
-        return;
-      }
+    // ALWAYS also write to localStorage so it's never lost
+    dbgBanner('🟡 שלב 2/3: שומר מקומית...');
+    try {
+      const data = JSON.parse(localStorage.getItem('cheder_bht_data') || '{}');
+      if (!Array.isArray(data.behavior)) data.behavior = [];
+      // Don't duplicate if api already added it (look by id)
+      const exists = data.behavior.some(e => String(e['מזהה']||'') === String(obj['מזהה']));
+      if (!exists) data.behavior.push(obj);
+      localStorage.setItem('cheder_bht_data', JSON.stringify(data));
+      saved = true;
+      dbgBanner('🟢 שלב 2/3 הושלם: שמור ב-localStorage (' + data.behavior.length + ' אירועים סה"כ)');
+    } catch (e) {
+      dbgBanner('🔴 שלב 2/3 נכשל: ' + e.message, '#dc2626');
+      showStatus('שגיאה: ' + e.message, 'danger');
+      if (btn) { btn.disabled = false; btn.textContent = '💾 שמור אירוע'; }
+      return;
     }
 
     // Update in-memory events list immediately
@@ -211,6 +254,7 @@
     } catch {}
 
     // Try to redraw the events list directly without going through debounced renderBehavior
+    dbgBanner('🟡 שלב 3/3: מעדכן את הרשימה...');
     try {
       if (typeof window.drawEvents === 'function' && document.getElementById('b-list')) {
         window.drawEvents(window._events.filter(e => e['סטטוס_אישור'] !== 'ממתין לאישור'));
@@ -222,6 +266,8 @@
     if (typeof window.toast === 'function') {
       try { window.toast('✓ אירוע נשמר: ' + studentName(stu), 'success'); } catch {}
     }
+    dbgBanner('🟢 ✓ נשמר בהצלחה!\nתלמיד: ' + studentName(stu) + '\nקטגוריה: ' + cat, '#16a34a');
+    dbgClear();
 
     // Close modal after a short delay so user sees the success message
     setTimeout(() => {
