@@ -103,19 +103,21 @@
       else modalEl.classList.add('show'), modalEl.style.display = 'block', modalEl.style.background = 'rgba(0,0,0,0.5)';
     } catch (e) { console.warn('[simple] modal show err', e); }
 
-    // Wire up the save button — ONE handler with re-entry guard so a click
-    // that triggers multiple listeners (target + capture + onclick) only
-    // saves once. The triple-binding I had before was creating duplicates.
+    // Wire up the save button — re-entry guard prevents duplicates from
+    // multiple-listener chains. Use BOTH addEventListener and onclick so the
+    // click is captured no matter what; the guard makes them idempotent.
     let _inFlight = false;
     const wrappedSave = function (ev) {
+      console.warn('[simple] save click fired');
       if (ev && ev.preventDefault) ev.preventDefault();
-      if (_inFlight) return;
+      if (_inFlight) { console.warn('[simple] duplicate click ignored'); return; }
       _inFlight = true;
-      try { simpleSaveEvent(); } finally {
-        setTimeout(() => { _inFlight = false; }, 2000);
-      }
+      try { simpleSaveEvent(); }
+      catch (e) { console.warn('[simple] save threw:', e); _inFlight = false; throw e; }
+      setTimeout(() => { _inFlight = false; }, 2500);
     };
     const saveBtn = document.getElementById('ne-save');
+    saveBtn.addEventListener('click', wrappedSave);
     saveBtn.onclick = wrappedSave;
 
     // Focus the student input
