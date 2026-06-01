@@ -301,14 +301,18 @@
     const s = document.createElement('style');
     s.id = 'ur-hide-style';
     s.textContent = `
-      /* Hide all bottom-left floating buttons that the legacy packs add,
-         leaving only #ur-fab visible. */
-      body > button[style*="position:fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
-      body > button[style*="position: fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
-      body > div[style*="position:fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
+      /* Hide every fixed-position floating button/div in the corners except ours */
+      body > button[style*="position:fixed"][style*="bottom"]:not(#ur-fab),
+      body > div[style*="position:fixed"][style*="bottom"]:not(#ur-fab):not(#bht-save-dbg):not(.modal):not(.modal-backdrop):not(.toast),
+      body > button[style*="position: fixed"][style*="bottom"]:not(#ur-fab),
+      body > div[style*="position: fixed"][style*="bottom"]:not(#ur-fab),
       #queue-badge-118,
-      #stale-data-banner { display: none !important; }
-      /* The legacy main FAB (pack-40, +) is also hidden */
+      #stale-data-banner,
+      #quick-add-fab-130,
+      #tour-overlay,
+      [id*="packs deployed"],
+      [class*="walkthrough"],
+      [class*="tour-popup"] { display: none !important; }
       .legacy-fab { display: none !important; }
     `;
     document.head.appendChild(s);
