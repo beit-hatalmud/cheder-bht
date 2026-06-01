@@ -103,20 +103,20 @@
       else modalEl.classList.add('show'), modalEl.style.display = 'block', modalEl.style.background = 'rgba(0,0,0,0.5)';
     } catch (e) { console.warn('[simple] modal show err', e); }
 
-    // Wire up the save button — multiple layers so the click cannot be lost:
-    // 1) addEventListener  2) inline onclick fallback  3) document-level capture listener
-    const saveBtn = document.getElementById('ne-save');
-    saveBtn.addEventListener('click', simpleSaveEvent);
-    saveBtn.onclick = function (ev) { ev && ev.preventDefault && ev.preventDefault(); simpleSaveEvent(); return false; };
-    // Capture-phase delegated handler — fires even if some pack stops bubble
-    const captureHandler = function (ev) {
-      const t = ev.target && ev.target.closest ? ev.target.closest('#ne-save') : null;
-      if (t) { ev.stopPropagation(); simpleSaveEvent(); }
+    // Wire up the save button — ONE handler with re-entry guard so a click
+    // that triggers multiple listeners (target + capture + onclick) only
+    // saves once. The triple-binding I had before was creating duplicates.
+    let _inFlight = false;
+    const wrappedSave = function (ev) {
+      if (ev && ev.preventDefault) ev.preventDefault();
+      if (_inFlight) return;
+      _inFlight = true;
+      try { simpleSaveEvent(); } finally {
+        setTimeout(() => { _inFlight = false; }, 2000);
+      }
     };
-    document.addEventListener('click', captureHandler, true);
-    modalEl.addEventListener('hidden.bs.modal', () => {
-      document.removeEventListener('click', captureHandler, true);
-    }, { once: true });
+    const saveBtn = document.getElementById('ne-save');
+    saveBtn.onclick = wrappedSave;
 
     // Focus the student input
     setTimeout(() => { try { document.getElementById('ne-student').focus(); } catch {} }, 200);
