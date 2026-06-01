@@ -4,7 +4,7 @@
 
   const STORAGE_KEY = 'cameras_live_url';
   // Default Cloudflare Tunnel URL (Quick Tunnel — temporary, replace with named tunnel for production)
-  const DEFAULT_URL = 'https://pressure-experts-rescue-subscribers.trycloudflare.com';
+  const DEFAULT_URL = 'https://heather-monster-embedded-encoding.trycloudflare.com';
 
   function getLiveUrl() {
     return localStorage.getItem(STORAGE_KEY) || DEFAULT_URL || '';

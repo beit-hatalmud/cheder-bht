@@ -52,7 +52,7 @@
     home.insertBefore(widget, home.firstChild);
 
     // Check camera health asynchronously
-    fetch('https://oregon-knock-learn-corrections.trycloudflare.com/lobby/index.m3u8', { mode: 'no-cors', cache: 'no-store' })
+    fetch('https://biodiversity-prairie-faq-shower.trycloudflare.com/lobby/index.m3u8', { mode: 'no-cors', cache: 'no-store' })
       .then(() => {
         const el = document.getElementById('cam-health-widget');
         if (el) el.innerHTML = `<div style="font-size:24px;font-weight:bold;color:#16a34a">📹 ✓</div><div style="font-size:11px;color:#6b7280">מצלמות פעילות</div>`;

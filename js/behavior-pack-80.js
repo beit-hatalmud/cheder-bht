@@ -3,7 +3,7 @@
   'use strict';
 
   const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
   const PATHS = ['shaar','chadar_rm','lobby','shvil','machsan','parking','chadar_shiur','chadar_mifgash','mazkirut','misrad','beit_midrash'];
 
   function getBase() { return localStorage.getItem(HLS_BASE_KEY) || DEFAULT_HLS_BASE; }

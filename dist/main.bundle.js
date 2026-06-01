@@ -1,5 +1,5 @@
-// === main.bundle.js — built 2026-06-01T04:50:20.949Z ===
-// Source: 146 behavior packs concatenated in numeric order.
+// === main.bundle.js — built 2026-06-01T04:58:34.906Z ===
+// Source: 148 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
 // ─── behavior-pack-2.js ─────────────────────────────────────────────
@@ -11062,9 +11062,10 @@ try {
 // ─── behavior-pack-64.js ─────────────────────────────────────────────
 try {
 // behavior-pack-64.js — Live cameras viewer (Cloudflare Tunnel URL configurable). 2026-05-26
-(function () {const STORAGE_KEY = 'cameras_live_url';
+(function () {
+const STORAGE_KEY = 'cameras_live_url';
   // Default Cloudflare Tunnel URL (Quick Tunnel — temporary, replace with named tunnel for production)
-  const DEFAULT_URL = 'https://pressure-experts-rescue-subscribers.trycloudflare.com';
+  const DEFAULT_URL = 'https://heather-monster-embedded-encoding.trycloudflare.com';
 
   function getLiveUrl() {
     return localStorage.getItem(STORAGE_KEY) || DEFAULT_URL || '';
@@ -11192,10 +11193,11 @@ try {
 // ─── behavior-pack-65.js ─────────────────────────────────────────────
 try {
 // behavior-pack-65.js — Live cameras grid using HLS.js (11 cameras from Beit HaTalmud DVR). 2026-05-26
-(function () {// Cloudflare Tunnel base URL for mediamtx HLS (will be set after tunnel created)
+(function () {
+// Cloudflare Tunnel base URL for mediamtx HLS (will be set after tunnel created)
   const HLS_BASE_KEY = 'cameras_hls_base';
   // Default base — user-configurable
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
 
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
@@ -12549,8 +12551,9 @@ try {
 try {
 // behavior-pack-76.js — CRITICAL FIX: standalone-pages.js overrides renderCameras AFTER pack-65/67/68/69/70.
 // This pack re-applies the HLS camera grid at the very end of load order. 2026-05-27
-(function () {const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+(function () {
+const HLS_BASE_KEY = 'cameras_hls_base';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
 
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
@@ -12745,8 +12748,9 @@ try {
 // behavior-pack-78.js — CRITICAL: switch from broken HLS-with-session to mediamtx built-in iframes. 2026-05-27
 // HLS via hls.js has session/segment 404 issues. mediamtx serves a built-in WebRTC player at /<path>/
 // We just iframe it - the player handles HLS+WebRTC negotiation, autoplay, etc.
-(function () {const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+(function () {
+const HLS_BASE_KEY = 'cameras_hls_base';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
 
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
@@ -12910,8 +12914,9 @@ try {
 // ─── behavior-pack-80.js ─────────────────────────────────────────────
 try {
 // behavior-pack-80.js — Round 16: pre-warm cameras + autoplay tweak + camera stream cache. 2026-05-27
-(function () {const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+(function () {
+const HLS_BASE_KEY = 'cameras_hls_base';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
   const PATHS = ['shaar','chadar_rm','lobby','shvil','machsan','parking','chadar_shiur','chadar_mifgash','mazkirut','misrad','beit_midrash'];
 
   function getBase() { return localStorage.getItem(HLS_BASE_KEY) || DEFAULT_HLS_BASE; }
@@ -13072,10 +13077,11 @@ try {
 // ─── behavior-pack-82.js ─────────────────────────────────────────────
 try {
 // behavior-pack-82.js — CRITICAL: WebRTC direct via WHEP (bypass broken mediamtx HLS sessions). 2026-05-27
-(function () {const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+(function () {
+const HLS_BASE_KEY = 'cameras_hls_base';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
   const WEBRTC_BASE_KEY = 'cameras_webrtc_base';
-  const DEFAULT_WEBRTC_BASE = 'https://participation-seek-indexes-burner.trycloudflare.com';
+  const DEFAULT_WEBRTC_BASE = 'https://erp-carbon-grip-autos.trycloudflare.com';
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
     { path: 'chadar_rm',      name: 'חדר רמ"מ',     channel: 2,  emoji: '👨‍🏫' },
@@ -13656,7 +13662,8 @@ try {
 // ─── behavior-pack-88.js ─────────────────────────────────────────────
 try {
 // behavior-pack-88.js — Round 24: home dashboard mini-stats + camera health badge. 2026-05-27
-(function () {// ===== Render home stats widget (admin only) =====
+(function () {
+// ===== Render home stats widget (admin only) =====
   function renderHomeStats() {
     const home = document.getElementById('page-home');
     if (!home) return;
@@ -13706,7 +13713,7 @@ try {
     home.insertBefore(widget, home.firstChild);
 
     // Check camera health asynchronously
-    fetch('https://oregon-knock-learn-corrections.trycloudflare.com/lobby/index.m3u8', { mode: 'no-cors', cache: 'no-store' })
+    fetch('https://biodiversity-prairie-faq-shower.trycloudflare.com/lobby/index.m3u8', { mode: 'no-cors', cache: 'no-store' })
       .then(() => {
         const el = document.getElementById('cam-health-widget');
         if (el) el.innerHTML = `<div style="font-size:24px;font-weight:bold;color:#16a34a">📹 ✓</div><div style="font-size:11px;color:#6b7280">מצלמות פעילות</div>`;
@@ -13735,7 +13742,8 @@ try {
 // ─── behavior-pack-89.js ─────────────────────────────────────────────
 try {
 // behavior-pack-89.js — Round 25: camera admin settings panel + tunnel URL config. 2026-05-27
-(function () {const HLS_KEY = 'cameras_hls_base';
+(function () {
+const HLS_KEY = 'cameras_hls_base';
   const WHEP_KEY = 'cameras_webrtc_base';
   const DVR_KEY = 'cameras_live_url';
 
@@ -13756,15 +13764,15 @@ try {
             <div class="alert alert-info small">3 Cloudflare Tunnels פעילים. URL משתנה בכל reboot של mediamtx/cloudflared.</div>
 
             <label class="form-label fw-bold mt-2">URL לזרמי HLS</label>
-            <input id="cs-hls" class="form-control" value="${esc(localStorage.getItem(HLS_KEY) || 'https://oregon-knock-learn-corrections.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-hls" class="form-control" value="${esc(localStorage.getItem(HLS_KEY) || 'https://biodiversity-prairie-faq-shower.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">צריך לעבוד עם /{path}/index.m3u8</div>
 
             <label class="form-label fw-bold mt-3">URL ל-WebRTC (WHEP)</label>
-            <input id="cs-whep" class="form-control" value="${esc(localStorage.getItem(WHEP_KEY) || 'https://participation-seek-indexes-burner.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-whep" class="form-control" value="${esc(localStorage.getItem(WHEP_KEY) || 'https://erp-carbon-grip-autos.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">צריך לעבוד עם POST /{path}/whep</div>
 
             <label class="form-label fw-bold mt-3">URL ל-DVR (ניהול ישיר)</label>
-            <input id="cs-dvr" class="form-control" value="${esc(localStorage.getItem(DVR_KEY) || 'https://pressure-experts-rescue-subscribers.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-dvr" class="form-control" value="${esc(localStorage.getItem(DVR_KEY) || 'https://heather-monster-embedded-encoding.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">לממשק admin של ה-DVR (Dahua 192.168.1.108)</div>
 
             <hr>
@@ -21587,3 +21595,95 @@ function markInteracted() {
   console.warn('%c👆 Pack-148 — user-interaction flag (gates vibrate)', 'color:#0891b2;font-weight:bold');
 })();
 } catch (e) { (console && console.error) ? console.error('[behavior-pack-148.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-149.js ─────────────────────────────────────────────
+try {
+// behavior-pack-149.js — Clear stale Cloudflare tunnel URLs from localStorage.
+// Quick trycloudflare URLs change every restart, so any URL the user saved
+// before 2026-06-01 (e.g. oregon-knock-learn-corrections) is dead and must be
+// replaced with the current hardcoded fallback.
+// 2026-06-01.
+(function () {
+const DEAD_URLS = [
+    'oregon-knock-learn-corrections',
+    'participation-seek-indexes-burner',
+    'pressure-experts-rescue-subscribers',
+  ];
+  const KEYS = ['bht_cam_hls_base', 'bht_cam_whep_base', 'bht_cam_dvr_base', 'cam_url', 'webrtc_base', 'dvr_base'];
+  let cleared = 0;
+  KEYS.forEach(k => {
+    try {
+      const v = localStorage.getItem(k);
+      if (v && DEAD_URLS.some(u => v.includes(u))) {
+        localStorage.removeItem(k);
+        cleared++;
+      }
+    } catch {}
+  });
+  // Also walk EVERY localStorage key to catch any URL we missed
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      const v = localStorage.getItem(k);
+      if (v && DEAD_URLS.some(u => v.includes(u))) {
+        localStorage.removeItem(k);
+        cleared++;
+      }
+    }
+  } catch {}
+  if (cleared > 0) {
+    console.warn('%c🧹 Pack-149 — cleared ' + cleared + ' stale tunnel URL(s) from localStorage', 'color:#dc2626;font-weight:bold');
+  }
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-149.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-150.js ─────────────────────────────────────────────
+try {
+// behavior-pack-150.js — Fetch live Cloudflare tunnel URLs from
+// /cheder-bht/dist/camera-tunnels.json on load. Local watchdog
+// (cf_tunnel_sync.py) keeps that file in sync with the actual tunnels.
+// 2026-06-01.
+(function () {
+const KEYS = {
+    hls:    'bht_cam_hls_base',
+    webrtc: 'bht_cam_whep_base',
+    dvr:    'bht_cam_dvr_base',
+  };
+
+  function applyUrls(cfg) {
+    if (!cfg) return;
+    let applied = 0;
+    Object.entries(KEYS).forEach(([role, lsKey]) => {
+      const url = cfg[role];
+      if (!url) return;
+      const current = localStorage.getItem(lsKey);
+      if (current === url) return;
+      try {
+        localStorage.setItem(lsKey, url);
+        applied++;
+      } catch {}
+    });
+    if (applied > 0) {
+      console.warn('%c📡 Pack-150 — applied ' + applied + ' live tunnel URLs', 'color:#16a34a;font-weight:bold');
+      // Tell camera packs to re-render any open camera view with the new URLs.
+      try { window.dispatchEvent(new CustomEvent('bht-cameras-config-updated', { detail: cfg })); } catch {}
+    }
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('dist/camera-tunnels.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const cfg = await r.json();
+      applyUrls(cfg);
+    } catch (e) {
+      // Silent — fallback URLs in pack-65/76/82 etc. still work.
+    }
+  }
+
+  // Load on init + every 5 minutes (in case tunnel restarts during session)
+  load();
+  setInterval(load, 5 * 60 * 1000);
+
+  console.warn('%c📡 Pack-150 — camera-tunnels.json watcher live', 'color:#0891b2;font-weight:bold');
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-150.js] init failed:', (e && e.message) || e) : null; }

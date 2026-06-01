@@ -3,9 +3,9 @@
   'use strict';
 
   const HLS_BASE_KEY = 'cameras_hls_base';
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
   const WEBRTC_BASE_KEY = 'cameras_webrtc_base';
-  const DEFAULT_WEBRTC_BASE = 'https://participation-seek-indexes-burner.trycloudflare.com';
+  const DEFAULT_WEBRTC_BASE = 'https://erp-carbon-grip-autos.trycloudflare.com';
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },
     { path: 'chadar_rm',      name: 'חדר רמ"מ',     channel: 2,  emoji: '👨‍🏫' },

@@ -5,7 +5,7 @@
   // Cloudflare Tunnel base URL for mediamtx HLS (will be set after tunnel created)
   const HLS_BASE_KEY = 'cameras_hls_base';
   // Default base — user-configurable
-  const DEFAULT_HLS_BASE = 'https://oregon-knock-learn-corrections.trycloudflare.com';
+  const DEFAULT_HLS_BASE = 'https://biodiversity-prairie-faq-shower.trycloudflare.com';
 
   const CAMERAS = [
     { path: 'shaar',          name: 'שער וגינה',     channel: 1,  emoji: '🚪' },

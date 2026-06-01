@@ -23,15 +23,15 @@
             <div class="alert alert-info small">3 Cloudflare Tunnels פעילים. URL משתנה בכל reboot של mediamtx/cloudflared.</div>
 
             <label class="form-label fw-bold mt-2">URL לזרמי HLS</label>
-            <input id="cs-hls" class="form-control" value="${esc(localStorage.getItem(HLS_KEY) || 'https://oregon-knock-learn-corrections.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-hls" class="form-control" value="${esc(localStorage.getItem(HLS_KEY) || 'https://biodiversity-prairie-faq-shower.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">צריך לעבוד עם /{path}/index.m3u8</div>
 
             <label class="form-label fw-bold mt-3">URL ל-WebRTC (WHEP)</label>
-            <input id="cs-whep" class="form-control" value="${esc(localStorage.getItem(WHEP_KEY) || 'https://participation-seek-indexes-burner.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-whep" class="form-control" value="${esc(localStorage.getItem(WHEP_KEY) || 'https://erp-carbon-grip-autos.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">צריך לעבוד עם POST /{path}/whep</div>
 
             <label class="form-label fw-bold mt-3">URL ל-DVR (ניהול ישיר)</label>
-            <input id="cs-dvr" class="form-control" value="${esc(localStorage.getItem(DVR_KEY) || 'https://pressure-experts-rescue-subscribers.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
+            <input id="cs-dvr" class="form-control" value="${esc(localStorage.getItem(DVR_KEY) || 'https://heather-monster-embedded-encoding.trycloudflare.com')}" style="direction:ltr;font-family:monospace">
             <div class="small text-muted">לממשק admin של ה-DVR (Dahua 192.168.1.108)</div>
 
             <hr>
