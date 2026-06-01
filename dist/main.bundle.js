@@ -1,5 +1,5 @@
-// === main.bundle.js — built 2026-06-01T04:34:00.002Z ===
-// Source: 145 behavior packs concatenated in numeric order.
+// === main.bundle.js — built 2026-06-01T04:50:20.949Z ===
+// Source: 146 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
 // ─── behavior-pack-2.js ─────────────────────────────────────────────
@@ -2480,7 +2480,8 @@ try {
 // ─── behavior-pack-15.js ─────────────────────────────────────────────
 try {
 // behavior-pack-15.js — Mobile UX + Touch gestures. 2026-05-24
-(function () {// ===== 1. Swipe-to-delete על אירועים =====
+(function () {
+// ===== 1. Swipe-to-delete על אירועים =====
   let touchStart = null;
   document.addEventListener('touchstart', e => {
     const card = e.target.closest('[data-event-id]');
@@ -2578,7 +2579,7 @@ try {
     const card = e.target.closest('[data-event-id], [data-task-id]');
     if (!card) return;
     lpTimer = setTimeout(() => {
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate(50);
       const id = card.dataset.eventId || card.dataset.taskId;
       if (card.dataset.eventId && typeof editEvent === 'function') editEvent(parseInt(id));
       else if (card.dataset.taskId && typeof renderTaskDetails === 'function') renderTaskDetails(parseInt(id));
@@ -2598,7 +2599,7 @@ try {
 
   // ===== 7. Haptic feedback בהצלחה =====
   window.addEventListener('cheder-data-refreshed', () => {
-    if ('vibrate' in navigator) navigator.vibrate([30]);
+    if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate([30]);
   });
 
   // ===== 8. Responsive font sizes =====
@@ -5828,7 +5829,8 @@ try {
 // ─── behavior-pack-33.js ─────────────────────────────────────────────
 try {
 // behavior-pack-33.js — Gamification (points, badges, levels). 2026-05-25
-(function () {// ===== 1. Points calculation per student =====
+(function () {
+// ===== 1. Points calculation per student =====
   window.studentPoints = function (events) {
     let points = 0;
     events.forEach(e => {
@@ -5941,7 +5943,7 @@ try {
   // ===== 6. Achievement unlock animation =====
   window.celebrateBadge = function (badge) {
     if (typeof toast === 'function') toast(`🎉 פתחת תג: ${badge.icon} ${badge.name}!`, 'success', 4000);
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate([100, 50, 100]);
     if (typeof playSound === 'function') playSound('success');
   };
 
@@ -6014,7 +6016,8 @@ try {
 // ─── behavior-pack-34.js ─────────────────────────────────────────────
 try {
 // behavior-pack-34.js — Drag & Drop / Kanban. 2026-05-25
-(function () {// ===== 1. Enable HTML5 drag&drop on task cards =====
+(function () {
+// ===== 1. Enable HTML5 drag&drop on task cards =====
   setInterval(() => {
     document.querySelectorAll('[data-task-id]:not([draggable])').forEach(card => {
       card.draggable = true;
@@ -6069,7 +6072,7 @@ try {
       touchGhost = card.cloneNode(true);
       touchGhost.style.cssText = 'position:fixed;opacity:0.7;pointer-events:none;z-index:9999;transform:scale(0.9)';
       document.body.appendChild(touchGhost);
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate(50);
     }, 500);
     card._touchTimer = startTimer;
   }, { passive: true });
@@ -21565,3 +21568,22 @@ try {
   console.warn('%c🛡 Pack-147 — Nightly health anomalies banner (admin only) + window.checkLatestHealth()', 'color:#1e3a8a;font-weight:bold');
 })();
 } catch (e) { (console && console.error) ? console.error('[behavior-pack-147.js] init failed:', (e && e.message) || e) : null; }
+// ─── behavior-pack-148.js ─────────────────────────────────────────────
+try {
+// behavior-pack-148.js — set data-user-interacted flag on first real click/key.
+// Used by packs 15/33/34 to gate navigator.vibrate (which is blocked by Chrome
+// until the user has tapped the page, generating console warnings).
+// 2026-06-01.
+(function () {
+function markInteracted() {
+    try { document.documentElement.setAttribute('data-user-interacted', '1'); } catch {}
+    document.removeEventListener('pointerdown', markInteracted, true);
+    document.removeEventListener('keydown', markInteracted, true);
+    document.removeEventListener('touchstart', markInteracted, true);
+  }
+  document.addEventListener('pointerdown', markInteracted, true);
+  document.addEventListener('keydown', markInteracted, true);
+  document.addEventListener('touchstart', markInteracted, true);
+  console.warn('%c👆 Pack-148 — user-interaction flag (gates vibrate)', 'color:#0891b2;font-weight:bold');
+})();
+} catch (e) { (console && console.error) ? console.error('[behavior-pack-148.js] init failed:', (e && e.message) || e) : null; }

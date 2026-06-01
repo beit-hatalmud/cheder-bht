@@ -115,7 +115,7 @@
   // ===== 6. Achievement unlock animation =====
   window.celebrateBadge = function (badge) {
     if (typeof toast === 'function') toast(`🎉 פתחת תג: ${badge.icon} ${badge.name}!`, 'success', 4000);
-    if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+    if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate([100, 50, 100]);
     if (typeof playSound === 'function') playSound('success');
   };
 

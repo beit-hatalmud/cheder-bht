@@ -57,7 +57,7 @@
       touchGhost = card.cloneNode(true);
       touchGhost.style.cssText = 'position:fixed;opacity:0.7;pointer-events:none;z-index:9999;transform:scale(0.9)';
       document.body.appendChild(touchGhost);
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate(50);
     }, 500);
     card._touchTimer = startTimer;
   }, { passive: true });

@@ -100,7 +100,7 @@
     const card = e.target.closest('[data-event-id], [data-task-id]');
     if (!card) return;
     lpTimer = setTimeout(() => {
-      if ('vibrate' in navigator) navigator.vibrate(50);
+      if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate(50);
       const id = card.dataset.eventId || card.dataset.taskId;
       if (card.dataset.eventId && typeof editEvent === 'function') editEvent(parseInt(id));
       else if (card.dataset.taskId && typeof renderTaskDetails === 'function') renderTaskDetails(parseInt(id));
@@ -120,7 +120,7 @@
 
   // ===== 7. Haptic feedback בהצלחה =====
   window.addEventListener('cheder-data-refreshed', () => {
-    if ('vibrate' in navigator) navigator.vibrate([30]);
+    if ('vibrate' in navigator && document.documentElement.hasAttribute('data-user-interacted')) navigator.vibrate([30]);
   });
 
   // ===== 8. Responsive font sizes =====
