@@ -1,4 +1,4 @@
-// === main.bundle.js — built 2026-05-31T10:24:40.248Z ===
+// === main.bundle.js — built 2026-06-01T04:34:00.002Z ===
 // Source: 145 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
@@ -3050,9 +3050,12 @@ try {
     mic.onclick = () => startVoiceInput(textarea, mic);
   }
 
-  setInterval(() => {
-    document.querySelectorAll('textarea:not([data-mic-added])').forEach(addMicButton);
-  }, 2000);
+  // DISABLED 2026-06-01 — was wrapping textareas in a new <div> every 2s.
+  // Combined with pack-105's unwrap, this created a wrap/unwrap loop that stole
+  // focus from users while they typed. Mic buttons are now off entirely.
+  // setInterval(() => {
+  //   document.querySelectorAll('textarea:not([data-mic-added])').forEach(addMicButton);
+  // }, 2000);
 
   // ===== 2. Recognition logic =====
   window.startVoiceInput = function (target, button) {
@@ -16266,8 +16269,9 @@ try {
     });
   }
 
-  // Run aggressively
-  setInterval(killAllMics, 1000);
+  // Run aggressively — every 5s instead of 1s (pack-18 disabled, so this is
+  // only here to clean up any stragglers, not racing against pack-18).
+  setInterval(killAllMics, 5000);
   setTimeout(killAllMics, 500);
   setTimeout(killAllMics, 1500);
   setTimeout(killAllMics, 3000);
@@ -16481,15 +16485,18 @@ try {
     let lastCall = 0;
     let inFlight = false;
     window[fname] = function () {
-      if (inFlight) {
+      // window._forceRender bypass — save flows need to refresh the UI even if
+      // a recent render just ran (otherwise users see no update after saving).
+      if (window._forceRender) { /* allow through */ }
+      else if (inFlight) {
         console.warn(`[Pack-107] ${fname} blocked - already in flight`);
         return Promise.resolve();
       }
-      const now = Date.now();
-      if (now - lastCall < 500) {
-        console.warn(`[Pack-107] ${fname} debounced (${now - lastCall}ms ago)`);
+      else if (Date.now() - lastCall < 500) {
+        console.warn(`[Pack-107] ${fname} debounced (${Date.now() - lastCall}ms ago)`);
         return Promise.resolve();
       }
+      const now = Date.now();
       lastCall = now;
       inFlight = true;
       try {

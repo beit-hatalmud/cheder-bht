@@ -51,15 +51,18 @@
     let lastCall = 0;
     let inFlight = false;
     window[fname] = function () {
-      if (inFlight) {
+      // window._forceRender bypass — save flows need to refresh the UI even if
+      // a recent render just ran (otherwise users see no update after saving).
+      if (window._forceRender) { /* allow through */ }
+      else if (inFlight) {
         console.warn(`[Pack-107] ${fname} blocked - already in flight`);
         return Promise.resolve();
       }
-      const now = Date.now();
-      if (now - lastCall < 500) {
-        console.warn(`[Pack-107] ${fname} debounced (${now - lastCall}ms ago)`);
+      else if (Date.now() - lastCall < 500) {
+        console.warn(`[Pack-107] ${fname} debounced (${Date.now() - lastCall}ms ago)`);
         return Promise.resolve();
       }
+      const now = Date.now();
       lastCall = now;
       inFlight = true;
       try {

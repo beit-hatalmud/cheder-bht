@@ -26,9 +26,12 @@
     mic.onclick = () => startVoiceInput(textarea, mic);
   }
 
-  setInterval(() => {
-    document.querySelectorAll('textarea:not([data-mic-added])').forEach(addMicButton);
-  }, 2000);
+  // DISABLED 2026-06-01 — was wrapping textareas in a new <div> every 2s.
+  // Combined with pack-105's unwrap, this created a wrap/unwrap loop that stole
+  // focus from users while they typed. Mic buttons are now off entirely.
+  // setInterval(() => {
+  //   document.querySelectorAll('textarea:not([data-mic-added])').forEach(addMicButton);
+  // }, 2000);
 
   // ===== 2. Recognition logic =====
   window.startVoiceInput = function (target, button) {

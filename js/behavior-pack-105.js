@@ -39,8 +39,9 @@
     });
   }
 
-  // Run aggressively
-  setInterval(killAllMics, 1000);
+  // Run aggressively — every 5s instead of 1s (pack-18 disabled, so this is
+  // only here to clean up any stragglers, not racing against pack-18).
+  setInterval(killAllMics, 5000);
   setTimeout(killAllMics, 500);
   setTimeout(killAllMics, 1500);
   setTimeout(killAllMics, 3000);
