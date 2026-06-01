@@ -540,7 +540,6 @@
 
   function addInlinePanel() {
     hideOtherFloaters();
-    // Remove old FAB if it's still in the page from previous deploys
     document.getElementById('ur-fab')?.remove();
     const home = document.getElementById('page-home');
     if (!home) return;
@@ -552,6 +551,33 @@
     home.insertBefore(wrap, home.firstChild);
     wireInlinePanel(wrap);
   }
+
+  // Refresh the inline panel's student & category lists whenever fresh data
+  // arrives — first page load often renders the panel BEFORE the sheet pull
+  // finishes, so the dropdowns start empty and need to catch up.
+  function refreshInlineLists() {
+    const panel = document.getElementById('urp-inline');
+    if (!panel) return;
+    // Students datalist
+    const stuList = panel.querySelector('#urp-student-list');
+    if (stuList) {
+      const students = getStudents().filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
+      stuList.innerHTML = students.map(s => `<option value="${esc(((s['שם פרטי']||'')+' '+(s['שם משפחה']||'')).trim())}"></option>`).join('');
+      const smallCount = panel.querySelector('#urp-student + datalist + small');
+      if (smallCount) smallCount.textContent = students.length + ' תלמידים';
+    }
+    // Category dropdown (only when behavior type is active)
+    const catSel = panel.querySelector('#urp-cat');
+    if (catSel && panel.querySelector('.urp-type-btn.btn-primary')?.dataset?.type === 'behavior') {
+      const cur = catSel.value;
+      const opts = getBehaviorCategories().map(c => c['קטגוריה'] || c.name).filter(Boolean);
+      catSel.innerHTML = '<option value="">בחר קטגוריה...</option>' + opts.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+      if (cur && opts.includes(cur)) catSel.value = cur;
+    }
+  }
+  // Listen for the sync events emitted after pullAllFromSheet etc.
+  window.addEventListener('cheder-data-refreshed', refreshInlineLists);
+  setInterval(refreshInlineLists, 4000);
 
   // Inject a "דיווח חדש" button into each category page so users can also
   // start a report from where they're already looking at the data, not only
