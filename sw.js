@@ -38,6 +38,7 @@ const NETWORK_FIRST = [
   /\/studentSearch\.js(\?|$)/,
   /\/behavior-simple\.js(\?|$)/,
   /\/multi-simple\.js(\?|$)/,
+  /\/unified-report\.js(\?|$)/,
   /\/reading\.js(\?|$)/,
   /\/writing\.js(\?|$)/,
   /\/lessonsKlein\.js(\?|$)/,
