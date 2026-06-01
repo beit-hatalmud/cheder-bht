@@ -43,6 +43,15 @@
     return ['הרב ירושלמי', 'הרב יודלוב', 'הרב קליין', 'הרב שניידר'];
   }
 
+  // Open the panel pre-selected on a specific type
+  function showModalWithType(typeKey) {
+    showModal();
+    setTimeout(() => {
+      const btn = document.querySelector('.ur-type-btn[data-type="' + typeKey + '"]');
+      if (btn) btn.click();
+    }, 80);
+  }
+
   function showModal() {
     // Remove any existing copies
     document.getElementById('unified-report-modal')?.remove();
@@ -344,8 +353,44 @@
     }, 4000);
   }
 
+  // Inject a "דיווח חדש" button into each category page so users can also
+  // start a report from where they're already looking at the data, not only
+  // from the global FAB. The injected button opens the unified panel with
+  // the matching type pre-selected.
+  const PAGE_TYPE_MAP = {
+    'page-behavior':     'behavior',
+    'page-reading':      'reading',
+    'page-writing':      'writing',
+    'page-lessonsKlein': 'lesson',
+    'page-conversations':'conversation',
+    'page-meetings':     'meeting',
+  };
+  function injectPageButtons() {
+    Object.entries(PAGE_TYPE_MAP).forEach(([pageId, typeKey]) => {
+      const page = document.getElementById(pageId);
+      if (!page) return;
+      if (page.querySelector('.ur-page-add-btn')) return;
+      const labelEntry = TYPES.find(t => t.key === typeKey);
+      const label = labelEntry ? labelEntry.label : 'דיווח';
+      // Insert at the top of the page content
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-success btn-lg ur-page-add-btn mb-3';
+      btn.style.cssText = 'background:linear-gradient(135deg,#1e3a8a,#3b82f6);border:0;padding:10px 22px;border-radius:24px;font-weight:600;box-shadow:0 4px 14px rgba(30,58,138,0.3)';
+      btn.innerHTML = '📝 הוסף ' + label;
+      btn.onclick = () => showModalWithType(typeKey);
+      // Place at the very top of the page
+      page.insertBefore(btn, page.firstChild);
+    });
+  }
+
+  // Run on hashchange + interval (pages get re-rendered)
+  window.addEventListener('hashchange', () => setTimeout(injectPageButtons, 500));
+  setInterval(injectPageButtons, 3000);
+  setTimeout(injectPageButtons, 1500);
+
   // Expose globally for any other code that wants to open it
   window.openUnifiedReport = showModal;
+  window.openUnifiedReportWithType = showModalWithType;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => setTimeout(addFAB, 1000));
