@@ -293,16 +293,51 @@
     }, 800);
   }
 
-  // Floating action button on every page
+  // Hide every other floating button on the page so the only thing left is
+  // ours. Pack-12/13/18/32/37/40/47/103/118 each add a circular button at
+  // various bottom-left offsets — the cluster was Yosef's main complaint.
+  function hideOtherFloaters() {
+    if (document.getElementById('ur-hide-style')) return;
+    const s = document.createElement('style');
+    s.id = 'ur-hide-style';
+    s.textContent = `
+      /* Hide all bottom-left floating buttons that the legacy packs add,
+         leaving only #ur-fab visible. */
+      body > button[style*="position:fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
+      body > button[style*="position: fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
+      body > div[style*="position:fixed"][style*="bottom"][style*="left"]:not(#ur-fab),
+      #queue-badge-118,
+      #stale-data-banner { display: none !important; }
+      /* The legacy main FAB (pack-40, +) is also hidden */
+      .legacy-fab { display: none !important; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  // Floating action button on every page — single, big, labeled
   function addFAB() {
+    hideOtherFloaters();
     if (document.getElementById('ur-fab')) return;
     const fab = document.createElement('button');
     fab.id = 'ur-fab';
-    fab.title = 'דיווח חדש';
-    fab.innerHTML = '📝';
-    fab.style.cssText = 'position:fixed;bottom:80px;left:24px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:0;font-size:28px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,0.3);z-index:9990;display:flex;align-items:center;justify-content:center';
+    fab.title = 'דיווח חדש - מקום אחד לכל הקטגוריות';
+    fab.innerHTML = '<span style="font-size:24px">📝</span><span style="font-weight:700;font-size:14px">דיווח חדש</span>';
+    fab.style.cssText = 'position:fixed;bottom:24px;left:24px;height:56px;padding:0 22px;border-radius:32px;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:0;cursor:pointer;box-shadow:0 8px 24px rgba(30,58,138,0.4);z-index:99990;display:flex;align-items:center;gap:10px;font-family:Heebo,Arial,sans-serif;direction:rtl';
     fab.onclick = showModal;
+    fab.addEventListener('click', showModal);
     document.body.appendChild(fab);
+    // Re-hide periodically — some packs add their buttons lazily on hashchange
+    setInterval(hideOtherFloaters, 4000);
+    setInterval(() => {
+      // Re-run because new floaters can be added after we did.
+      document.querySelectorAll('body > button[style*="position:fixed"], body > div[style*="position:fixed"]').forEach(el => {
+        if (el.id === 'ur-fab' || el.closest?.('.modal') || el.classList?.contains('toast') || el.id === 'bht-save-dbg') return;
+        const s = el.style.cssText || '';
+        if (s.includes('bottom') && s.includes('left')) {
+          el.style.display = 'none';
+        }
+      });
+    }, 4000);
   }
 
   // Expose globally for any other code that wants to open it
