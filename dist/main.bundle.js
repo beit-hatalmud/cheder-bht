@@ -1,4 +1,4 @@
-// === main.bundle.js — built 2026-06-01T06:48:08.778Z ===
+// === main.bundle.js — built 2026-06-01T07:06:17.362Z ===
 // Source: 149 behavior packs concatenated in numeric order.
 // DO NOT EDIT — regenerate with: node tools/build-bundle.js
 "use strict";
@@ -16817,20 +16817,23 @@ try {
   });
   fixes++;
 
-  // ===== Fix 7: prevent rapid-fire button clicks (idempotency) =====
-  document.addEventListener('click', e => {
-    const btn = e.target.closest?.('button:not([type="button"]), .btn');
-    if (!btn) return;
-    if (btn.dataset.lastClick) {
-      const dt = Date.now() - parseInt(btn.dataset.lastClick);
-      if (dt < 200) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-    }
-    btn.dataset.lastClick = Date.now();
-  }, true);
+  // ===== Fix 7: DISABLED 2026-06-01 — was blocking single clicks on unified
+  // save button because the capture-phase stopPropagation prevented target
+  // listeners from firing in some Chrome builds. Each save handler now has
+  // its own in-flight guard, so global rapid-fire prevention is redundant. =====
+  // document.addEventListener('click', e => {
+  //   const btn = e.target.closest?.('button:not([type="button"]), .btn');
+  //   if (!btn) return;
+  //   if (btn.dataset.lastClick) {
+  //     const dt = Date.now() - parseInt(btn.dataset.lastClick);
+  //     if (dt < 200) {
+  //       e.preventDefault();
+  //       e.stopPropagation();
+  //       return;
+  //     }
+  //   }
+  //   btn.dataset.lastClick = Date.now();
+  // }, true);
   fixes++;
 
   console.warn(`%c⚡ Pack-109 — ${fixes} performance fixes (interval throttle, memory check, DOM cleanup, ESC unstuck, mutation detector, app dump)`, 'color:#7c3aed;font-weight:bold');
