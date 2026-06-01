@@ -181,9 +181,36 @@
     saveBtn.onclick = handler;
     saveBtn.addEventListener('click', handler);
 
+    // Robust close: button × / ביטול / ESC / click outside dialog
+    function hardClose() {
+      try {
+        const inst = window.bootstrap && bootstrap.Modal ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (inst) inst.hide();
+      } catch {}
+      setTimeout(() => { try { modalEl.remove(); } catch {} }, 200);
+      document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+    modalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach(b => {
+      b.addEventListener('click', hardClose);
+      b.onclick = hardClose;
+    });
+    // Click on backdrop (outside modal-dialog) closes it
+    modalEl.addEventListener('click', (ev) => {
+      if (ev.target === modalEl) hardClose();
+    });
+    // ESC anywhere
+    const escHandler = (ev) => { if (ev.key === 'Escape') hardClose(); };
+    document.addEventListener('keydown', escHandler);
+    modalEl.addEventListener('hidden.bs.modal', () => {
+      document.removeEventListener('keydown', escHandler);
+    });
+
     // Show
     try {
-      const bs = (window.bootstrap && bootstrap.Modal) ? new bootstrap.Modal(modalEl) : null;
+      const bs = (window.bootstrap && bootstrap.Modal) ? new bootstrap.Modal(modalEl, { keyboard: true, backdrop: true }) : null;
       if (bs) bs.show(); else { modalEl.classList.add('show'); modalEl.style.display = 'block'; }
     } catch (e) { modalEl.style.display = 'block'; modalEl.classList.add('show'); }
 
@@ -323,6 +350,18 @@
       [class*="walkthrough"],
       [class*="tour-popup"] { display: none !important; }
       .legacy-fab { display: none !important; }
+
+      /* Hide the legacy green "אירוע חדש" / "+ אירוע" / "+ דיווח חדש" buttons
+         that each category page builds. The unified report panel + per-page
+         "📝 הוסף ..." button cover this now, so the duplicate green button just
+         creates a broken save path. */
+      button.btn-success[onclick*="addEventModal"],
+      button.btn-success[onclick*="addReadingModal"],
+      button.btn-success[onclick*="addWritingModal"],
+      button.btn-success[onclick*="addLessonsKleinModal"],
+      button.btn-success[onclick*="convAddModal"],
+      button.btn-success[onclick*="meetAddModal"],
+      #b-actions button.btn-success { display: none !important; }
     `;
     document.head.appendChild(s);
   }
