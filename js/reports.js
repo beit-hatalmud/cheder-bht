@@ -61,8 +61,113 @@ async function renderReports() {
           <p class="text-muted small mb-0">ממוצעי מבחנים לפי תלמיד, פרשה וסוג</p>
         </div>
       </div>
+      <div class="col-md-6 col-lg-4">
+        <div class="card p-4 h-100" style="cursor:pointer" onclick="genReportStudentList()">
+          <h5><i class="bi bi-list-ul text-secondary"></i> רשימת תלמידים</h5>
+          <p class="text-muted small mb-0">בחר אילו שדות (טלפון, ת.ז., כתובת...) ויצא רשימה</p>
+        </div>
+      </div>
     </div>`;
   document.getElementById('page-reports').innerHTML = html;
+}
+
+// ===== Customizable student list report =====
+const _stuListFields = [
+  { key: 'שם פרטי',      def: true  },
+  { key: 'שם משפחה',     def: true  },
+  { key: 'מחזור',        def: true  },
+  { key: 'תז',           def: false },
+  { key: 'גיל',          def: false },
+  { key: 'תאריך לידה',   def: false },
+  { key: 'שם אב',        def: false },
+  { key: 'שם אם',        def: false },
+  { key: 'טלפון אב',     def: false },
+  { key: 'טלפון אם',     def: true  },
+  { key: 'טלפון בית',    def: false },
+  { key: 'כתובת',        def: false },
+  { key: 'עיר',          def: false },
+  { key: 'אלרגיה',       def: false },
+  { key: 'הערות רפואיות', def: false },
+  { key: 'סטטוס',        def: false },
+];
+
+function genReportStudentList() {
+  const data = (typeof getVisibleData === 'function') ? getVisibleData() : { students: [], classes: [] };
+  const classes = (data.classes || []).slice().sort((a,b) => parseInt(a['סדר']||0) - parseInt(b['סדר']||0));
+  const fieldHtml = _stuListFields.map(f => `
+    <div class="col-md-4 col-6">
+      <label class="d-flex align-items-center gap-2">
+        <input type="checkbox" class="form-check-input" data-field="${escHtml(f.key)}" ${f.def?'checked':''}>
+        <span>${escHtml(f.key)}</span>
+      </label>
+    </div>`).join('');
+  const html = `<div class="modal fade" id="stuListModal"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-list-ul"></i> רשימת תלמידים מותאמת</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><label class="form-label">סינון לפי מחזור</label>
+          <select id="sl-class" class="form-select"><option value="">כל המחזורים</option>${classes.map(c=>`<option value="${escHtml(c['שם'])}">${escHtml(c['שם'])}</option>`).join('')}</select>
+        </div>
+        <div class="col-md-6"><label class="form-label">סטטוס</label>
+          <select id="sl-status" class="form-select">
+            <option value="active" selected>פעילים בלבד</option>
+            <option value="all">כל התלמידים</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-2"><strong>בחר שדות להציג:</strong></div>
+      <div class="row g-2 mb-3" id="sl-fields">${fieldHtml}</div>
+      <div class="d-flex gap-2 mb-3">
+        <button class="btn btn-sm btn-outline-secondary" onclick="slSelectAll(true)"><i class="bi bi-check2-all"></i> סמן הכל</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="slSelectAll(false)"><i class="bi bi-eraser"></i> נקה</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="doStudentListReport()"><i class="bi bi-file-earmark-text"></i> צור דוח</button>
+    </div>
+  </div></div></div>`;
+  cleanupModal('stuListModal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  const modalEl = document.getElementById('stuListModal');
+  new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('stuListModal'), { once: true });
+}
+
+function slSelectAll(check) {
+  document.querySelectorAll('#sl-fields input[type=checkbox]').forEach(cb => cb.checked = check);
+}
+
+function doStudentListReport() {
+  const cls = document.getElementById('sl-class').value;
+  const statusMode = document.getElementById('sl-status').value;
+  const fields = Array.from(document.querySelectorAll('#sl-fields input:checked')).map(cb => cb.dataset.field);
+  if (!fields.length) return alert('יש לבחור לפחות שדה אחד');
+  const data = (typeof getVisibleData === 'function') ? getVisibleData() : { students: [] };
+  let students = (data.students || []).slice();
+  if (cls) students = students.filter(s => s['מחזור'] === cls);
+  if (statusMode === 'active') students = students.filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
+  students.sort((a,b) => {
+    const c = (a['מחזור']||'').localeCompare(b['מחזור']||'', 'he');
+    if (c !== 0) return c;
+    return (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he');
+  });
+
+  const subtitle = `${cls ? `מחזור ${cls}` : 'כל המחזורים'} · ${students.length} תלמידים · ${statusMode==='active'?'פעילים בלבד':'כולל סיימו'}`;
+  let html = reportHeader('רשימת תלמידים — ' + subtitle);
+  html += `<table style="width:100%; border-collapse:collapse; font-size:13px"><thead><tr style="background:#eef">
+    <th style="border:1px solid #ccc; padding:6px">#</th>
+    ${fields.map(f => `<th style="border:1px solid #ccc; padding:6px; text-align:right">${escHtml(f)}</th>`).join('')}
+  </tr></thead><tbody>`;
+  students.forEach((s, i) => {
+    html += `<tr>
+      <td style="border:1px solid #ccc; padding:6px; text-align:center">${i+1}</td>
+      ${fields.map(f => `<td style="border:1px solid #ccc; padding:6px">${escHtml(s[f]||'')}</td>`).join('')}
+    </tr>`;
+  });
+  html += `</tbody></table></body></html>`;
+  hideModal('stuListModal');
+  openPrintWindow(html, 'רשימת תלמידים');
 }
 
 function openPrintWindow(htmlContent, title) {

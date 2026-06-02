@@ -1,7 +1,7 @@
 // sw.js — Service Worker for offline support
 // Cheder-BHT Production. 2026-05-27 (v2 — network-first for api.js, skip dynamic data)
 
-const CACHE_NAME = 'bht-cache-v8-20260602b';
+const CACHE_NAME = 'bht-cache-v9-20260602c';
 const CORE_ASSETS = [
   '/cheder-bht/',
   '/cheder-bht/index.html',
@@ -45,6 +45,7 @@ const NETWORK_FIRST = [
   /\/conversations\.js(\?|$)/,
   /\/meetings\.js(\?|$)/,
   /\/attendance\.js(\?|$)/,
+  /\/reports\.js(\?|$)/,
 ];
 
 self.addEventListener('install', e => {
