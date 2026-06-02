@@ -116,7 +116,8 @@ function renderActiveBehaviorTab() {
   const root = document.getElementById('behavior-tab-content');
   const actionBar = document.getElementById('b-actions');
   if (_activeBehaviorTab === 'events') {
-    actionBar.innerHTML = `<button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>`;
+    actionBar.innerHTML = `<button class="btn btn-success" onclick="addEventModal()"><i class="bi bi-plus"></i> אירוע חדש</button>
+      <button class="btn btn-outline-primary ms-2" onclick="addBulkEventModal()"><i class="bi bi-people"></i> אירוע קבוצתי</button>`;
     renderEventsTab(root);
   } else if (_activeBehaviorTab === 'forms') {
     actionBar.innerHTML = `<button class="btn btn-success" onclick="newFormLink()"><i class="bi bi-plus"></i> שלח טופס חדש</button>`;
@@ -357,6 +358,144 @@ function addEventModal() {
   const modalEl = document.getElementById('addEvModal');
   new bootstrap.Modal(modalEl).show();
   modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('addEvModal'), { once: true });
+}
+
+// ===== Bulk event (same description applied to many students) =====
+let _bulkSelected = new Set();
+
+function addBulkEventModal() {
+  _bulkSelected = new Set();
+  const activeStudents = _allStudents
+    .filter(s => (s['סטטוס']||'פעיל') !== 'סיים')
+    .sort((a,b) => (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he'));
+  const classes = Array.from(new Set(activeStudents.map(s => s['מחזור']).filter(Boolean))).sort();
+  const html = `<div class="modal fade" id="bulkEvModal"><div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5><i class="bi bi-people"></i> אירוע התנהגות קבוצתי</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="row g-2 mb-3">
+        <div class="col-md-6"><label class="form-label">קטגוריה</label><select id="bne-cat" class="form-select"><option value="">בחר</option>${_categories.map(c=>`<option value="${escHtml(c['קטגוריה'])}">${escHtml(c['קטגוריה'])}</option>`).join('')}</select></div>
+        <div class="col-md-6"><label class="form-label">חומרה</label><select id="bne-sev" class="form-select"><option>נמוכה</option><option selected>בינונית</option><option>גבוהה</option></select></div>
+      </div>
+      <div class="mb-3"><label class="form-label">תיאור (יישמר זהה לכל תלמיד)</label><textarea id="bne-desc" class="form-control" rows="2" placeholder="לדוגמה: איחר ל-15 דק' לשיעור"></textarea></div>
+
+      <div class="card p-2 mb-2">
+        <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+          <input id="bne-search" type="text" class="form-control form-control-sm" style="max-width:200px" placeholder="🔍 חפש שם...">
+          <select id="bne-filter-class" class="form-select form-select-sm" style="max-width:160px"><option value="">כל המחזורים</option>${classes.map(c=>`<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
+          <button class="btn btn-sm btn-outline-secondary" onclick="bneToggleAllVisible(true)"><i class="bi bi-check2-all"></i> סמן הכל</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="bneToggleAllVisible(false)"><i class="bi bi-eraser"></i> נקה</button>
+          <span class="ms-auto"><span class="badge bg-primary" id="bne-count">0 מסומנים</span></span>
+        </div>
+        <div id="bne-list" style="max-height:320px; overflow-y:auto"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">ביטול</button>
+      <button class="btn btn-primary" onclick="saveBulkEvent(event)"><i class="bi bi-save"></i> שמור לכל המסומנים</button>
+    </div>
+  </div></div></div>`;
+  cleanupModal('bulkEvModal');
+  document.body.insertAdjacentHTML('beforeend', html);
+  const modalEl = document.getElementById('bulkEvModal');
+  new bootstrap.Modal(modalEl).show();
+  modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('bulkEvModal'), { once: true });
+
+  const refresh = () => bneRefreshList(activeStudents);
+  document.getElementById('bne-search').addEventListener('input', refresh);
+  document.getElementById('bne-filter-class').addEventListener('change', refresh);
+  refresh();
+}
+
+function bneRefreshList(allStudents) {
+  const q = (document.getElementById('bne-search').value||'').trim().toLowerCase();
+  const cls = document.getElementById('bne-filter-class').value;
+  const list = allStudents.filter(s => {
+    if (cls && s['מחזור'] !== cls) return false;
+    if (q) {
+      const name = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase();
+      if (!name.includes(q)) return false;
+    }
+    return true;
+  });
+  const cont = document.getElementById('bne-list');
+  if (!list.length) { cont.innerHTML = '<div class="text-muted p-2">אין תלמידים תואמים</div>'; bneUpdateCount(); return; }
+  cont.innerHTML = list.map(s => {
+    const sid = String(s['מזהה']);
+    const checked = _bulkSelected.has(sid) ? 'checked' : '';
+    const name = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
+    return `<label class="d-flex align-items-center gap-2 p-1 border-bottom" style="cursor:pointer">
+      <input type="checkbox" class="form-check-input m-0" data-sid="${sid}" ${checked} onchange="bneToggle('${sid}', this.checked)">
+      <span>${escHtml(name)}</span>
+      <span class="ms-auto text-muted small">${escHtml(s['מחזור']||'')}</span>
+    </label>`;
+  }).join('');
+  bneUpdateCount();
+}
+
+function bneToggle(sid, checked) {
+  if (checked) _bulkSelected.add(sid);
+  else _bulkSelected.delete(sid);
+  bneUpdateCount();
+}
+
+function bneToggleAllVisible(check) {
+  document.querySelectorAll('#bne-list input[data-sid]').forEach(cb => {
+    const sid = cb.dataset.sid;
+    if (check) _bulkSelected.add(sid);
+    else _bulkSelected.delete(sid);
+    cb.checked = check;
+  });
+  bneUpdateCount();
+}
+
+function bneUpdateCount() {
+  const el = document.getElementById('bne-count');
+  if (el) el.textContent = `${_bulkSelected.size} מסומנים`;
+}
+
+async function saveBulkEvent(event) {
+  const btn = event?.target?.closest('button');
+  if (btn && btn.disabled) return;
+  const cat = document.getElementById('bne-cat').value;
+  const desc = document.getElementById('bne-desc').value.trim();
+  const sev = document.getElementById('bne-sev').value;
+  if (!cat || !desc) return alert('יש לבחור קטגוריה ולמלא תיאור');
+  if (_bulkSelected.size === 0) return alert('יש לבחור לפחות תלמיד אחד');
+  if (!confirm(`לרשום אירוע "${cat}" עבור ${_bulkSelected.size} תלמידים?`)) return;
+  if (btn) { btn.disabled = true; btn.dataset._origText = btn.textContent; btn.textContent = 'שומר...'; }
+
+  const sess = JSON.parse(sessionStorage.getItem('user') || '{}');
+  const reporter = sess.username || 'admin';
+  const now = new Date();
+  const info = (typeof getHebrewInfo === 'function') ? getHebrewInfo(now) : { hdate: '', parsha: '' };
+  const isoDate = now.toISOString();
+
+  const ids = Array.from(_bulkSelected);
+  let saved = 0, failed = 0;
+  for (const sid of ids) {
+    const stu = _allStudents.find(s => String(s['מזהה']) === sid);
+    if (!stu) { failed++; continue; }
+    const obj = {
+      'תלמיד_מזהה': sid,
+      'שם תלמיד': `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim(),
+      'קטגוריה': cat,
+      'תיאור': desc,
+      'חומרה': sev,
+      'תאריך': isoDate,
+      'תאריך_עברי': info.hdate,
+      'פרשה': info.parsha,
+      'דווח_עי': reporter,
+    };
+    try {
+      const r = await api('addBehavior', [obj]);
+      if (r && r.ok !== false) { saved++; try { _events.unshift(obj); } catch (e) {} }
+      else failed++;
+    } catch (e) { failed++; }
+  }
+  hideModal('bulkEvModal');
+  if (typeof renderBehavior === 'function') try { renderBehavior(); } catch (e) {}
+  if (typeof notify === 'function') notify(`נשמרו ${saved} אירועים${failed?` (${failed} נכשלו)`:''}`, failed ? 'warning' : 'success');
+  else alert(`נשמרו ${saved} אירועים${failed?` (${failed} נכשלו)`:''}`);
 }
 
 async function saveEvent(event) {

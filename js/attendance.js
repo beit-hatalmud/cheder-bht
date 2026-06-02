@@ -1,8 +1,6 @@
 // Daily attendance
 let _attCurDate = new Date().toISOString().slice(0,10);
 let _attCurClass = '';
-let _attBulkMode = false;
-let _attBulkSelected = new Set();
 
 async function renderAttendance() {
   const data = getVisibleData();
@@ -21,31 +19,15 @@ async function renderAttendance() {
     </div>
 
     <div class="card p-3 mb-3">
-      <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
-        <div class="d-flex gap-2 flex-wrap">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div class="d-flex gap-2">
           <button class="btn btn-success" onclick="attMarkAll('נוכח')"><i class="bi bi-check-all"></i> סמן הכל נוכחים</button>
           <button class="btn btn-outline-warning" onclick="attMarkAll('חיסר')"><i class="bi bi-x"></i> סמן הכל חיסור</button>
-          <button id="att-bulk-toggle" class="btn ${_attBulkMode?'btn-primary':'btn-outline-primary'}" onclick="attToggleBulk()">
-            <i class="bi bi-ui-checks"></i> ${_attBulkMode ? 'יציאה מבחירה מרובה' : 'בחירה מרובה'}
-          </button>
         </div>
         <div class="d-flex gap-3 align-items-center">
           <span class="badge bg-success" id="att-present">0 נוכחים</span>
           <span class="badge bg-warning text-dark" id="att-absent">0 חיסור</span>
           <span class="badge bg-info" id="att-late">0 איחור</span>
-        </div>
-      </div>
-      <div id="att-bulk-bar" class="${_attBulkMode?'':'d-none'} border-top pt-2 mt-2">
-        <div class="d-flex gap-2 flex-wrap align-items-center">
-          <span class="badge bg-primary" id="att-bulk-count">0 מסומנים</span>
-          <button class="btn btn-sm btn-outline-secondary" onclick="attBulkSelectAll()"><i class="bi bi-check2-all"></i> סמן הכל</button>
-          <button class="btn btn-sm btn-outline-secondary" onclick="attBulkClear()"><i class="bi bi-eraser"></i> נקה</button>
-          <input id="att-bulk-note" type="text" class="form-control form-control-sm" style="max-width:300px" placeholder="הערה אחידה (לא חובה)">
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-success" onclick="attBulkApply('נוכח')"><i class="bi bi-check"></i> נוכח</button>
-            <button class="btn btn-warning" onclick="attBulkApply('חיסר')"><i class="bi bi-x"></i> חיסר</button>
-            <button class="btn btn-info" onclick="attBulkApply('איחור')"><i class="bi bi-clock"></i> איחור</button>
-          </div>
         </div>
       </div>
     </div>
@@ -58,7 +40,7 @@ async function renderAttendance() {
   document.getElementById('page-attendance').innerHTML = html;
 
   document.getElementById('att-date').onchange = (e) => { _attCurDate = e.target.value; refreshAttendance(); };
-  document.getElementById('att-class').onchange = (e) => { _attCurClass = e.target.value; _attBulkSelected.clear(); refreshAttendance(); };
+  document.getElementById('att-class').onchange = (e) => { _attCurClass = e.target.value; refreshAttendance(); };
   refreshAttendance();
 }
 
@@ -75,20 +57,16 @@ async function refreshAttendance() {
   grid.innerHTML = students.map(s => {
     const r = byStu[s['מזהה']];
     const status = r ? r['סטטוס'] || 'לא סומן' : 'לא סומן';
-    const note = r ? (r['הערה']||'') : '';
     const fullName = (s['שם פרטי']||'') + ' ' + (s['שם משפחה']||'');
     const initials = ((s['שם פרטי']||' ')[0] + (s['שם משפחה']||' ')[0]).trim() || '?';
     const color = { 'נוכח':'success', 'חיסר':'warning', 'איחור':'info' }[status] || 'secondary';
-    const checked = _attBulkSelected.has(String(s['מזהה'])) ? 'checked' : '';
     return `<div class="col-md-6 col-lg-4">
-      <div class="card p-2 d-flex flex-row align-items-center gap-2 ${_attBulkMode && checked ? 'border-primary border-2' : ''}" style="border-right:4px solid var(--bs-${color})">
-        ${_attBulkMode ? `<input type="checkbox" class="form-check-input m-0" ${checked} onchange="attBulkToggle(${s['מזהה']}, this.checked)">` : ''}
+      <div class="card p-2 d-flex flex-row align-items-center gap-2" style="border-right:4px solid var(--bs-${color})">
         <span class="avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:36px;height:36px;font-size:.9rem">${escHtml(initials)}</span>
-        <div class="flex-grow-1 ${_attBulkMode ? 'cursor-pointer' : ''}" ${_attBulkMode ? `onclick="attBulkToggle(${s['מזהה']}, !document.querySelector('[onchange*=\\'attBulkToggle(${s['מזהה']}\\']').checked)"` : ''}>
+        <div class="flex-grow-1">
           <strong>${escHtml(fullName)}</strong>
-          ${note ? `<div class="text-muted small">${escHtml(note)}</div>` : ''}
         </div>
-        <div class="btn-group btn-group-sm ${_attBulkMode ? 'd-none' : ''}">
+        <div class="btn-group btn-group-sm">
           <button class="btn ${status==='נוכח'?'btn-success':'btn-outline-success'}" onclick="attMark(${s['מזהה']}, 'נוכח')" title="נוכח"><i class="bi bi-check"></i></button>
           <button class="btn ${status==='חיסר'?'btn-warning':'btn-outline-warning'}" onclick="attMark(${s['מזהה']}, 'חיסר')" title="חיסר"><i class="bi bi-x"></i></button>
           <button class="btn ${status==='איחור'?'btn-info':'btn-outline-info'}" onclick="attMark(${s['מזהה']}, 'איחור')" title="איחור"><i class="bi bi-clock"></i></button>
@@ -104,75 +82,6 @@ async function refreshAttendance() {
   document.getElementById('att-present').textContent = `${present} נוכחים`;
   document.getElementById('att-absent').textContent = `${absent} חיסור`;
   document.getElementById('att-late').textContent = `${late} איחור`;
-
-  const bulkCount = document.getElementById('att-bulk-count');
-  if (bulkCount) bulkCount.textContent = `${_attBulkSelected.size} מסומנים`;
-}
-
-function attToggleBulk() {
-  _attBulkMode = !_attBulkMode;
-  if (!_attBulkMode) _attBulkSelected.clear();
-  renderAttendance();
-}
-
-function attBulkToggle(studentId, checked) {
-  const key = String(studentId);
-  if (checked) _attBulkSelected.add(key);
-  else _attBulkSelected.delete(key);
-  refreshAttendance();
-}
-
-function attBulkSelectAll() {
-  const data = getVisibleData();
-  const students = (data.students||[]).filter(s => s['מחזור'] === _attCurClass && (s['סטטוס']||'פעיל') !== 'סיים');
-  _attBulkSelected = new Set(students.map(s => String(s['מזהה'])));
-  refreshAttendance();
-}
-
-function attBulkClear() {
-  _attBulkSelected.clear();
-  refreshAttendance();
-}
-
-async function attBulkApply(status) {
-  if (_attBulkSelected.size === 0) {
-    notify('לא נבחרו תלמידים', 'warning');
-    return;
-  }
-  const noteEl = document.getElementById('att-bulk-note');
-  const note = noteEl ? noteEl.value.trim() : '';
-  if (!confirm(`לסמן ${_attBulkSelected.size} תלמידים כ-${status}${note ? ' עם הערה: "'+note+'"' : ''}?`)) return;
-
-  const data = getVisibleData();
-  const records = (data.attendance||[]).filter(r => r['תאריך'] === _attCurDate);
-  const byStu = {};
-  records.forEach(r => { byStu[r['תלמיד_מזהה']] = r; });
-  const ids = Array.from(_attBulkSelected);
-  let done = 0;
-  for (const sid of ids) {
-    const stu = (data.students||[]).find(s => String(s['מזהה']) === sid);
-    if (!stu) continue;
-    const existing = byStu[stu['מזהה']];
-    const obj = {
-      'תלמיד_מזהה': stu['מזהה'],
-      'שם תלמיד': `${stu['שם פרטי']||''} ${stu['שם משפחה']||''}`.trim(),
-      'תאריך': _attCurDate,
-      'סטטוס': status,
-      'מחזור': _attCurClass,
-    };
-    if (note) obj['הערה'] = note;
-    if (existing) {
-      obj['מזהה'] = existing['מזהה'];
-      await api('updateAttendance', [obj]);
-    } else {
-      await api('addAttendance', [obj]);
-    }
-    done++;
-  }
-  _attBulkSelected.clear();
-  if (noteEl) noteEl.value = '';
-  refreshAttendance();
-  notify(`עודכנו ${done} תלמידים${note ? ' עם הערה אחידה' : ''}`, 'success');
 }
 
 async function attMark(studentId, status) {
