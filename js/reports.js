@@ -89,11 +89,22 @@ const _stuListFields = [
   { key: 'אלרגיה',       def: false },
   { key: 'הערות רפואיות', def: false },
   { key: 'סטטוס',        def: false },
+  { key: 'פרופיל_אישיות', def: false },
+  { key: 'פרופיל_לימודי', def: false },
+  { key: 'פרופיל_הורים',  def: false },
+  { key: 'פרופיל_התנהגותי', def: false },
+  { key: 'דוח_אישי',     def: false },
 ];
+
+let _slSelectedClasses = new Set();
+let _slSelectedStudents = new Set();
 
 function genReportStudentList() {
   const data = (typeof getVisibleData === 'function') ? getVisibleData() : { students: [], classes: [] };
-  const classes = (data.classes || []).slice().sort((a,b) => parseInt(a['סדר']||0) - parseInt(b['סדר']||0));
+  const classNames = Array.from(new Set((data.students||[]).map(s => s['מחזור']).filter(Boolean))).sort();
+  _slSelectedClasses = new Set(classNames);
+  _slSelectedStudents = new Set();
+
   const fieldHtml = _stuListFields.map(f => `
     <div class="col-md-4 col-6">
       <label class="d-flex align-items-center gap-2">
@@ -101,25 +112,50 @@ function genReportStudentList() {
         <span>${escHtml(f.key)}</span>
       </label>
     </div>`).join('');
-  const html = `<div class="modal fade" id="stuListModal"><div class="modal-dialog modal-lg"><div class="modal-content">
+
+  const classHtml = classNames.map(c => `
+    <label class="d-flex align-items-center gap-2 me-3">
+      <input type="checkbox" class="form-check-input sl-class-cb" data-class="${escHtml(c)}" checked onchange="slClassToggle(this)">
+      <span>${escHtml(c)}</span>
+    </label>`).join('');
+
+  const html = `<div class="modal fade" id="stuListModal"><div class="modal-dialog modal-xl"><div class="modal-content">
     <div class="modal-header"><h5><i class="bi bi-list-ul"></i> רשימת תלמידים מותאמת</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
-      <div class="row g-2 mb-3">
-        <div class="col-md-6"><label class="form-label">סינון לפי מחזור</label>
-          <select id="sl-class" class="form-select"><option value="">כל המחזורים</option>${classes.map(c=>`<option value="${escHtml(c['שם'])}">${escHtml(c['שם'])}</option>`).join('')}</select>
+
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <strong>מחזורים (שיעורים):</strong>
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary" onclick="slClassesAll(true)">סמן הכל</button>
+            <button class="btn btn-outline-secondary" onclick="slClassesAll(false)">נקה</button>
+          </div>
         </div>
-        <div class="col-md-6"><label class="form-label">סטטוס</label>
-          <select id="sl-status" class="form-select">
-            <option value="active" selected>פעילים בלבד</option>
-            <option value="all">כל התלמידים</option>
-          </select>
-        </div>
+        <div class="d-flex flex-wrap" id="sl-classes">${classHtml}</div>
       </div>
-      <div class="mb-2"><strong>בחר שדות להציג:</strong></div>
-      <div class="row g-2 mb-3" id="sl-fields">${fieldHtml}</div>
-      <div class="d-flex gap-2 mb-3">
-        <button class="btn btn-sm btn-outline-secondary" onclick="slSelectAll(true)"><i class="bi bi-check2-all"></i> סמן הכל</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="slSelectAll(false)"><i class="bi bi-eraser"></i> נקה</button>
+
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1 flex-wrap gap-2">
+          <strong>תלמידים:</strong>
+          <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input id="sl-search" type="text" class="form-control form-control-sm" style="max-width:180px" placeholder="🔍 חפש שם...">
+            <select id="sl-status" class="form-select form-select-sm" style="max-width:160px" onchange="slRefreshStudents()">
+              <option value="active" selected>פעילים בלבד</option>
+              <option value="all">כל התלמידים</option>
+            </select>
+            <button class="btn btn-sm btn-outline-secondary" onclick="slStudentsAll(true)">סמן הכל</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="slStudentsAll(false)">נקה</button>
+            <span class="badge bg-primary" id="sl-count">0 / 0</span>
+          </div>
+        </div>
+        <div id="sl-students" class="border rounded p-2" style="max-height:240px; overflow-y:auto"></div>
+      </div>
+
+      <div class="mb-2"><strong>עמודות להציג:</strong></div>
+      <div class="row g-2 mb-2" id="sl-fields">${fieldHtml}</div>
+      <div class="d-flex gap-2 mb-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="slFieldsAll(true)"><i class="bi bi-check2-all"></i> סמן כל השדות</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="slFieldsAll(false)"><i class="bi bi-eraser"></i> נקה</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -132,28 +168,115 @@ function genReportStudentList() {
   const modalEl = document.getElementById('stuListModal');
   new bootstrap.Modal(modalEl).show();
   modalEl.addEventListener('hidden.bs.modal', () => cleanupModal('stuListModal'), { once: true });
+
+  document.getElementById('sl-search').addEventListener('input', () => slRefreshStudents());
+  slRefreshStudents();
 }
 
-function slSelectAll(check) {
-  document.querySelectorAll('#sl-fields input[type=checkbox]').forEach(cb => cb.checked = check);
-}
-
-function doStudentListReport() {
-  const cls = document.getElementById('sl-class').value;
-  const statusMode = document.getElementById('sl-status').value;
-  const fields = Array.from(document.querySelectorAll('#sl-fields input:checked')).map(cb => cb.dataset.field);
-  if (!fields.length) return alert('יש לבחור לפחות שדה אחד');
+function _slEligibleStudents() {
   const data = (typeof getVisibleData === 'function') ? getVisibleData() : { students: [] };
-  let students = (data.students || []).slice();
-  if (cls) students = students.filter(s => s['מחזור'] === cls);
-  if (statusMode === 'active') students = students.filter(s => (s['סטטוס']||'פעיל') !== 'סיים');
-  students.sort((a,b) => {
+  const status = document.getElementById('sl-status').value;
+  const q = (document.getElementById('sl-search').value||'').trim().toLowerCase();
+  return (data.students||[]).filter(s => {
+    if (!_slSelectedClasses.has(s['מחזור'])) return false;
+    if (status === 'active' && (s['סטטוס']||'פעיל') === 'סיים') return false;
+    if (q) {
+      const name = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.toLowerCase();
+      if (!name.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b) => {
     const c = (a['מחזור']||'').localeCompare(b['מחזור']||'', 'he');
     if (c !== 0) return c;
     return (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he');
   });
+}
 
-  const subtitle = `${cls ? `מחזור ${cls}` : 'כל המחזורים'} · ${students.length} תלמידים · ${statusMode==='active'?'פעילים בלבד':'כולל סיימו'}`;
+function slRefreshStudents() {
+  const list = _slEligibleStudents();
+  const visible = new Set(list.map(s => String(s['מזהה'])));
+  // Drop selections that are no longer eligible
+  for (const id of Array.from(_slSelectedStudents)) {
+    if (!visible.has(id)) _slSelectedStudents.delete(id);
+  }
+  // Auto-select if none picked yet (sensible default)
+  if (_slSelectedStudents.size === 0) {
+    list.forEach(s => _slSelectedStudents.add(String(s['מזהה'])));
+  }
+  const cont = document.getElementById('sl-students');
+  if (!list.length) { cont.innerHTML = '<div class="text-muted">אין תלמידים לפי הסינון הנוכחי</div>'; slUpdateCount(0, 0); return; }
+  cont.innerHTML = list.map(s => {
+    const sid = String(s['מזהה']);
+    const checked = _slSelectedStudents.has(sid) ? 'checked' : '';
+    const name = `${s['שם פרטי']||''} ${s['שם משפחה']||''}`.trim();
+    return `<label class="d-flex align-items-center gap-2 py-1 border-bottom" style="cursor:pointer">
+      <input type="checkbox" class="form-check-input m-0 sl-stu-cb" data-sid="${sid}" ${checked} onchange="slStuToggle('${sid}', this.checked)">
+      <span>${escHtml(name)}</span>
+      <span class="ms-auto text-muted small">${escHtml(s['מחזור']||'')}</span>
+    </label>`;
+  }).join('');
+  slUpdateCount(_slSelectedStudents.size, list.length);
+}
+
+function slUpdateCount(selected, total) {
+  const el = document.getElementById('sl-count');
+  if (el) el.textContent = `${selected} / ${total}`;
+}
+
+function slClassToggle(cb) {
+  const cls = cb.dataset.class;
+  if (cb.checked) _slSelectedClasses.add(cls);
+  else _slSelectedClasses.delete(cls);
+  slRefreshStudents();
+}
+
+function slClassesAll(check) {
+  document.querySelectorAll('.sl-class-cb').forEach(cb => {
+    cb.checked = check;
+    const cls = cb.dataset.class;
+    if (check) _slSelectedClasses.add(cls);
+    else _slSelectedClasses.delete(cls);
+  });
+  slRefreshStudents();
+}
+
+function slStuToggle(sid, checked) {
+  if (checked) _slSelectedStudents.add(sid);
+  else _slSelectedStudents.delete(sid);
+  const list = _slEligibleStudents();
+  slUpdateCount(_slSelectedStudents.size, list.length);
+}
+
+function slStudentsAll(check) {
+  const list = _slEligibleStudents();
+  list.forEach(s => {
+    const sid = String(s['מזהה']);
+    if (check) _slSelectedStudents.add(sid);
+    else _slSelectedStudents.delete(sid);
+  });
+  document.querySelectorAll('.sl-stu-cb').forEach(cb => cb.checked = check);
+  slUpdateCount(_slSelectedStudents.size, list.length);
+}
+
+function slFieldsAll(check) {
+  document.querySelectorAll('#sl-fields input[type=checkbox]').forEach(cb => cb.checked = check);
+}
+
+function doStudentListReport() {
+  const fields = Array.from(document.querySelectorAll('#sl-fields input:checked')).map(cb => cb.dataset.field);
+  if (!fields.length) return alert('יש לבחור לפחות עמודה אחת');
+  if (_slSelectedStudents.size === 0) return alert('יש לבחור לפחות תלמיד אחד');
+  const data = (typeof getVisibleData === 'function') ? getVisibleData() : { students: [] };
+  const students = (data.students||[])
+    .filter(s => _slSelectedStudents.has(String(s['מזהה'])))
+    .sort((a,b) => {
+      const c = (a['מחזור']||'').localeCompare(b['מחזור']||'', 'he');
+      if (c !== 0) return c;
+      return (a['שם משפחה']||'').localeCompare(b['שם משפחה']||'', 'he');
+    });
+
+  const classes = Array.from(_slSelectedClasses);
+  const subtitle = `${classes.length} מחזורים · ${students.length} תלמידים`;
   let html = reportHeader('רשימת תלמידים — ' + subtitle);
   html += `<table style="width:100%; border-collapse:collapse; font-size:13px"><thead><tr style="background:#eef">
     <th style="border:1px solid #ccc; padding:6px">#</th>
