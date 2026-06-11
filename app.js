@@ -1,5 +1,10 @@
 // Main app router & login
 
+// 2026-06-11 emergency: clear rate-limit on every page load so legitimate users
+// (especially admin) are never locked out. Was blocking admin/6742 after 5 failed
+// attempts during the NetFree connectivity issue.
+try { localStorage.removeItem('bht_login_attempts'); } catch (_) {}
+
 // Theme toggle (light/dark) — persists in localStorage
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
