@@ -25,8 +25,8 @@ async function verifyPassword(stored, attempt) {
     return (await hashPassword(attempt)) === stored;
   }
   // Backward compat: plain-text stored password (will be migrated on next login).
-  // Refuse the auto-injected default admin/6742 unless online (sheet was reached at least once).
-  if (stored === '6742' && !_online && !_sheetEverReached) return false;
+  // 2026-06-11: removed offline-block for admin/6742 — NetFree intermittently blocks
+  // the Apps Script ping, leaving legitimate admin locked out of the system.
   return String(stored) === String(attempt);
 }
 
