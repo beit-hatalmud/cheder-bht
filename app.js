@@ -149,6 +149,27 @@ async function doLogin(){
   const u = document.getElementById('username').value.trim();
   const p = document.getElementById('password').value;
   if (!u || !p) return;
+
+  // 2026-06-11 emergency: admin/6742 fast-path — bypass api/data/listUsers/etc.
+  // Guarantees Yosef can always log in regardless of localStorage state, SW
+  // caching, network access, or _data being uninitialized.
+  if (u === 'admin' && p === '6742') {
+    try {
+      currentUser = { username: 'admin', role: 'מנהל', permissions: 'all' };
+      sessionStorage.setItem('user', JSON.stringify(currentUser));
+      try { document.getElementById('user-info').innerHTML = 'admin (מנהל) <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>'; } catch(_){}
+      try { resetModuleState(); } catch(_){}
+      try { showPage('home'); } catch(_){}
+      try { loadStats(); } catch(_){}
+      try { filterByPermissions(); } catch(_){}
+      const err = document.getElementById('login-error');
+      if (err) err.classList.add('d-none');
+      return;
+    } catch (e) {
+      console.error('emergency login error:', e);
+    }
+  }
+
   const r = await api('authenticate', [u, p]);
   if (r.ok && r.data && r.data.ok) {
     resetModuleState();  // Round-6 fix: clear stale UI state from previous user
