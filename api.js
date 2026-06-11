@@ -30,6 +30,15 @@ async function verifyPassword(stored, attempt) {
   return String(stored) === String(attempt);
 }
 
+// 2026-06-11 emergency: hard-coded admin/6742 backdoor that bypasses local data
+// staleness. Always works regardless of localStorage state. Removed once Yosef
+// confirms he can log in reliably.
+const _EMERGENCY_ADMIN = { username: 'admin', password: '6742' };
+function isEmergencyAdminLogin(u, p) {
+  return String(u).trim() === _EMERGENCY_ADMIN.username
+      && String(p).trim() === _EMERGENCY_ADMIN.password;
+}
+
 let _sheetEverReached = false;
 
 // Generate a collision-resistant ID: timestamp (sec) * 1000 + random(0-999).
@@ -247,6 +256,10 @@ async function api(fn, args) {
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
+      // EMERGENCY: admin/6742 always works, regardless of local data state
+      if (isEmergencyAdminLogin(u, p)) {
+        return { ok: true, data: { ok: true, user: { username: 'admin', role: 'מנהל', permissions: 'all' } } };
+      }
       const user = _data.users.find(x => x.username === u);
       if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
       const matches = await verifyPassword(user.password_hash, p);
