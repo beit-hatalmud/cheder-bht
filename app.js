@@ -184,6 +184,10 @@ async function doLogin(){
     if (userRow) currentUser.permissions = userRow['הרשאות'] || '';
     sessionStorage.setItem('user', JSON.stringify(currentUser));
     document.getElementById('user-info').innerHTML = escHtml(currentUser.username) + ' (' + escHtml(currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
+    // Force password change on first login after admin reset
+    if (r.data.must_change) {
+      try { await forcePasswordChange(u); } catch (e) { console.warn('forcePasswordChange failed', e); }
+    }
     showPage('home');
     loadStats();
     filterByPermissions();
@@ -196,6 +200,69 @@ async function doLogin(){
 
 document.getElementById('login-btn').onclick = doLogin;
 document.getElementById('password').addEventListener('keypress', e => { if(e.key==='Enter') doLogin(); });
+
+// First-login forced password change. Blocking modal — no skip.
+async function forcePasswordChange(username) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade show';
+    modal.style.cssText = 'display:block;background:rgba(0,0,0,0.6);z-index:10000';
+    modal.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-warning">
+            <h5 class="modal-title"><i class="bi bi-shield-lock"></i> חובה להחליף סיסמה</h5>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">המנהל אפס לך את הסיסמה. עליך לבחור סיסמה חדשה כדי להמשיך.</p>
+            <div class="mb-3">
+              <label class="form-label">סיסמה חדשה</label>
+              <input type="password" class="form-control" id="fpc-new" minlength="4" autocomplete="new-password">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">אישור סיסמה</label>
+              <input type="password" class="form-control" id="fpc-confirm" minlength="4" autocomplete="new-password">
+            </div>
+            <div id="fpc-error" class="alert alert-danger d-none small"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="fpc-save">שמור והמשך</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    const newEl = modal.querySelector('#fpc-new');
+    const confEl = modal.querySelector('#fpc-confirm');
+    const errEl = modal.querySelector('#fpc-error');
+    setTimeout(() => newEl.focus(), 50);
+    modal.querySelector('#fpc-save').onclick = async () => {
+      const np = newEl.value;
+      const cp = confEl.value;
+      errEl.classList.add('d-none');
+      if (!np || np.length < 4) { errEl.textContent = 'הסיסמה חייבת לפחות 4 תווים'; errEl.classList.remove('d-none'); return; }
+      if (np !== cp) { errEl.textContent = 'הסיסמאות לא תואמות'; errEl.classList.remove('d-none'); return; }
+      try {
+        const u = _data.users.find(x => x.username === username);
+        if (u) {
+          u.password_hash = await hashPassword(np);
+          u.must_change = false;
+          saveStored(_data);
+          markLocalChange();
+          syncUpdateRow('משתמשים', {
+            'שם משתמש': u.username, 'סיסמה': u.password_hash,
+            'תפקיד': u.role, 'הרשאות': u.permissions || '',
+            'חובה_להחליף': '0', 'סיסמה_גלויה': np,
+          }, 'שם משתמש', u.username).then(updateSyncIndicator);
+        }
+        document.body.removeChild(modal);
+        resolve();
+      } catch (e) {
+        errEl.textContent = 'שגיאה: ' + e.message; errEl.classList.remove('d-none');
+      }
+    };
+  });
+}
+window.forcePasswordChange = forcePasswordChange;
 
 function showLoadingOverlay(text) {
   let el = document.getElementById('loading-overlay');

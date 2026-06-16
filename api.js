@@ -281,7 +281,7 @@ async function api(fn, args) {
         };
         syncUpdateRow('משתמשים', sheetObj, 'שם משתמש', user.username).then(updateSyncIndicator);
       }
-      return { ok: true, data: { ok: true, user: { username: u, role: user.role } } };
+      return { ok: true, data: { ok: true, user: { username: u, role: user.role }, must_change: !!user.must_change } };
     }
     case 'listStudents': {
       const u = JSON.parse(sessionStorage.getItem('user') || '{}');
@@ -1250,6 +1250,7 @@ async function pullAllFromSheet() {
         email: u['אימייל'] || '',
         phone: u['טלפון'] || '',
         notes: u['הערות_משתמש'] || '',
+        must_change: String(u['חובה_להחליף'] || '') === '1',
       }));
       if (!_data.users.find(u => u.role === 'מנהל')) {
         _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
