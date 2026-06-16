@@ -498,6 +498,127 @@ function actionInitAuthSecrets(params) {
 }
 
 // ============================================================
+// PASSWORD VISIBILITY + ADMIN OPS (Yosef — full visibility)
+// Adds two columns to משתמשים sheet: סיסמה_גלויה (plain copy) +
+// חובה_להחליף (1=force change on next login). Stays in sync with every
+// password mutation: login/create/update/change/reset. Yosef can read all
+// current+future passwords from the sheet directly OR via revealPasswords.
+// ============================================================
+function _ensurePwdAuditCols_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  let plainIdx = headers.indexOf('סיסמה_גלויה');
+  let mustIdx  = headers.indexOf('חובה_להחליף');
+  let added = 0;
+  if (plainIdx < 0) {
+    sheet.getRange(1, sheet.getLastColumn() + 1).setValue('סיסמה_גלויה');
+    plainIdx = sheet.getLastColumn() - 1;
+    added++;
+  }
+  if (mustIdx < 0) {
+    sheet.getRange(1, sheet.getLastColumn() + 1).setValue('חובה_להחליף');
+    mustIdx = sheet.getLastColumn() - 1;
+    added++;
+  }
+  return { plainIdx: plainIdx, mustIdx: mustIdx, added: added };
+}
+
+function _writeAudit_(sheet, rowIdx1based, plainPassword, mustChange) {
+  try {
+    const cols = _ensurePwdAuditCols_(sheet);
+    if (plainPassword !== null && plainPassword !== undefined) {
+      sheet.getRange(rowIdx1based, cols.plainIdx + 1).setValue(String(plainPassword));
+    }
+    if (mustChange !== null && mustChange !== undefined) {
+      sheet.getRange(rowIdx1based, cols.mustIdx + 1).setValue(mustChange ? '1' : '0');
+    }
+  } catch (e) { /* never break primary action */ }
+}
+
+// admin only — reset target user's password to a known plain.
+// Optional params: defaultPassword (default '1234'), mustChange (default true).
+function actionAdminResetPassword(params) {
+  const auth = adminGate_(params);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const target = String(params.username || params.target || '').trim();
+  if (!target) return { ok: false, error: 'username חובה' };
+  const newPwd = String(params.defaultPassword || params.newPassword || '1234');
+  if (newPwd.length < 4) return { ok: false, error: 'סיסמה חייבת לפחות 4 תווים' };
+  const mustChange = params.mustChange === false || params.mustChange === '0' ? false : true;
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const userIdx = headers.indexOf('שם משתמש');
+  const pwdIdx  = headers.indexOf('סיסמה');
+  if (userIdx < 0 || pwdIdx < 0) return { ok: false, error: 'sheet schema unexpected' };
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][userIdx] || '').trim() === target) {
+      let hashed;
+      try { hashed = 'sha256:' + hashPassword(newPwd); }
+      catch (e) { return { ok: false, error: 'PWD_SALT not configured' }; }
+      sheet.getRange(i + 1, pwdIdx + 1).setValue(hashed);
+      _writeAudit_(sheet, i + 1, newPwd, mustChange);
+      return { ok: true, username: target, password: newPwd, mustChange: mustChange };
+    }
+  }
+  return { ok: false, error: 'user not found' };
+}
+
+// admin only — return [{username, fullName, role, plain, mustChange, hasHash}]
+function actionAdminRevealPasswords(params) {
+  const auth = adminGate_(params);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const sheet = getChederSheet_('משתמשים', params);
+  if (!sheet) return { ok: false, error: 'users sheet not configured' };
+  _ensurePwdAuditCols_(sheet);
+  const data = sheet.getDataRange().getValues();
+  if (!data.length) return { ok: true, users: [] };
+  const headers = data[0];
+  const userIdx  = headers.indexOf('שם משתמש');
+  const pwdIdx   = headers.indexOf('סיסמה');
+  const plainIdx = headers.indexOf('סיסמה_גלויה');
+  const mustIdx  = headers.indexOf('חובה_להחליף');
+  const roleIdx  = headers.indexOf('תפקיד');
+  const nameIdx  = headers.indexOf('שם מלא');
+  const out = [];
+  for (let i = 1; i < data.length; i++) {
+    const u = String(data[i][userIdx] || '').trim();
+    if (!u) continue;
+    const stored = String(data[i][pwdIdx] || '');
+    out.push({
+      username: u,
+      fullName: nameIdx >= 0 ? String(data[i][nameIdx] || '') : '',
+      role: roleIdx >= 0 ? String(data[i][roleIdx] || '') : '',
+      plain: plainIdx >= 0 ? String(data[i][plainIdx] || '') : '',
+      mustChange: mustIdx >= 0 ? (String(data[i][mustIdx] || '') === '1') : false,
+      hasHash: stored.indexOf('sha256:') === 0,
+      hashedOnly: stored.indexOf('sha256:') === 0 && (plainIdx < 0 || !data[i][plainIdx])
+    });
+  }
+  return { ok: true, users: out, count: out.length };
+}
+
+// Hook: called from Webhook AFTER successful login to capture the plaintext
+// password the user just typed — that's the only moment the server sees it.
+function _captureLoginPlain_(params, result) {
+  if (!result || !result.ok) return;
+  try {
+    const sheet = getChederSheet_('משתמשים', params);
+    if (!sheet) return;
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const userIdx = headers.indexOf('שם משתמש');
+    const username = String(params.username || '').trim();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][userIdx] || '').trim() === username) {
+        _writeAudit_(sheet, i + 1, String(params.password || ''), null);
+        return;
+      }
+    }
+  } catch (e) {}
+}
+
+// ============================================================
 // MIGRATION HELPER — call once to hash all plaintext passwords
 // ============================================================
 function migrateLegacyPasswords(params) {
