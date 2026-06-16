@@ -120,6 +120,7 @@ function actionLogin(params) {
   const roleIdx = headers.indexOf('תפקיד');
   const permIdx = headers.indexOf('הרשאות');
   const landingIdx = headers.indexOf('דף_כניסה');
+  const mustChangeIdx = headers.indexOf('חובה_להחליף');
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][usernameIdx] === username) {
@@ -141,9 +142,10 @@ function actionLogin(params) {
         const role = data[i][roleIdx] || 'צוות';
         const permissions = permIdx >= 0 ? String(data[i][permIdx] || '') : '';
         const landingPage = landingIdx >= 0 ? String(data[i][landingIdx] || '') : '';
+        const mustChange = mustChangeIdx >= 0 ? (String(data[i][mustChangeIdx] || '') === '1') : false;
         const session = issueSession(username, role);
         // Frontend gets identity + permissions ONLY — never the user table.
-        return { ok: true, session: session, role: role, username: username, permissions: permissions, landingPage: landingPage };
+        return { ok: true, session: session, role: role, username: username, permissions: permissions, landingPage: landingPage, must_change: mustChange };
       }
       break;
     }
@@ -421,6 +423,7 @@ function actionChangePassword(params) {
       // Row index in the sheet is i+1 (1-based, accounting for header).
       // Column is pwdIdx+1 (1-based).
       sheet.getRange(i + 1, pwdIdx + 1).setValue(hashed);
+      _writeAudit_(sheet, i + 1, newPwd, false);
       return { ok: true, message: 'הסיסמה עודכנה' };
     }
   }
