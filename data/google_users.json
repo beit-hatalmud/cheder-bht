@@ -25,6 +25,15 @@
       "permissions": "all",
       "active": true,
       "added": "2026-06-17"
+    },
+    {
+      "email": "tt0527686018@gmail.com",
+      "name": "הרב אהוד ירושלמי",
+      "role": "מנהל",
+      "permissions": "all",
+      "active": true,
+      "added": "2026-06-17",
+      "note": "מנהל חינוכי, מכינה לצעירים"
     }
   ]
 }
