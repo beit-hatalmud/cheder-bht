@@ -30,14 +30,12 @@ async function verifyPassword(stored, attempt) {
   return String(stored) === String(attempt);
 }
 
-// 2026-06-11 emergency: hard-coded admin/6742 backdoor that bypasses local data
-// staleness. Always works regardless of localStorage state. Removed once Yosef
-// confirms he can log in reliably.
-const _EMERGENCY_ADMIN = { username: 'admin', password: '6742' };
-function isEmergencyAdminLogin(u, p) {
-  return String(u).trim() === _EMERGENCY_ADMIN.username
-      && String(p).trim() === _EMERGENCY_ADMIN.password;
-}
+// 2026-06-17 SECURITY: removed _EMERGENCY_ADMIN constant + check.
+// The admin/6742 backdoor was exposed in client JavaScript (visible to anyone
+// who opens DevTools). Replaced by Google Sign-In with the whitelist in
+// data/google_users.json. If any caller still tries this combo we return false
+// so the normal failure flow runs.
+function isEmergencyAdminLogin(_u, _p) { return false; }
 
 let _sheetEverReached = false;
 

@@ -155,24 +155,19 @@ async function doLogin(){
   const p = document.getElementById('password').value;
   if (!u || !p) return;
 
-  // 2026-06-11 emergency: admin/6742 fast-path — bypass api/data/listUsers/etc.
-  // Guarantees Yosef can always log in regardless of localStorage state, SW
-  // caching, network access, or _data being uninitialized.
+  // 2026-06-17 SECURITY: removed admin/6742 client-side bypass.
+  // It was visible in browser DevTools and is the kind of backdoor
+  // professional sites never carry. Use Google Sign-In instead
+  // (data/google_users.json controls who can log in).
+  // If someone types admin/6742 we explicitly reject + log.
   if (u === 'admin' && p === '6742') {
-    try {
-      currentUser = { username: 'admin', role: 'מנהל', permissions: 'all' };
-      sessionStorage.setItem('user', JSON.stringify(currentUser));
-      try { document.getElementById('user-info').innerHTML = 'admin (מנהל) <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>'; } catch(_){}
-      try { resetModuleState(); } catch(_){}
-      try { showPage('home'); } catch(_){}
-      try { loadStats(); } catch(_){}
-      try { filterByPermissions(); } catch(_){}
-      const err = document.getElementById('login-error');
-      if (err) err.classList.add('d-none');
-      return;
-    } catch (e) {
-      console.error('emergency login error:', e);
+    try { window.BHT && BHT.warn && BHT.warn('legacy admin/6742 attempt blocked'); } catch (_) {}
+    const err = document.getElementById('login-error');
+    if (err) {
+      err.textContent = 'הכניסה הישנה (admin/6742) הוסרה. השתמש בכפתור "התחבר עם Google" למעלה.';
+      err.classList.remove('d-none');
     }
+    return;
   }
 
   const r = await api('authenticate', [u, p]);
@@ -570,25 +565,25 @@ function drawRecentActivity(events) {
   }).join('');
 }
 
-// Auto-login from session, or from URL params (?u=admin&p=6742)
+// 2026-06-17 SECURITY: removed URL-based auto-login (?u=&p=) — credentials in
+// URL leak into browser history, Referer headers, and any analytics script.
+// Only restore from sessionStorage (set after a verified login).
 const saved = sessionStorage.getItem('user');
-const urlParams = new URLSearchParams(location.search);
-const urlUser = urlParams.get('u');
-const urlPass = urlParams.get('p');
 if (saved) {
-  currentUser = JSON.parse(saved);
-  document.getElementById('user-info').innerHTML = currentUser.username + ' (' + currentUser.role + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
-  showPage('home');
-  setTimeout(loadStats, 500);
-  filterByPermissions();
-} else if (urlUser && urlPass) {
-  showPage('login');
-  document.getElementById('username').value = urlUser;
-  document.getElementById('password').value = urlPass;
-  setTimeout(() => {
-    doLogin();
-    history.replaceState({}, '', location.pathname + location.hash);
-  }, 50);
+  try {
+    currentUser = JSON.parse(saved);
+    document.getElementById('user-info').innerHTML =
+      escHtml(currentUser.fullName || currentUser.username || currentUser.email || '') +
+      ' (' + escHtml(currentUser.role || '') + ') ' +
+      '<button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
+    showPage('home');
+    setTimeout(loadStats, 500);
+    filterByPermissions();
+  } catch (e) {
+    window.BHT && BHT.warn && BHT.warn('saved session corrupt: ' + e.message);
+    sessionStorage.removeItem('user');
+    showPage('login');
+  }
 } else {
   showPage('login');
 }
