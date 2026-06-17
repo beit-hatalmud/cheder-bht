@@ -210,6 +210,36 @@
     } catch (e) {}
   }
 
+  /**
+   * Check whether a real OAuth Client ID is wired up.
+   * If not — keep Google block hidden, show a small notice in the legacy block.
+   */
+  function checkClientIdAvailable() {
+    const onload = document.getElementById('g_id_onload');
+    if (!onload) return false;
+    const cid = onload.getAttribute('data-client_id') || '';
+    return cid && cid !== '__GOOGLE_CLIENT_ID__' && cid.length > 20;
+  }
+
+  function applyGoogleAvailability() {
+    const available = checkClientIdAvailable();
+    const gBlock = document.getElementById('google-login-block');
+    const lBlock = document.getElementById('legacy-login-block');
+    const notice = document.getElementById('google-not-configured');
+    const togLink = document.getElementById('google-toggle-link');
+    if (available) {
+      if (gBlock) gBlock.classList.remove('d-none');
+      if (lBlock) lBlock.classList.add('d-none');
+      if (notice) notice.style.display = 'none';
+      if (togLink) togLink.style.display = '';
+    } else {
+      if (gBlock) gBlock.classList.add('d-none');
+      if (lBlock) lBlock.classList.remove('d-none');
+      if (notice) notice.style.display = '';
+      if (togLink) togLink.style.display = 'none';
+    }
+  }
+
   window.onGoogleSignIn = onGoogleSignIn;
   window.googleLogout = googleLogout;
   window.toggleLegacyLogin = toggleLegacyLogin;
@@ -217,5 +247,8 @@
   window.loadGoogleUsers = loadUsers;       // for admin UI
   window.invalidateGoogleUsersCache = function () { _usersCache = null; };
 
-  document.addEventListener('DOMContentLoaded', restoreSession);
+  document.addEventListener('DOMContentLoaded', () => {
+    applyGoogleAvailability();
+    restoreSession();
+  });
 })();
