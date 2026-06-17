@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/behavior-pro.css?v=20260521b">
 <link rel="stylesheet" href="css/behavior-enhance.css?v=20260521b">
 <link rel="stylesheet" href="css/dark-mode.css?v=20260521b">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 <nav class="navbar navbar-dark mb-4">
@@ -42,15 +43,43 @@
       <div class="col-md-6">
         <div class="card p-4 mt-5">
           <h3 class="text-center mb-4">כניסה למערכת</h3>
-          <div class="mb-3">
-            <label class="form-label">שם משתמש</label>
-            <input id="username" class="form-control" placeholder="admin" autocomplete="username">
+
+          <div id="google-login-block" class="text-center mb-3">
+            <p class="text-muted small mb-3">היכנס באמצעות חשבון Google שלך</p>
+            <div id="g_id_onload"
+                 data-client_id="__GOOGLE_CLIENT_ID__"
+                 data-callback="onGoogleSignIn"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-auto_select="false"></div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="filled_blue"
+                 data-text="sign_in_with"
+                 data-size="large"
+                 data-locale="he"
+                 data-logo_alignment="left"></div>
+            <div class="mt-3">
+              <a href="#" class="small text-muted" onclick="toggleLegacyLogin(event)">אפשרות כניסה ישנה (שם+סיסמה)</a>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">סיסמה</label>
-            <input id="password" type="password" class="form-control" autocomplete="current-password">
+
+          <div id="legacy-login-block" class="d-none">
+            <div class="mb-3">
+              <label class="form-label">שם משתמש</label>
+              <input id="username" class="form-control" placeholder="admin" autocomplete="username">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">סיסמה</label>
+              <input id="password" type="password" class="form-control" autocomplete="current-password">
+            </div>
+            <button id="login-btn" class="btn btn-primary w-100">כניסה</button>
+            <div class="mt-3 text-center">
+              <a href="#" class="small text-muted" onclick="toggleLegacyLogin(event)">חזור לכניסה דרך Google</a>
+            </div>
           </div>
-          <button id="login-btn" class="btn btn-primary w-100">כניסה</button>
+
           <div id="login-error" class="alert alert-danger mt-3 d-none"></div>
         </div>
       </div>
@@ -446,5 +475,7 @@
 <script src="js/behavior-simple.js?v=20260601d"></script>
 <script src="js/multi-simple.js?v=20260601a"></script>
 <script src="js/unified-report.js?v=20260601e"></script>
+<script src="js/google_login.js?v=20260617a"></script>
+<script src="js/google_admin.js?v=20260617a"></script>
 </body>
 </html>

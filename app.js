@@ -201,6 +201,26 @@ async function doLogin(){
 document.getElementById('login-btn').onclick = doLogin;
 document.getElementById('password').addEventListener('keypress', e => { if(e.key==='Enter') doLogin(); });
 
+// Shared post-login flow — called by both legacy doLogin and Google Sign-In (google_login.js).
+window.afterLoginSuccess = function(user) {
+  try { resetModuleState(); } catch (_) {}
+  currentUser = user;
+  sessionStorage.setItem('user', JSON.stringify(user));
+  try {
+    document.getElementById('user-info').innerHTML =
+      escHtml(user.fullName || user.username || user.email) +
+      ' (' + escHtml(user.role || '') + ') ' +
+      '<button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
+  } catch (_) {}
+  try { showPage('home'); } catch (_) {}
+  try { loadStats(); } catch (_) {}
+  try { filterByPermissions(); } catch (_) {}
+  try {
+    const err = document.getElementById('login-error');
+    if (err) err.classList.add('d-none');
+  } catch (_) {}
+};
+
 // First-login forced password change. Blocking modal — no skip.
 async function forcePasswordChange(username) {
   return new Promise((resolve) => {
@@ -575,6 +595,12 @@ if (saved) {
 
 function logout(){
   sessionStorage.removeItem('user');
+  sessionStorage.removeItem('bht_jwt');
+  sessionStorage.removeItem('bht_user');
+  sessionStorage.removeItem('bht_login_via');
+  if (window.google && google.accounts && google.accounts.id) {
+    try { google.accounts.id.disableAutoSelect(); } catch(_) {}
+  }
   location.reload();
 }
 
