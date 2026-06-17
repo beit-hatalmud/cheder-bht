@@ -254,10 +254,41 @@ async function api(fn, args) {
   switch (fn) {
     case 'authenticate': {
       const [u, p] = args;
-      // EMERGENCY: admin/6742 always works, regardless of local data state
-      if (isEmergencyAdminLogin(u, p)) {
-        return { ok: true, data: { ok: true, user: { username: 'admin', role: 'מנהל', permissions: 'all' } } };
+      // 2026-06-17: try server FIRST (handles fresh sessions where local cache
+      // has no users). Server is authoritative now that AuthV2 backend is restored.
+      try {
+        const serverResp = await postToProxy({
+          action: 'login',
+          instance: 'bht',
+          token: AGENT_TOKEN,
+          username: u,
+          password: p,
+        });
+        if (serverResp && serverResp.ok) {
+          // Stash JWT for subsequent API calls
+          try { sessionStorage.setItem('bht_jwt', serverResp.session || ''); } catch (_) {}
+          return {
+            ok: true,
+            data: {
+              ok: true,
+              user: {
+                username: u,
+                role: serverResp.role || 'צוות',
+                permissions: serverResp.permissions || '',
+              },
+              session: serverResp.session,
+              must_change: !!serverResp.must_change,
+            },
+          };
+        }
+        if (serverResp && serverResp.error && /invalid credentials|too many|missing/i.test(serverResp.error)) {
+          return { ok: true, data: { ok: false, error: serverResp.error === 'invalid credentials' ? 'משתמש או סיסמה שגויים' : serverResp.error } };
+        }
+        // Unknown / server unreachable — fall through to local cache
+      } catch (e) {
+        try { window.BHT && BHT.warn && BHT.warn('server login failed, trying cache: ' + e.message); } catch (_) {}
       }
+      // Local cache fallback (used if server unreachable AND user already known)
       const user = _data.users.find(x => x.username === u);
       if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };
       const matches = await verifyPassword(user.password_hash, p);
