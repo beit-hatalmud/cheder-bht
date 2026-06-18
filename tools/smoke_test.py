@@ -61,21 +61,27 @@ def main():
             must(login_visible, 'login form missing')
             log('  [1/6] login form visible')
 
-            # 2. Try to login
+            # 2. Try to login (retry up to 3x — Apps Script first call is slow)
             page.fill('#username', 'ירושלמי')
             page.fill('#password', '1234')
             page.click('#login-btn')
-            page.wait_for_timeout(6000)
-            login_state = page.evaluate('''() => {
-              const u = sessionStorage.getItem('user');
-              const home = document.getElementById('page-home');
-              const mustChangeModal = document.querySelector('.modal.show');
-              return {
-                user: u ? JSON.parse(u) : null,
-                home_visible: !!(home && !home.classList.contains('d-none')),
-                blocking_modal: !!mustChangeModal,
-              };
-            }''')
+            login_state = None
+            for attempt in range(3):
+                page.wait_for_timeout(7000)
+                login_state = page.evaluate('''() => {
+                  const u = sessionStorage.getItem('user');
+                  const home = document.getElementById('page-home');
+                  const mustChangeModal = document.querySelector('.modal.show');
+                  return {
+                    user: u ? JSON.parse(u) : null,
+                    home_visible: !!(home && !home.classList.contains('d-none')),
+                    blocking_modal: !!mustChangeModal,
+                  };
+                }''')
+                if login_state.get('user'):
+                    break
+                log(f'  [2/6] retry {attempt+1} — sessionStorage empty')
+                page.click('#login-btn')
             # Either page-home is visible OR there's a "must change password" modal in the way
             must(login_state.get('user'), 'login did not populate sessionStorage user')
             log(f'  [2/6] login succeeded (home_visible={login_state["home_visible"]}, must_change_modal={login_state["blocking_modal"]})')

@@ -95,7 +95,23 @@ function renderStaffTable(list) {
     cont.innerHTML = '<div class="text-center py-4 text-muted">אין משתמשים תואמים</div>';
     return;
   }
-  cont.innerHTML = `
+  // Mobile cards (CSS shows on <=640px only)
+  const mobileCards = '<div id="staff-cards-list">' + list.map(u => {
+    const uname = u['שם משתמש']||'';
+    const fullname = u['שם מלא'] || uname;
+    const role = u['תפקיד'] || '';
+    const phone = u['טלפון'] || '';
+    const initials = (fullname || '').trim().split(/\s+/).slice(0,2).map(s => s[0]||'').join('');
+    return `<div class="staff-card" onclick="if(typeof editUser==='function')editUser('${escAttr(uname)}')">
+      <div class="avatar">${escHtml(initials || '?')}</div>
+      <div class="info">
+        <b>${escHtml(fullname)}</b>
+        <div class="meta">${escHtml(role)}${phone ? ' · ' + escHtml(phone) : ''}</div>
+      </div>
+      ${uname !== 'admin' ? `<button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation();staffDelete('${escAttr(uname)}')"><i class="bi bi-trash"></i></button>` : ''}
+    </div>`;
+  }).join('') + '</div>';
+  cont.innerHTML = mobileCards + `
     <div class="table-responsive">
       <table class="table table-hover table-sm align-middle">
         <thead class="table-light"><tr>

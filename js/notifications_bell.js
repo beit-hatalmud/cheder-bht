@@ -121,6 +121,7 @@
   }
 
   window.bhtClearNotifications = function () {
+    if (!confirm('למחוק את כל ההתראות?')) return;
     save([]);
     renderPanelList();
     refreshBadge();

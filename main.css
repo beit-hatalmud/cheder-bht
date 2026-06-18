@@ -298,6 +298,26 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 [data-theme="dark"] .sqv-badge.warn{background:#78350f;color:#fde68a}
 [data-theme="dark"] .sqv-badge.bad{background:#7f1d1d;color:#fecaca}
 
+/* Mobile staff page — cards instead of dense table */
+@media (max-width:640px){
+  #staff-table .table{display:none}
+  #staff-table::before{
+    content:"";display:block;padding:6px 0
+  }
+  /* Hide table headers on phone, render rows as cards via JS class */
+  #staff-cards-list{display:flex;flex-direction:column;gap:8px}
+  #staff-cards-list .staff-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  #staff-cards-list .staff-card .avatar{width:36px;height:36px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.85rem;flex-shrink:0}
+  #staff-cards-list .staff-card .info{flex:1;min-width:0;font-size:.85rem}
+  #staff-cards-list .staff-card .info b{display:block}
+  #staff-cards-list .staff-card .info .meta{color:#64748b;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #staff-cards-list .staff-card .btn{padding:.3rem .55rem;font-size:.75rem}
+  [data-theme="dark"] #staff-cards-list .staff-card{background:#1e293b;border-color:#334155}
+}
+@media (min-width:641px){
+  #staff-cards-list{display:none}
+}
+
 /* Mobile */
 @media (max-width:768px){
   body{font-size:14.5px;padding-bottom:80px}
