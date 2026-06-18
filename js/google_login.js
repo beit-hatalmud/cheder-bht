@@ -18,7 +18,7 @@
   const USERS_URL = 'data/google_users.json';
 
   // expected aud (filled in by user when they paste their Client ID)
-  const EXPECTED_AUD_PLACEHOLDER = '__GOOGLE_CLIENT_ID__';
+  const EXPECTED_AUD_PLACEHOLDER = '799978027774-6qo4khetndu0472cf5d1shn1a1d5lgeo.apps.googleusercontent.com';
 
   function showLoginError(msg) {
     const el = document.getElementById('login-error');

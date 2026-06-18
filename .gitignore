@@ -6,3 +6,6 @@ package-lock.json
 qa_fail_context.json
 qa_deep_report.json
 qa_deep_fast_report.json
+secrets/
+supabase/secrets/
+supabase/apply_schema.py
