@@ -27,12 +27,27 @@
 
   window.bhtNotify = function (msg, kind /* info|success|warn|error */) {
     const list = load();
+    const text = String(msg).slice(0, 200);
+    // Dedupe — if the same text was added within 60s, just bump its
+    // timestamp and don't create a second entry. Same idea protects
+    // against a chatty watchdog flooding the bell.
+    const now = Date.now();
+    const recent = list[0];
+    if (recent && recent.msg === text && (now - new Date(recent.at).getTime()) < 60_000) {
+      recent.at = new Date().toISOString();
+      recent.read = false;
+      recent.count = (recent.count || 1) + 1;
+      save(list);
+      refreshBadge();
+      return;
+    }
     list.unshift({
-      id: Date.now() + ':' + Math.random().toString(36).slice(2, 8),
-      msg: String(msg).slice(0, 200),
+      id: now + ':' + Math.random().toString(36).slice(2, 8),
+      msg: text,
       kind: kind || 'info',
       at: new Date().toISOString(),
       read: false,
+      count: 1,
     });
     save(list);
     refreshBadge();
@@ -114,7 +129,7 @@
       <div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;gap:10px;align-items:flex-start">
         <i class="bi ${iconFor(n.kind)}" style="font-size:1.1rem;margin-top:2px"></i>
         <div style="flex:1">
-          <div style="font-size:.88rem;color:#1e293b">${escHtml(n.msg)}</div>
+          <div style="font-size:.88rem;color:#1e293b">${escHtml(n.msg)}${(n.count||1)>1?' <span style="font-size:.7rem;color:#94a3b8">×'+n.count+'</span>':''}</div>
           <div style="font-size:.74rem;color:#94a3b8">${escHtml(fmtAgo(n.at))}</div>
         </div>
       </div>`).join('');
