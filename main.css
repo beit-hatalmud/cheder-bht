@@ -322,6 +322,16 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 a:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 [data-theme="dark"] *:focus-visible{outline-color:#60a5fa}
 
+/* Mobile tap targets — Apple HIG min 44x44 */
+@media (max-width:640px){
+  .behavior-event-btn,.add-behavior-btn,.btn-primary[onclick*="addBehavior"],.btn-success[onclick*="addBehavior"]{min-height:48px!important;font-size:.95rem!important;padding:.6rem 1.1rem!important}
+  /* Floating action button hint for the most-used add on small screens */
+  .fab-add{position:fixed;bottom:18px;left:18px;width:56px;height:56px;border-radius:50%;background:#16a34a;color:#fff;border:0;font-size:1.4rem;box-shadow:0 6px 18px rgba(22,163,74,.45);z-index:1040;display:flex;align-items:center;justify-content:center}
+  .fab-add:active{transform:scale(.95)}
+  /* Bottom safe area for FAB so it doesn't sit under iOS home indicator */
+  body{padding-bottom:90px}
+}
+
 /* Mobile staff page — cards instead of dense table */
 @media (max-width:640px){
   #staff-table .table{display:none}
