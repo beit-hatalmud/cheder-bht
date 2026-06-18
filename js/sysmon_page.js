@@ -66,6 +66,14 @@
           </div>`).join('')}
       </div>
       <div class="card p-3 mt-3">
+        <h6><i class="bi bi-laptop text-info"></i> אודות המכשיר</h6>
+        <div class="small text-muted">
+          ${escapeHtml(navigator.userAgent.split(' ').slice(0,4).join(' '))}<br>
+          רזולוציה: ${screen.width}×${screen.height} · שפה: ${navigator.language}<br>
+          חיבור: ${navigator.onLine ? 'מקוון' : 'לא מקוון'} · cookies: ${navigator.cookieEnabled ? 'מופעל' : 'חסום'}
+        </div>
+      </div>
+      <div class="card p-3 mt-3">
         <h6><i class="bi bi-clock-history text-warning"></i> משימות מתוזמנות</h6>
         <ul class="small mb-0">
           <li>BHT_DailyBackup — 23:00 כל יום (גיבוי JSON+XLSX)</li>
@@ -83,6 +91,9 @@
     `;
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
   window.refreshSysmon = refresh;
 
   /**
