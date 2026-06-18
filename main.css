@@ -322,6 +322,18 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 a:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
 [data-theme="dark"] *:focus-visible{outline-color:#60a5fa}
 
+/* Print stylesheet — clean output for PDF "Save as PDF" */
+@media print {
+  nav, footer, #notif-panel, #notif-toggle, #sys-status-dot, #dashboard-charts,
+  #chart-toggle-bar, #home-today-section, #personal-stats-section,
+  #home-tiles-source, .home-group, .btn, .sticky-bottom-bar { display:none !important }
+  body { background:#fff; padding:0 }
+  .card { box-shadow:none !important; border:1px solid #ddd !important; page-break-inside:avoid }
+  .table { font-size:11pt }
+  h1, h2, h3, h4, h5, h6 { color:#000 !important }
+  a { color:#000 !important; text-decoration:none !important }
+}
+
 /* Mobile tap targets — Apple HIG min 44x44 */
 @media (max-width:640px){
   .behavior-event-btn,.add-behavior-btn,.btn-primary[onclick*="addBehavior"],.btn-success[onclick*="addBehavior"]{min-height:48px!important;font-size:.95rem!important;padding:.6rem 1.1rem!important}
