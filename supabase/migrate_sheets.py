@@ -230,6 +230,11 @@ def chunked(xs: List[Any], n: int):
 
 def migrate_behavior(student_map: Dict[str, str], category_map: Dict[str, str],
                      user_map: Dict[str, str]) -> int:
+    # Idempotency: skip if already populated
+    existing = sb.select('behavior_events', columns='id', limit=1)
+    if existing:
+        print('  behavior_events not empty — skipping')
+        return 0
     rows = fetch_sheet('מעקב_התנהגות')
     out = []
     skipped = 0
@@ -259,6 +264,237 @@ def migrate_behavior(student_map: Dict[str, str], category_map: Dict[str, str],
     return inserted
 
 
+def migrate_attendance(student_map: Dict[str, str], user_map: Dict[str, str]) -> int:
+    rows = fetch_sheet('נוכחות')
+    out, skipped = [], 0
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        d = parse_date(r.get('תאריך'))
+        if not sid_legacy or sid_legacy not in student_map or not d:
+            skipped += 1
+            continue
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'on_date': d,
+            'status': clean(r.get('סטטוס')) or 'נוכח',
+            'notes': clean(r.get('הערות')) or None,
+            'legacy_id': clean(r.get('מזהה')) or None,
+        })
+    # Idempotency
+    if sb.select('attendance', columns='id', limit=1):
+        print('  attendance not empty — skipping')
+        return 0
+    inserted = 0
+    for batch in chunked(out, 500):
+        try:
+            sb.insert('attendance', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! attendance batch: {e}')
+    return inserted
+
+
+def migrate_tests(student_map: Dict[str, str]) -> int:
+    if sb.select('tests', columns='id', limit=1):
+        print('  tests not empty — skipping')
+        return 0
+    rows = fetch_sheet('מבחנים')
+    out = []
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        if not sid_legacy or sid_legacy not in student_map:
+            continue
+        subject = clean(r.get('סוג') or r.get('פרשה')) or 'מבחן'
+        score_raw = clean(r.get('ציון'))
+        try:
+            score = float(score_raw) if score_raw else None
+        except ValueError:
+            score = None
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'subject': subject,
+            'test_date': parse_date(r.get('תאריך')) or '2026-01-01',
+            'score': score,
+            'notes': clean(r.get('הערות')) or (clean(r.get('פרשה')) if subject != clean(r.get('פרשה')) else None),
+            'legacy_id': clean(r.get('מזהה')) or None,
+        })
+    inserted = 0
+    for batch in chunked(out, 500):
+        try:
+            sb.insert('tests', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! tests batch: {e}')
+    return inserted
+
+
+def migrate_medications(student_map: Dict[str, str]) -> int:
+    if sb.select('medications', columns='id', limit=1):
+        print('  medications not empty — skipping')
+        return 0
+    rows = fetch_sheet('כדורים')
+    out = []
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        if not sid_legacy or sid_legacy not in student_map:
+            continue
+        name = clean(r.get('תרופה') or r.get('סוג')) or 'לא רשום'
+        # combine extra fields into notes so nothing is lost
+        notes_parts = []
+        for label, key in [
+            ('מצב כיום', 'מצב_כיום'),
+            ('שיחת הורים', 'שיחת_הורים'),
+            ('הערות', 'הערות'),
+            ('סוג', 'סוג'),
+        ]:
+            v = clean(r.get(key))
+            if v: notes_parts.append(f'{label}: {v}')
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'name': name,
+            'notes': ' | '.join(notes_parts) if notes_parts else None,
+            'start_date': parse_date(r.get('תאריך_עדכון')),
+            'legacy_id': clean(r.get('מזהה')) or None,
+        })
+    inserted = 0
+    for batch in chunked(out, 500):
+        try:
+            sb.insert('medications', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! medications batch: {e}')
+    return inserted
+
+
+def migrate_meetings(student_map: Dict[str, str], user_map: Dict[str, str]) -> int:
+    if sb.select('meetings', columns='id', limit=1):
+        print('  meetings not empty — skipping')
+        return 0
+    rows = fetch_sheet('אסיפות')
+    out = []
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        if not sid_legacy or sid_legacy not in student_map:
+            continue
+        d = clean(r.get('תאריך'))
+        # meetings.meeting_date is timestamptz so we can use ISO directly
+        meeting_date = d if d else '2026-01-01T00:00:00Z'
+        notes_parts = []
+        for label, key in [
+            ('נושא', 'נושא'),
+            ('תקופה', 'תקופה'),
+            ('סיכום', 'סיכום'),
+            ('הערות', 'הערות'),
+        ]:
+            v = clean(r.get(key))
+            if v: notes_parts.append(f'{label}: {v}')
+        attendees_text = clean(r.get('משתתפים'))
+        attendees = [s.strip() for s in attendees_text.split('+') if s.strip()] if attendees_text else None
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'meeting_date': meeting_date,
+            'attendees': attendees,
+            'notes': ' | '.join(notes_parts) if notes_parts else None,
+            'recorded_by': user_map.get(clean(r.get('רב'))),
+            'legacy_id': clean(r.get('מזהה')) or None,
+        })
+    inserted = 0
+    for batch in chunked(out, 500):
+        try:
+            sb.insert('meetings', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! meetings batch: {e}')
+    return inserted
+
+
+def migrate_conversations(student_map: Dict[str, str], user_map: Dict[str, str]) -> int:
+    if sb.select('conversations', columns='id', limit=1):
+        print('  conversations not empty — skipping')
+        return 0
+    rows = fetch_sheet('שיחות')
+    out = []
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        if not sid_legacy or sid_legacy not in student_map:
+            continue
+        d = parse_date(r.get('תאריך'))
+        summary_parts = []
+        for label, key in [
+            ('נושא', 'נושא'),
+            ('תוכן', 'תוכן'),
+            ('פרשה', 'פרשה'),
+            ('קטגוריה', 'קטגוריה'),
+            ('תאריך עברי', 'תאריך_עברי'),
+            ('הערות', 'הערות'),
+        ]:
+            v = clean(r.get(key))
+            if v: summary_parts.append(f'{label}: {v}')
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'participant': clean(r.get('רב')) or None,
+            'on_date': d or '2026-01-01',
+            'summary': ' | '.join(summary_parts) if summary_parts else None,
+            'recorded_by': user_map.get(clean(r.get('רב'))),
+            'legacy_id': clean(r.get('מזהה')) or None,
+        })
+    inserted = 0
+    for batch in chunked(out, 500):
+        try:
+            sb.insert('conversations', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! conversations batch: {e}')
+    return inserted
+
+
+def migrate_functioning(student_map: Dict[str, str]) -> int:
+    """Aggregate the long-form rows into a single jsonb scores blob per
+    student + period so we don't blow up the table to 3941 rows."""
+    if sb.select('functioning_reports', columns='id', limit=1):
+        print('  functioning_reports not empty — skipping')
+        return 0
+    rows = fetch_sheet('תפקוד')
+    # group: (sid_legacy, period) -> {scores: {category: {subcategory: {parameter: score}}}, dates: [...]}
+    groups: Dict[tuple, Dict[str, Any]] = {}
+    for r in rows:
+        sid_legacy = clean(r.get('תלמיד_מזהה'))
+        period = clean(r.get('תקופה')) or 'כללי'
+        if not sid_legacy or sid_legacy not in student_map:
+            continue
+        key = (sid_legacy, period)
+        g = groups.setdefault(key, {'scores': {}, 'dates': [], 'notes': []})
+        cat = clean(r.get('קטגוריה')) or 'כללי'
+        sub = clean(r.get('תת_קטגוריה')) or '_'
+        param = clean(r.get('פרמטר')) or '_'
+        score = r.get('ציון')
+        g['scores'].setdefault(cat, {}).setdefault(sub, {})[param] = score
+        d = parse_date(r.get('תאריך'))
+        if d: g['dates'].append(d)
+        note = clean(r.get('הערות'))
+        if note: g['notes'].append(note)
+
+    out = []
+    for (sid_legacy, period), g in groups.items():
+        dates = sorted(set(g['dates']))
+        out.append({
+            'student_id': student_map[sid_legacy],
+            'period_start': dates[0] if dates else '2026-01-01',
+            'period_end': dates[-1] if dates else '2026-01-01',
+            'scores': {'period': period, 'by_category': g['scores']},
+            'comments': ' | '.join(g['notes']) if g['notes'] else None,
+            'legacy_id': f'{sid_legacy}::{period}',
+        })
+    inserted = 0
+    for batch in chunked(out, 250):
+        try:
+            sb.insert('functioning_reports', batch)
+            inserted += len(batch)
+        except sb.SupabaseError as e:
+            print(f'  ! functioning batch: {e}')
+    return inserted
+
+
 def main():
     summary = {}
     print('=== migrate: users ===')
@@ -285,6 +521,30 @@ def main():
     inserted = migrate_behavior(student_map, cat_map, user_map)
     summary['behavior_events'] = inserted
     print(f'  {inserted} events inserted')
+
+    print('=== migrate: attendance ===')
+    summary['attendance'] = migrate_attendance(student_map, user_map)
+    print(f'  {summary["attendance"]} attendance')
+
+    print('=== migrate: tests ===')
+    summary['tests'] = migrate_tests(student_map)
+    print(f'  {summary["tests"]} tests')
+
+    print('=== migrate: medications ===')
+    summary['medications'] = migrate_medications(student_map)
+    print(f'  {summary["medications"]} medications')
+
+    print('=== migrate: meetings ===')
+    summary['meetings'] = migrate_meetings(student_map, user_map)
+    print(f'  {summary["meetings"]} meetings')
+
+    print('=== migrate: conversations ===')
+    summary['conversations'] = migrate_conversations(student_map, user_map)
+    print(f'  {summary["conversations"]} conversations')
+
+    print('=== migrate: functioning_reports ===')
+    summary['functioning_reports'] = migrate_functioning(student_map)
+    print(f'  {summary["functioning_reports"]} functioning reports')
 
     print('\n=== summary ===')
     print(json.dumps(summary, ensure_ascii=False, indent=2))
