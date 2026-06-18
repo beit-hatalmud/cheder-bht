@@ -281,6 +281,23 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 /* Loading overlay */
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9998}
 
+/* Dark mode polish for new components (charts toggle, role chips, sqv badges) */
+[data-theme="dark"] #chart-toggle-bar .btn-outline-primary,
+[data-theme="dark"] #chart-toggle-bar .btn-outline-secondary{color:#cbd5e1;border-color:#475569}
+[data-theme="dark"] #chart-toggle-bar .btn-outline-primary:hover{background:#1e3a8a;color:#fff}
+[data-theme="dark"] #staff-role-chips .btn-outline-secondary{color:#cbd5e1;border-color:#475569}
+[data-theme="dark"] #staff-role-chips .btn-primary{background:#2563eb;border-color:#2563eb}
+[data-theme="dark"] #page-login .card{background:#1e293b;color:#e2e8f0}
+[data-theme="dark"] #page-login label{color:#cbd5e1}
+[data-theme="dark"] #page-login input.form-control{background:#0f172a;color:#e2e8f0;border-color:#334155}
+[data-theme="dark"] #page-login input.form-control:focus{background:#0f172a;color:#fff;border-color:#3b82f6}
+[data-theme="dark"] .alert.alert-info{background:#1e3a8a;color:#dbeafe;border-color:#1e40af}
+[data-theme="dark"] hr{border-top-color:#334155}
+[data-theme="dark"] .sqv-badge{background:#1e3a8a;color:#dbeafe}
+[data-theme="dark"] .sqv-badge.ok{background:#14532d;color:#bbf7d0}
+[data-theme="dark"] .sqv-badge.warn{background:#78350f;color:#fde68a}
+[data-theme="dark"] .sqv-badge.bad{background:#7f1d1d;color:#fecaca}
+
 /* Mobile */
 @media (max-width:768px){
   body{font-size:14.5px;padding-bottom:80px}

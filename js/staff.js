@@ -11,6 +11,7 @@ async function renderStaff() {
       <div class="d-flex gap-2">
         <input id="staff-search" class="form-control form-control-sm" placeholder="חיפוש..." style="width:180px">
         <button class="btn btn-success" onclick="if(typeof addUserModal==='function')addUserModal()" style="font-size:1rem;padding:.5rem 1.1rem;box-shadow:0 4px 12px rgba(22,163,74,.35)"><i class="bi bi-person-plus-fill"></i> הוסף משתמש</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="if(window.openAuditLog)openAuditLog()" title="יומן פעולות"><i class="bi bi-journal-text"></i> יומן</button>
         <button class="btn btn-outline-primary btn-sm" onclick="staffExportCSV()"><i class="bi bi-download"></i> ייצוא לאקסל</button>
       </div>
     </div>

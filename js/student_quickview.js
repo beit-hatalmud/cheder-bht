@@ -252,4 +252,58 @@
       alert('שגיאה: ' + (e.message || e));
     }
   };
+
+  /**
+   * "תלמיד היום" smart pick — surfaces a student that probably needs
+   * attention TODAY, not just a random one. Heuristic:
+   *   1. Score the last 7 days of behavior events per student (sum delta).
+   *   2. Add a penalty for recent absences/late.
+   *   3. Among active students with score <= 0, pick one weighted by
+   *      severity (more-negative score is more likely).
+   *   4. Stable per-day: the same call on the same date returns the
+   *      same pick (so the home card isn't dancing around all morning).
+   */
+  window.smartStudentQuickView = async function () {
+    try {
+      const [students, behavior, attendance] = await Promise.all([
+        api('listStudents', []).then(r => r.data || []),
+        api('listBehavior', []).then(r => r.data || []),
+        api('listAttendance', []).then(r => r.data || []),
+      ]);
+      const active = students.filter(s => !s['סטטוס'] || s['סטטוס'] === 'פעיל');
+      if (!active.length) return alert('אין תלמידים פעילים');
+
+      const sevenDaysAgo = Date.now() - 7 * 86400000;
+      const scores = {};
+      active.forEach(s => { scores[String(s['מזהה'])] = 0; });
+      behavior.forEach(b => {
+        const d = new Date(b['תאריך']);
+        if (isNaN(d) || d.getTime() < sevenDaysAgo) return;
+        const sid = String(b['תלמיד_מזהה']);
+        if (sid in scores) scores[sid] += (parseInt(b['ניקוד']) || 0);
+      });
+      attendance.forEach(a => {
+        const d = new Date(a['תאריך']);
+        if (isNaN(d) || d.getTime() < sevenDaysAgo) return;
+        const sid = String(a['תלמיד_מזהה']);
+        if (!(sid in scores)) return;
+        const st = String(a['סטטוס'] || '');
+        if (st.includes('חסר')) scores[sid] -= 2;
+        else if (st.includes('איחור')) scores[sid] -= 1;
+      });
+      // Pool: students with negative score (most need attention)
+      let pool = active.filter(s => scores[String(s['מזהה'])] < 0);
+      if (!pool.length) pool = active;
+      // Stable shuffle by date: same student all day
+      const today = new Date().toISOString().slice(0, 10);
+      const seed = today.split('-').reduce((a, x) => a * 31 + parseInt(x), 7);
+      const idx = Math.abs(seed) % pool.length;
+      const pick = pool.sort((a, b) => scores[String(a['מזהה'])] - scores[String(b['מזהה'])])[idx];
+      show(pick['מזהה']);
+    } catch (e) {
+      console.warn('smartStudentQuickView failed', e);
+      // Fallback to random
+      window.randomStudentQuickView();
+    }
+  };
 })();

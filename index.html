@@ -115,6 +115,7 @@
           <small class="text-muted">בחר תלמיד לסיכום מהיר — התנהגות, מבחנים, נוכחות, רפואי, אסיפות</small>
         </div>
         <button class="btn btn-primary btn-sm" onclick="if(window.quickSearchOpen)quickSearchOpen()"><i class="bi bi-search"></i> חפש (Ctrl+K)</button>
+        <button class="btn btn-warning btn-sm" onclick="smartStudentQuickView()" title="תלמיד שכדאי לשים לב אליו היום"><i class="bi bi-lightning-fill"></i> חכם</button>
         <button class="btn btn-outline-primary btn-sm" onclick="randomStudentQuickView()"><i class="bi bi-shuffle"></i> אקראי</button>
       </div>
     </div>
@@ -449,7 +450,8 @@
 <script src="js/supabase_client.js?v=20260618a"></script>
 <script src="js/quick_search.js?v=20260618b"></script>
 <script src="js/student_quickview.js?v=20260618a"></script>
-<script src="js/dashboard_charts.js?v=20260618a"></script>
+<script src="js/dashboard_charts.js?v=20260618b"></script>
+<script src="js/audit_viewer.js?v=20260618a"></script>
 <script src="js/onboarding.js?v=20260618a"></script>
 <script src="api.js?v=20260618b"></script>
 <script src="dist/main.bundle.js?v=20260601e"></script>

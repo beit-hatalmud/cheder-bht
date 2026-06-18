@@ -29,6 +29,29 @@
     document.head.appendChild(s);
   }
 
+  const CHART_DEFS = [
+    { id: 'behav-line',  title: 'ציון התנהגות שבועי',  icon: 'bi-graph-up',        color: 'text-primary' },
+    { id: 'behav-donut', title: 'סוגי אירועים השבוע', icon: 'bi-pie-chart',       color: 'text-success' },
+    { id: 'tests-bar',   title: 'מבחנים אחרונים',      icon: 'bi-bar-chart',       color: 'text-warning' },
+    { id: 'att-bar',     title: 'נוכחות השבוע',        icon: 'bi-check2-square',   color: 'text-info' },
+  ];
+  const VIS_KEY = 'bht_dashboard_charts_visibility_v1';
+
+  function loadVisibility() {
+    try {
+      const stored = JSON.parse(localStorage.getItem(VIS_KEY) || '{}');
+      return CHART_DEFS.reduce((acc, d) => {
+        acc[d.id] = stored[d.id] !== false; // default: visible
+        return acc;
+      }, {});
+    } catch (_) {
+      return CHART_DEFS.reduce((acc, d) => { acc[d.id] = true; return acc; }, {});
+    }
+  }
+  function saveVisibility(vis) {
+    try { localStorage.setItem(VIS_KEY, JSON.stringify(vis)); } catch (_) {}
+  }
+
   function ensureContainer() {
     let cont = document.getElementById('dashboard-charts');
     if (cont) return cont;
@@ -36,14 +59,47 @@
     if (!home) return null;
     cont = document.createElement('div');
     cont.id = 'dashboard-charts';
-    cont.innerHTML = `
-      <div class="chart-card"><h6><i class="bi bi-graph-up text-primary"></i> ציון התנהגות שבועי</h6><canvas id="ch-behav-line"></canvas></div>
-      <div class="chart-card"><h6><i class="bi bi-pie-chart text-success"></i> סוגי אירועים השבוע</h6><canvas id="ch-behav-donut"></canvas></div>
-      <div class="chart-card"><h6><i class="bi bi-bar-chart text-warning"></i> מבחנים אחרונים</h6><canvas id="ch-tests-bar"></canvas></div>
-      <div class="chart-card"><h6><i class="bi bi-check2-square text-info"></i> נוכחות השבוע</h6><canvas id="ch-att-bar"></canvas></div>
-    `;
     home.insertBefore(cont, home.firstChild);
     return cont;
+  }
+
+  function ensureToggleBar() {
+    if (document.getElementById('chart-toggle-bar')) return;
+    const home = document.getElementById('page-home');
+    if (!home) return;
+    const bar = document.createElement('div');
+    bar.id = 'chart-toggle-bar';
+    bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;justify-content:flex-end';
+    const vis = loadVisibility();
+    bar.innerHTML = CHART_DEFS.map(d => `
+      <button class="btn btn-sm ${vis[d.id] ? 'btn-outline-primary' : 'btn-outline-secondary'}"
+              data-chart="${d.id}" style="font-size:.72rem;padding:.2rem .55rem">
+        <i class="bi ${vis[d.id] ? 'bi-eye-fill' : 'bi-eye-slash'}"></i> ${d.title.replace(/השבוע|אחרונים|שבועי/g,'').trim()}
+      </button>`).join('');
+    bar.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-chart]');
+      if (!btn) return;
+      const id = btn.dataset.chart;
+      const cur = loadVisibility();
+      cur[id] = !cur[id];
+      saveVisibility(cur);
+      refresh();
+    });
+    home.insertBefore(bar, home.firstChild);
+  }
+
+  function renderCards() {
+    const cont = ensureContainer();
+    if (!cont) return;
+    const vis = loadVisibility();
+    const visible = CHART_DEFS.filter(d => vis[d.id]);
+    if (!visible.length) {
+      cont.innerHTML = '<div class="chart-card" style="text-align:center;grid-column:1/-1;color:#94a3b8">כל הגרפים מוסתרים. החזר אותם מההגדרות למעלה.</div>';
+      return;
+    }
+    cont.innerHTML = visible.map(d => `
+      <div class="chart-card"><h6><i class="bi ${d.icon} ${d.color}"></i> ${d.title}</h6><canvas id="ch-${d.id}"></canvas></div>
+    `).join('');
   }
 
   function asDate(v) {
@@ -148,7 +204,10 @@
   function drawAll(d) {
     if (typeof Chart === 'undefined') return;
     Object.values(_charts).forEach(c => { try { c.destroy(); } catch (_) {} });
+    const vis = loadVisibility();
+    const has = (id) => vis[id] && document.getElementById('ch-' + id);
 
+    if (has('behav-line')) {
     const beh = buildBehaviorLine(d.behavior);
     _charts.behLine = new Chart(document.getElementById('ch-behav-line'), {
       type: 'line',
@@ -156,20 +215,24 @@
       options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
     });
 
+    }
+    if (has('behav-donut')) {
     const donut = buildBehaviorDonut(d.behavior);
     _charts.donut = new Chart(document.getElementById('ch-behav-donut'), {
       type: 'doughnut',
       data: { labels: donut.labels, datasets: [{ data: donut.data, backgroundColor: ['#16a34a','#dc2626','#2563eb','#f59e0b','#7c3aed','#0891b2'] }] },
       options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } },
     });
-
+    }
+    if (has('tests-bar')) {
     const tests = buildTestsBar(d.tests);
     _charts.tests = new Chart(document.getElementById('ch-tests-bar'), {
       type: 'bar',
       data: { labels: tests.labels, datasets: [{ data: tests.data, backgroundColor: '#f59e0b' }] },
       options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } },
     });
-
+    }
+    if (has('att-bar')) {
     const att = buildAttendanceBar(d.attendance);
     _charts.att = new Chart(document.getElementById('ch-att-bar'), {
       type: 'bar',
@@ -183,11 +246,14 @@
       },
       options: { plugins: { legend: { display: false } }, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } },
     });
+    }
   }
 
   async function refresh() {
     try {
       ensureStyle();
+      ensureToggleBar();
+      renderCards();
       const cont = ensureContainer();
       if (!cont) return;
       // Lazy data pull
