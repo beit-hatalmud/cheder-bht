@@ -298,6 +298,13 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 [data-theme="dark"] .sqv-badge.warn{background:#78350f;color:#fde68a}
 [data-theme="dark"] .sqv-badge.bad{background:#7f1d1d;color:#fecaca}
 
+/* Skeleton loaders — show animated ghost rows while a list is fetching */
+@keyframes sk-shimmer{0%{background-position:-200px 0}100%{background-position:200px 0}}
+.bht-sk-row{background:#f1f5f9;background-image:linear-gradient(90deg,#f1f5f9 0%,#e2e8f0 50%,#f1f5f9 100%);background-size:200px 100%;background-repeat:no-repeat;animation:sk-shimmer 1.2s linear infinite;border-radius:8px;height:36px;margin-bottom:6px}
+.bht-sk-row.lg{height:54px}
+.bht-sk-row.sm{height:24px}
+[data-theme="dark"] .bht-sk-row{background:#1e293b;background-image:linear-gradient(90deg,#1e293b 0%,#334155 50%,#1e293b 100%)}
+
 /* Mobile staff page — cards instead of dense table */
 @media (max-width:640px){
   #staff-table .table{display:none}

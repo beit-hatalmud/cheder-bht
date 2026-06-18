@@ -82,15 +82,32 @@ def check_one(table, key, tab, sheet_key):
     return True
 
 
+def write_status(status, details=''):
+    """Write to a small JSON beacon the client polls for."""
+    beacon_dir = os.path.join(os.environ.get('LOCALAPPDATA', '.'),
+                              'cheder-bht-watchdog')
+    os.makedirs(beacon_dir, exist_ok=True)
+    path = os.path.join(beacon_dir, 'integrity_status.json')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump({'status': status, 'details': details,
+                   'at': datetime.now().isoformat()},
+                  f, ensure_ascii=False, indent=1)
+
+
 def main():
     print(f'== integrity check {datetime.now().isoformat()}')
     if not os.path.exists(today_dir()):
-        print(f'  no backup folder for today ({today_dir()}) — skipping')
+        msg = f'no backup folder for today ({today_dir()}) — skipping'
+        print('  ' + msg)
+        write_status('skipped', msg)
         sys.exit(0)
     all_ok = True
+    details = []
     for table, key, tab, sheet_key in CHECKS:
         ok = check_one(table, key, tab, sheet_key)
+        details.append(f'{table}={"OK" if ok else "FAIL"}')
         all_ok = all_ok and ok
+    write_status('pass' if all_ok else 'fail', '; '.join(details))
     print(f'== result: {"PASS" if all_ok else "FAIL"}')
     sys.exit(0 if all_ok else 1)
 

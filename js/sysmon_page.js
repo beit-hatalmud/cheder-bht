@@ -47,7 +47,8 @@
       <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
         <h3 class="mb-0"><i class="bi bi-activity text-primary"></i> מצב מערכת</h3>
         <span class="badge ${score === results.length ? 'bg-success' : score === 0 ? 'bg-danger' : 'bg-warning'}">${score}/${results.length} שירותים</span>
-        <button class="btn btn-sm btn-outline-primary ms-auto" onclick="refreshSysmon()"><i class="bi bi-arrow-clockwise"></i> בדיקה מחדש</button>
+        <button class="btn btn-sm btn-outline-success ms-auto" onclick="sendWeeklyNow()"><i class="bi bi-envelope-fill"></i> שלח דוח שבועי עכשיו</button>
+        <button class="btn btn-sm btn-outline-primary" onclick="refreshSysmon()"><i class="bi bi-arrow-clockwise"></i> בדיקה מחדש</button>
       </div>
       <div class="row g-3">
         ${results.map(r => `
@@ -83,6 +84,39 @@
   }
 
   window.refreshSysmon = refresh;
+
+  /**
+   * On-demand weekly summary: triggers a small Apps Script
+   * `bhtWeeklySummary` job that runs the same SQL the python
+   * script does and emails the result. Falls back to a friendly
+   * note if the action isn't available.
+   */
+  window.sendWeeklyNow = async function () {
+    const btn = event && event.target.closest('button');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> שולח...'; }
+    try {
+      const r = await postToProxy({
+        action: 'bhtWeeklySummary',
+        instance: 'bht',
+        token: AGENT_TOKEN,
+        to: '6742853@gmail.com',
+      });
+      if (r && r.ok) {
+        if (window.bhtNotify) window.bhtNotify('דוח שבועי נשלח ✓', 'success');
+        alert('הדוח נשלח למייל');
+      } else {
+        // Server action may not exist yet — surface a notification but
+        // still write a fallback hint.
+        if (window.bhtNotify) window.bhtNotify('שליחה ידנית מהשרת לא זמינה — נסה דרך /tools/weekly_summary.py', 'warn');
+        alert('השרת לא תומך בשליחה ידנית.\nהדוח השבועי האוטומטי נשלח כל יום ראשון 07:00.');
+      }
+    } catch (e) {
+      if (window.bhtNotify) window.bhtNotify('שגיאה בשליחה: ' + (e.message || e), 'error');
+      alert('שגיאה: ' + (e.message || e));
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-envelope-fill"></i> שלח דוח שבועי עכשיו'; }
+    }
+  };
 
   function handleRoute() {
     if (location.hash === '#sysmon') {
