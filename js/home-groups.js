@@ -1,10 +1,12 @@
-// home-groups.js — מחלק את הכרטיסים של דף הבית ל-4 קבוצות. 2026-05-24
+// home-groups.js — מחלק את הכרטיסים של דף הבית ל-3 קבוצות. 2026-06-18 (v2)
+// קבוצה 1 = פעולות יומיות שהמורה עושה כל יום
+// קבוצה 2 = מעקבים אקדמיים ורפואיים
+// קבוצה 3 = ניהול, דוחות, הגדרות
 (function() {
   const GROUPS = {
-    1: ['students', 'behavior', 'writing', 'reading', 'lessonsKlein'],
-    2: ['formsMgmt', 'projects', 'tasks', 'attendance', 'staff'],
-    3: ['meetings', 'conversations', 'medications'],
-    4: ['classview', 'functioning', 'tests', 'calendar', 'reports', 'cameras', 'feedback', 'settings'],
+    1: ['behavior', 'attendance', 'conversations', 'students', 'calendar'],
+    2: ['writing', 'reading', 'lessonsKlein', 'tests', 'functioning', 'medications', 'classview'],
+    3: ['meetings', 'tasks', 'projects', 'formsMgmt', 'staff', 'reports', 'cameras', 'feedback', 'settings'],
   };
 
   function distribute() {
@@ -34,8 +36,8 @@
     if (typeof filterByPermissions === 'function') {
       try { filterByPermissions(); } catch(_) {}
     }
-    // Leftovers → group 4
-    const leftoverTarget = document.getElementById('home-grp4');
+    // Leftovers → group 3 (management) so nothing is hidden
+    const leftoverTarget = document.getElementById('home-grp3');
     Object.keys(map).forEach(name => {
       const assigned = Object.values(GROUPS).flat().includes(name);
       if (!assigned && leftoverTarget && map[name].parentElement === source) {

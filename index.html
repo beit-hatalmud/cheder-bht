@@ -102,29 +102,26 @@
       .home-group-4 .home-group-title { border-color:#7c3aed }
     </style>
 
-    <!-- קבוצה 1: תלמידים ומעקבים -->
+    <!-- קבוצה 1: פעולות יומיות -->
     <div class="home-group home-group-1">
-      <div class="home-group-title"><i class="bi bi-people"></i> תלמידים ומעקבים</div>
+      <div class="home-group-title"><i class="bi bi-lightning-charge-fill"></i> פעולות יומיות</div>
       <div class="row g-3" id="home-grp1"></div>
     </div>
 
-    <!-- קבוצה 2: ניהול וביצועים -->
+    <!-- קבוצה 2: מעקבים אקדמיים -->
     <div class="home-group home-group-2">
-      <div class="home-group-title"><i class="bi bi-kanban"></i> ניהול וביצועים</div>
+      <div class="home-group-title"><i class="bi bi-bar-chart-line"></i> מעקבים אקדמיים ורפואיים</div>
       <div class="row g-3" id="home-grp2"></div>
     </div>
 
-    <!-- קבוצה 3: אסיפות, שיחות, רפואי -->
+    <!-- קבוצה 3: ניהול, דוחות, הגדרות -->
     <div class="home-group home-group-3">
-      <div class="home-group-title"><i class="bi bi-people-fill"></i> אסיפות הורים ושיחות</div>
+      <div class="home-group-title"><i class="bi bi-gear-wide-connected"></i> ניהול והגדרות</div>
       <div class="row g-3" id="home-grp3"></div>
     </div>
 
-    <!-- קבוצה 4: יתר הכלים -->
-    <div class="home-group home-group-4">
-      <div class="home-group-title"><i class="bi bi-three-dots"></i> כלים נוספים</div>
-      <div class="row g-3" id="home-grp4"></div>
-    </div>
+    <!-- group 4 hidden — kept as a no-op for back-compat with old scripts -->
+    <div id="home-grp4" style="display:none"></div>
 
     <div class="row g-3 mt-2" id="home-tiles-source" style="display:none">
       <div class="col-md-6 col-lg-3">
@@ -433,6 +430,7 @@
 <script src="js/validate.js?v=20260521b"></script>
 <script src="js/idb-queue.js?v=20260528a"></script>
 <script src="js/supabase_client.js?v=20260618a"></script>
+<script src="js/quick_search.js?v=20260618a"></script>
 <script src="api.js?v=20260618a"></script>
 <script src="dist/main.bundle.js?v=20260601e"></script>
 <script src="js/security.js?v=20260524a"></script>
