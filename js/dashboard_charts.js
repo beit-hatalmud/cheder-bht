@@ -249,6 +249,23 @@
     }
   }
 
+  function wireClicks() {
+    // Click a chart → navigate to the underlying page.
+    const map = {
+      'ch-behav-line':  '#behavior',
+      'ch-behav-donut': '#behavior',
+      'ch-tests-bar':   '#tests',
+      'ch-att-bar':     '#attendance',
+    };
+    Object.entries(map).forEach(([id, hash]) => {
+      const c = document.getElementById(id);
+      if (!c) return;
+      c.style.cursor = 'pointer';
+      c.title = 'מעבר לדף המלא';
+      c.onclick = () => { location.hash = hash; };
+    });
+  }
+
   async function refresh() {
     try {
       ensureStyle();
@@ -263,6 +280,7 @@
         api('listAttendance', []).then(r => r.data || []).catch(() => []),
       ]);
       drawAll({ behavior, tests, attendance });
+      wireClicks();
     } catch (e) {
       console.warn('[dashboard_charts] refresh failed:', e && e.message);
     }
