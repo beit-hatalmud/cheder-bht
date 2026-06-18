@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="מערכת ניהול תלמידים - בית התלמוד. מעקב התנהגות, אסיפות הורים, שיעורים פרטניים, ציוני תפקוד.">
 <meta name="theme-color" content="#1e3a8a">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="חיידר בה״ת">
 <meta property="og:title" content="מכינת בית התלמוד — מערכת ניהול">
 <meta property="og:description" content="מעקב תלמידים: התנהגות, שיעורים, אסיפות, ציונים">
 <meta property="og:type" content="website">
@@ -101,6 +105,18 @@
       .home-group-3 .home-group-title { border-color:#dc2626 }
       .home-group-4 .home-group-title { border-color:#7c3aed }
     </style>
+
+    <!-- Student-of-the-day quick picker (above all groups) -->
+    <div class="card mb-3" style="background:linear-gradient(135deg,#eef2ff,#fff);border:1px solid #e2e8f0;border-radius:12px;padding:14px">
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <div style="flex:1;min-width:200px">
+          <h6 class="mb-1"><i class="bi bi-person-vcard text-primary"></i> תלמיד היום</h6>
+          <small class="text-muted">בחר תלמיד לסיכום מהיר — התנהגות, מבחנים, נוכחות, רפואי, אסיפות</small>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="if(window.quickSearchOpen)quickSearchOpen()"><i class="bi bi-search"></i> חפש (Ctrl+K)</button>
+        <button class="btn btn-outline-primary btn-sm" onclick="randomStudentQuickView()"><i class="bi bi-shuffle"></i> אקראי</button>
+      </div>
+    </div>
 
     <!-- קבוצה 1: פעולות יומיות -->
     <div class="home-group home-group-1">
@@ -430,9 +446,10 @@
 <script src="js/validate.js?v=20260521b"></script>
 <script src="js/idb-queue.js?v=20260528a"></script>
 <script src="js/supabase_client.js?v=20260618a"></script>
-<script src="js/quick_search.js?v=20260618a"></script>
+<script src="js/quick_search.js?v=20260618b"></script>
+<script src="js/student_quickview.js?v=20260618a"></script>
 <script src="js/dashboard_charts.js?v=20260618a"></script>
-<script src="api.js?v=20260618a"></script>
+<script src="api.js?v=20260618b"></script>
 <script src="dist/main.bundle.js?v=20260601e"></script>
 <script src="js/security.js?v=20260524a"></script>
 <script src="js/sync-engine.js?v=20260531a"></script>

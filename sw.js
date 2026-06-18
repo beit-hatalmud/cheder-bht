@@ -1,7 +1,7 @@
 // sw.js — Service Worker for offline support
 // Cheder-BHT Production. 2026-05-27 (v2 — network-first for api.js, skip dynamic data)
 
-const CACHE_NAME = 'bht-cache-v16-20260616a';
+const CACHE_NAME = 'bht-cache-v17-20260618a';
 const CORE_ASSETS = [
   '/cheder-bht/',
   '/cheder-bht/index.html',
@@ -9,6 +9,10 @@ const CORE_ASSETS = [
   '/cheder-bht/css/main.css',
   '/cheder-bht/css/theme.css',
   '/cheder-bht/js/schema.js',
+  '/cheder-bht/js/dashboard_charts.js',
+  '/cheder-bht/js/quick_search.js',
+  '/cheder-bht/js/student_quickview.js',
+  '/cheder-bht/js/supabase_client.js',
 ];
 
 // Files that MUST always come from network (avoid stale data):

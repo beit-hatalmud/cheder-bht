@@ -288,6 +288,29 @@ async function api(fn, args) {
       } catch (e) {
         try { window.BHT && BHT.warn && BHT.warn('server login failed, trying cache: ' + e.message); } catch (_) {}
       }
+      // Supabase fallback — only when the supabase flag for auth is on.
+      // This is the bridge while we migrate user-management to Postgres.
+      try {
+        if (window.supa && window.supa.bht && window.supa.bht.enabled && window.supa.bht.enabled('auth')) {
+          const sbUser = await window.supa
+            .from('users')
+            .select('email, full_name, role, permissions, visible_classes, active')
+            .ilike('email', u + '%')
+            .eq('active', true)
+            .limit(1)
+            .maybeSingle();
+          if (sbUser && sbUser.data) {
+            return { ok: true, data: { ok: true, user: {
+              username: sbUser.data.email,
+              role: sbUser.data.role,
+              permissions: sbUser.data.permissions || '',
+              fullName: sbUser.data.full_name,
+            }, must_change: false } };
+          }
+        }
+      } catch (e) {
+        try { window.BHT && BHT.warn && BHT.warn('supabase auth fallback failed: ' + e.message); } catch (_) {}
+      }
       // Local cache fallback (used if server unreachable AND user already known)
       const user = _data.users.find(x => x.username === u);
       if (!user) return { ok: true, data: { ok: false, error: 'משתמש או סיסמה שגויים' } };

@@ -77,7 +77,12 @@
       if (typeof window.goto === 'function') window.goto(r.key);
       else location.hash = '#' + r.key;
     } else if (r.kind === 'student') {
-      location.hash = '#student-card?id=' + encodeURIComponent(r.id);
+      // Prefer the quickview modal if available — faster than full page nav
+      if (typeof window.showStudentQuickView === 'function') {
+        window.showStudentQuickView(r.id);
+      } else {
+        location.hash = '#student-card?id=' + encodeURIComponent(r.id);
+      }
     } else if (r.kind === 'behavior') {
       location.hash = '#student-card?id=' + encodeURIComponent(r.student_id) + '&tab=behavior';
     }
