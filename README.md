@@ -1,8 +1,15 @@
 # cheder-bht — מערכת מעקב התנהגות ולמידה לבית התלמוד
 
 **Live site:** https://beit-hatalmud.github.io/cheder-bht/  
+**Status:** https://beit-hatalmud.github.io/cheder-bht/status.html  
 **Owner:** יוסף שניידר ([@yossi6742853](https://github.com/yossi6742853))  
-**Hosting:** GitHub Pages (free) + Apps Script + Supabase Postgres.
+**Hosting:** GitHub Pages (free) + Apps Script + Supabase Postgres.  
+**Repo:** https://github.com/beit-hatalmud/cheder-bht  
+**Docs:**
+ - [CHANGELOG.md](CHANGELOG.md) — what shipped, when
+ - [WORK_PLAN.md](WORK_PLAN.md) — staged rebuild plan
+ - [MORNING_HANDOFF.md](MORNING_HANDOFF.md) — daily status
+ - [LICENSE.md](LICENSE.md) — terms
 
 ---
 
