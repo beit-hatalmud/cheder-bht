@@ -145,27 +145,54 @@ li{{margin:4px 0}}
     return html
 
 
+def send_via_apps_script(html, subject):
+    """Send via the ai-email-agent's sendEmail action over the /exec proxy."""
+    import urllib.request, urllib.parse, urllib.error
+    apps_url = ('https://script.google.com/macros/s/'
+                'AKfycbzhRqTLE4fjjDqrH1we-JlGZ15R-ws8b_gfWF1xF1ewailaiyiS_YXqUhRtb3cQghVt/exec')
+    payload = urllib.parse.urlencode({
+        'action': 'sendEmail',
+        'token': 'BHT_AGENT_2026',
+        'to': '6742853@gmail.com',
+        'subject': subject,
+        'htmlBody': html,
+    }).encode()
+    req = urllib.request.Request(apps_url, data=payload, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            resp = json.loads(r.read())
+        if resp.get('ok'):
+            print('-- email sent via Apps Script /sendEmail')
+            return True
+        print(f'-- Apps Script sendEmail returned: {resp}')
+    except Exception as e:
+        print(f'-- Apps Script sendEmail exception: {e}')
+    return False
+
+
 def send_email(html, subject):
-    """Try Gmail SMTP via ai-email-agent's email_actions.py; fall back to file."""
+    """Three strategies, in order:
+      1. Apps Script /exec sendEmail action (Gmail, via OAuth-installed app).
+      2. SMTP helper in the ai-email-agent (legacy).
+      3. Fallback to disk for the user to open manually.
+    """
+    if send_via_apps_script(html, subject):
+        return True
     try:
         sys.path.insert(0, r'C:\Users\יוסף שניידר\ai-email-agent')
         from email_actions import send_email_smtp  # type: ignore
-        send_email_smtp(
-            to='6742853@gmail.com',
-            subject=subject,
-            html=html,
-        )
-        print('-- email sent via SMTP')
+        send_email_smtp(to='6742853@gmail.com', subject=subject, html=html)
+        print('-- email sent via SMTP fallback')
         return True
     except Exception as e:
-        print(f'-- SMTP failed ({e}); writing to file instead')
-        fallback_dir = r'C:\Users\יוסף שניידר\bht_backups\weekly_summary'
-        os.makedirs(fallback_dir, exist_ok=True)
-        path = os.path.join(fallback_dir, f'{datetime.now().strftime("%Y-%m-%d")}.html')
-        with open(path, 'w', encoding='utf-8') as f:
-            f.write(html)
-        print(f'-- saved {path}')
-        return False
+        print(f'-- SMTP fallback failed: {e}')
+    fallback_dir = r'C:\Users\יוסף שניידר\bht_backups\weekly_summary'
+    os.makedirs(fallback_dir, exist_ok=True)
+    path = os.path.join(fallback_dir, f'{datetime.now().strftime("%Y-%m-%d")}.html')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print(f'-- saved to disk: {path}')
+    return False
 
 
 def main():

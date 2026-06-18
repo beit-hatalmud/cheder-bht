@@ -27,7 +27,9 @@
     const dot = document.createElement('span');
     dot.id = 'sys-status-dot';
     dot.title = 'מצב מערכת';
-    dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;margin-left:6px;cursor:pointer;box-shadow:0 0 6px rgba(0,0,0,.3);transition:background .35s';
+    dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:#94a3b8;margin-left:6px;cursor:pointer;box-shadow:0 0 6px rgba(0,0,0,.3);transition:background .35s,transform .2s,box-shadow .25s';
+    dot.onmouseenter = () => { dot.style.transform = 'scale(1.5)'; dot.style.boxShadow = '0 0 10px rgba(0,0,0,.45)'; };
+    dot.onmouseleave = () => { dot.style.transform = ''; dot.style.boxShadow = '0 0 6px rgba(0,0,0,.3)'; };
     dot.onclick = () => {
       if (window.bhtOpenNotifications) window.bhtOpenNotifications();
     };

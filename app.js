@@ -87,7 +87,7 @@ function toast(msg, type) {
 window.notify = toast;
 
 let currentUser = null;
-const PAGES = ['login','home','students','behavior','reading','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','settings','reports'];
+const PAGES = ['login','home','students','behavior','reading','functioning','tests','medications','classview','attendance','calendar','meetings','conversations','settings','reports','sysmon','staff'];
 
 function showPage(name) {
   PAGES.forEach(p => {
