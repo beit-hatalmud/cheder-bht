@@ -229,9 +229,9 @@
     const togLink = document.getElementById('google-toggle-link');
     if (available) {
       if (gBlock) gBlock.classList.remove('d-none');
-      if (lBlock) lBlock.classList.add('d-none');
+      if (lBlock) lBlock.classList.remove('d-none');
       if (notice) notice.style.display = 'none';
-      if (togLink) togLink.style.display = '';
+      if (togLink) togLink.style.display = 'none';
     } else {
       if (gBlock) gBlock.classList.add('d-none');
       if (lBlock) lBlock.classList.remove('d-none');

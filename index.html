@@ -61,13 +61,12 @@
                  data-size="large"
                  data-locale="he"
                  data-logo_alignment="left"></div>
-            <div class="mt-3">
-              <a href="#" class="small text-muted" onclick="toggleLegacyLogin(event)">אפשרות כניסה ישנה (שם+סיסמה)</a>
-            </div>
           </div>
 
-          <!-- Legacy: shown by default until Google CLIENT_ID is set -->
+          <!-- Legacy login: always shown alongside Google -->
           <div id="legacy-login-block">
+            <hr class="my-3">
+            <div class="text-center text-muted small mb-3">— או כניסה עם שם+סיסמה —</div>
             <div class="alert alert-info small mb-3" id="google-not-configured" style="display:none">
               <i class="bi bi-info-circle"></i> הכניסה דרך Google תופעל כשתגדיר OAuth Client ID.
             </div>
