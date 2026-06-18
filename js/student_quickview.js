@@ -251,7 +251,13 @@
       if (!user) return;
       sessionStorage.setItem('bht_smart_opened_today', '1');
       // Wait for charts/data to settle so list rpcs already cached.
-      setTimeout(() => {
+      setTimeout(async () => {
+        // Sanity check — only open if we actually have student data,
+        // otherwise the modal would say 'תלמיד לא נמצא' which is jarring.
+        try {
+          const list = (await api('listStudents', []).catch(() => ({}))).data || [];
+          if (!list.length) return;
+        } catch (_) { return; }
         if (typeof window.smartStudentQuickView === 'function') {
           window.smartStudentQuickView();
         }
