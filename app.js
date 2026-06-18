@@ -178,6 +178,8 @@ async function doLogin(){
     const userRow = (await api('listUsers',[])).data.find(x=>x['שם משתמש']===u);
     if (userRow) currentUser.permissions = userRow['הרשאות'] || '';
     sessionStorage.setItem('user', JSON.stringify(currentUser));
+    // Persistent "remember me" — stays across browser restarts until explicit logout
+    try { localStorage.setItem('bht_remembered_user', JSON.stringify(currentUser)); } catch (_) {}
     document.getElementById('user-info').innerHTML = escHtml(currentUser.username) + ' (' + escHtml(currentUser.role||'') + ') <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()">יציאה</button>';
     // Force password change on first login after admin reset
     if (r.data.must_change) {
@@ -201,6 +203,7 @@ window.afterLoginSuccess = function(user) {
   try { resetModuleState(); } catch (_) {}
   currentUser = user;
   sessionStorage.setItem('user', JSON.stringify(user));
+  try { localStorage.setItem('bht_remembered_user', JSON.stringify(user)); } catch (_) {}
   try {
     document.getElementById('user-info').innerHTML =
       escHtml(user.fullName || user.username || user.email) +
@@ -567,8 +570,18 @@ function drawRecentActivity(events) {
 
 // 2026-06-17 SECURITY: removed URL-based auto-login (?u=&p=) — credentials in
 // URL leak into browser history, Referer headers, and any analytics script.
-// Only restore from sessionStorage (set after a verified login).
-const saved = sessionStorage.getItem('user');
+// Restore from sessionStorage first, then fall back to localStorage
+// (persistent "remember me" — cleared only by logout()).
+let saved = sessionStorage.getItem('user');
+if (!saved) {
+  try {
+    const remembered = localStorage.getItem('bht_remembered_user');
+    if (remembered) {
+      saved = remembered;
+      sessionStorage.setItem('user', remembered);
+    }
+  } catch (_) {}
+}
 if (saved) {
   try {
     currentUser = JSON.parse(saved);
@@ -593,6 +606,8 @@ function logout(){
   sessionStorage.removeItem('bht_jwt');
   sessionStorage.removeItem('bht_user');
   sessionStorage.removeItem('bht_login_via');
+  // Forget the persistent "remember me" cookie too — that's the point of a logout
+  try { localStorage.removeItem('bht_remembered_user'); } catch (_) {}
   if (window.google && google.accounts && google.accounts.id) {
     try { google.accounts.id.disableAutoSelect(); } catch(_) {}
   }
