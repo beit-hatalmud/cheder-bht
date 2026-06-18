@@ -10,14 +10,15 @@ async function renderStaff() {
       <h3 class="mb-0"><i class="bi bi-people-fill text-primary"></i> ניהול רבנים ואנשי צוות</h3>
       <div class="d-flex gap-2">
         <input id="staff-search" class="form-control form-control-sm" placeholder="חיפוש..." style="width:180px">
-        <button class="btn btn-success btn-sm" onclick="if(typeof addUserModal==='function')addUserModal()"><i class="bi bi-plus"></i> חדש</button>
-        <button class="btn btn-outline-primary btn-sm" onclick="staffExportCSV()"><i class="bi bi-download"></i> CSV</button>
+        <button class="btn btn-success" onclick="if(typeof addUserModal==='function')addUserModal()" style="font-size:1rem;padding:.5rem 1.1rem;box-shadow:0 4px 12px rgba(22,163,74,.35)"><i class="bi bi-person-plus-fill"></i> הוסף משתמש</button>
+        <button class="btn btn-outline-primary btn-sm" onclick="staffExportCSV()"><i class="bi bi-download"></i> ייצוא לאקסל</button>
       </div>
     </div>
     <div class="alert alert-info py-2 small mb-3">
-      <i class="bi bi-info-circle"></i> רשימת כל אנשי הצוות במערכת. לחץ על שורה לעריכת פרטים מלאים.
+      <i class="bi bi-info-circle"></i> רשימת כל אנשי הצוות במערכת. לחץ על שורה לעריכה. אדמין יכול לתת/לקחת הרשאות, להקפיא, או למחוק.
     </div>
     <div id="staff-stats" class="row g-2 mb-3"></div>
+    <div class="mb-3 d-flex gap-1 flex-wrap" id="staff-role-chips"></div>
     <div id="staff-table"><div class="text-center py-4"><div class="spinner-border"></div></div></div>`;
 
   try {
@@ -27,17 +28,52 @@ async function renderStaff() {
     _staffUsers = [];
   }
   renderStaffStats();
+  renderStaffRoleChips();
   renderStaffTable(_staffUsers);
   document.getElementById('staff-search').oninput = (e) => {
     const q = e.target.value.toLowerCase().trim();
-    if (!q) return renderStaffTable(_staffUsers);
-    const filtered = _staffUsers.filter(u =>
+    if (!q) return renderStaffTable(applyRoleFilter(_staffUsers));
+    const filtered = applyRoleFilter(_staffUsers).filter(u =>
       [u['שם מלא'], u['שם משתמש'], u['תפקיד'], u['אימייל'], u['טלפון'], u['תז']]
         .some(v => String(v||'').toLowerCase().includes(q))
     );
     renderStaffTable(filtered);
   };
 }
+
+let _staffRoleFilter = 'all';
+function applyRoleFilter(list) {
+  if (_staffRoleFilter === 'all') return list;
+  if (_staffRoleFilter === '__missing_tz__') return list.filter(u => !u['תז'] && u['שם משתמש'] !== 'admin');
+  if (_staffRoleFilter === '__missing_email__') return list.filter(u => !u['אימייל'] && u['שם משתמש'] !== 'admin');
+  return list.filter(u => (u['תפקיד'] || '') === _staffRoleFilter);
+}
+function renderStaffRoleChips() {
+  const cont = document.getElementById('staff-role-chips');
+  if (!cont) return;
+  const roles = Array.from(new Set(_staffUsers.map(u => u['תפקיד'] || '').filter(Boolean)));
+  const chips = [
+    { key: 'all', label: 'הכל', n: _staffUsers.length, color: '#2563eb' },
+    ...roles.map(r => ({ key: r, label: r, n: _staffUsers.filter(u => u['תפקיד'] === r).length, color: '#6b7280' })),
+    { key: '__missing_tz__', label: 'חסר ת.ז.', n: _staffUsers.filter(u => !u['תז'] && u['שם משתמש'] !== 'admin').length, color: '#f59e0b' },
+    { key: '__missing_email__', label: 'חסר אימייל', n: _staffUsers.filter(u => !u['אימייל'] && u['שם משתמש'] !== 'admin').length, color: '#dc2626' },
+  ];
+  cont.innerHTML = chips.map(c => {
+    const active = _staffRoleFilter === c.key;
+    return `<button class="btn btn-sm ${active ? 'btn-primary' : 'btn-outline-secondary'}" onclick="setStaffRoleFilter('${escAttr(c.key)}')">${escHtml(c.label)} <span class="badge bg-light text-dark ms-1">${c.n}</span></button>`;
+  }).join('');
+}
+window.setStaffRoleFilter = function(key) {
+  _staffRoleFilter = key;
+  renderStaffRoleChips();
+  const q = (document.getElementById('staff-search')?.value || '').toLowerCase().trim();
+  let list = applyRoleFilter(_staffUsers);
+  if (q) {
+    list = list.filter(u => [u['שם מלא'], u['שם משתמש'], u['תפקיד'], u['אימייל'], u['טלפון'], u['תז']]
+      .some(v => String(v||'').toLowerCase().includes(q)));
+  }
+  renderStaffTable(list);
+};
 
 function renderStaffStats() {
   const total = _staffUsers.length;

@@ -34,7 +34,8 @@
     </span>
     <div class="d-flex align-items-center gap-2">
       <a class="btn btn-sm btn-outline-warning" href="guide.html" target="_blank" title="מדריך שימוש"><i class="bi bi-book"></i> מדריך</a>
-      <button class="btn btn-sm btn-outline-light" onclick="if(typeof openGlobalSearch==='function')openGlobalSearch()" title="חיפוש (Ctrl+K)"><i class="bi bi-search"></i></button>
+      <button class="btn btn-sm btn-outline-light position-relative" onclick="if(window.quickSearchOpen){quickSearchOpen()}else if(typeof openGlobalSearch==='function'){openGlobalSearch()}" title="חיפוש (Ctrl+K)"><i class="bi bi-search"></i> <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:9px;padding:2px 5px" id="badge-search-new">חדש</span></button>
+      <button class="btn btn-sm btn-outline-light" onclick="window.bhtShowOnboarding&&window.bhtShowOnboarding()" title="מה חדש?"><i class="bi bi-stars"></i></button>
       <button class="btn btn-sm btn-outline-light" id="theme-toggle" onclick="if(typeof toggleTheme==='function')toggleTheme()" title="מצב תאורה"><i class="bi bi-moon-stars"></i></button>
       <span class="text-white-50" id="user-info">לא מחובר</span>
     </div>
@@ -449,6 +450,7 @@
 <script src="js/quick_search.js?v=20260618b"></script>
 <script src="js/student_quickview.js?v=20260618a"></script>
 <script src="js/dashboard_charts.js?v=20260618a"></script>
+<script src="js/onboarding.js?v=20260618a"></script>
 <script src="api.js?v=20260618b"></script>
 <script src="dist/main.bundle.js?v=20260601e"></script>
 <script src="js/security.js?v=20260524a"></script>
