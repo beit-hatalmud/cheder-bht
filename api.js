@@ -103,7 +103,7 @@ async function loadData() {
   _data = {
     students: Array.isArray(stored.students) ? stored.students : [],
     behavior: Array.isArray(stored.behavior) ? stored.behavior : [],
-    users: Array.isArray(stored.users) && stored.users.length ? stored.users : [{username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'}],
+    users: Array.isArray(stored.users) && stored.users.length ? stored.users : [{username:'admin',password_hash:'',role:'מנהל',permissions:'all'}],
     categories: Array.isArray(stored.categories) ? stored.categories : [],
     classes: Array.isArray(stored.classes) ? stored.classes : [],
     functioning: Array.isArray(stored.functioning) ? stored.functioning : [],
@@ -124,7 +124,7 @@ async function loadData() {
   _data.students.forEach(s => { if (!s['סטטוס']) s['סטטוס'] = 'פעיל'; });
   // Always make sure at least one admin exists in the local user list (fallback)
   if (!_data.users.find(u => u.role === 'מנהל')) {
-    _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
+    _data.users.unshift({username:'admin',password_hash:'',role:'מנהל',permissions:'all'});
     saveStored(_data);
   }
   // Backfill IDs for behavior events that don't have one (from old data)
@@ -1282,7 +1282,7 @@ async function pullAllFromSheet() {
         must_change: String(u['חובה_להחליף'] || '') === '1',
       }));
       if (!_data.users.find(u => u.role === 'מנהל')) {
-        _data.users.unshift({username:'admin',password_hash:'6742',role:'מנהל',permissions:'all'});
+        _data.users.unshift({username:'admin',password_hash:'',role:'מנהל',permissions:'all'});
       }
     }
   }

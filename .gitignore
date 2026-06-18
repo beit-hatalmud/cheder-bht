@@ -9,3 +9,5 @@ qa_deep_fast_report.json
 secrets/
 supabase/secrets/
 supabase/apply_schema.py
+supabase/__pycache__/
+__pycache__/
