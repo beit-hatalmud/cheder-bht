@@ -76,4 +76,27 @@
   document.addEventListener('DOMContentLoaded', () => setTimeout(maybeShow, 2500));
   window.addEventListener('hashchange', () => setTimeout(maybeShow, 800));
   window.bhtShowOnboarding = showWelcomeBanner; // for manual replay from help menu
+
+  // Once-only Ctrl+K hint: pulse the search badge for 8 seconds.
+  function nudgeCtrlK() {
+    try {
+      if (localStorage.getItem('bht_ctrlk_hint_seen')) return;
+      const badge = document.getElementById('badge-search-new');
+      if (!badge) return;
+      badge.style.transition = 'transform .35s';
+      let n = 0;
+      const id = setInterval(() => {
+        badge.style.transform = (n % 2 === 0) ? 'scale(1.35) translate(-50%, -50%)' : 'scale(1) translate(-50%, -50%)';
+        n++;
+        if (n > 16) { clearInterval(id); badge.style.transform = ''; }
+      }, 500);
+      // Mark seen on first interaction (or after the pulse ends)
+      const mark = () => { try { localStorage.setItem('bht_ctrlk_hint_seen', '1'); } catch (_) {} };
+      setTimeout(mark, 10000);
+      document.addEventListener('keydown', function once(e) {
+        if ((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')) { mark(); document.removeEventListener('keydown', once); }
+      });
+    } catch (_) {}
+  }
+  document.addEventListener('DOMContentLoaded', () => setTimeout(nudgeCtrlK, 4500));
 })();

@@ -286,12 +286,26 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
   body{font-size:14.5px;padding-bottom:80px}
   .navbar{padding:.7rem 0}
   .brand-logo{width:38px;height:38px}
-  .brand-text{font-size:1.05rem}
-  .card-tile{padding:1.25rem .75rem}
-  .card-tile h5{font-size:.95rem}
+  .brand-text{font-size:1rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card-tile{padding:1.1rem .65rem}
+  .card-tile h5{font-size:.92rem;margin-top:.6rem}
+  .card-tile p{display:none}  /* hide subtitle on mobile to fit more */
+  .card-tile i.fs-1{font-size:1.85rem!important}
   .table{font-size:.85rem}
   .display-6{font-size:1.5rem}
   h3{font-size:1.35rem}
+  /* Home page tile column 2 per row on phone (was 1) */
+  #page-home .row.g-3>div[class*="col-md-6"][class*="col-lg-3"]{flex:0 0 50%;max-width:50%}
+  /* Smaller home-group-title on phone */
+  .home-group-title{font-size:.95rem!important;padding-right:8px!important}
+  .home-group{margin-top:1rem!important}
+  /* Smaller user-info on phone */
+  #user-info{font-size:.78rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #user-info button{padding:.1rem .4rem!important;font-size:.7rem!important}
+  /* Dashboard charts even smaller on mobile */
+  #dashboard-charts canvas{max-height:120px!important}
+  #dashboard-charts .chart-card{padding:8px}
+  #dashboard-charts .chart-card h6{font-size:.78rem;margin-bottom:4px}
   #page-login .card{padding:1.75rem 1.25rem!important;margin-top:1.5rem!important}
   /* Bigger tap targets (Apple HIG: 44px min) */
   .btn,.form-control,.form-select,.btn-sm{min-height:44px}
