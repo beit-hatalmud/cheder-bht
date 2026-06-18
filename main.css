@@ -305,6 +305,23 @@ h6{font-size:.95rem;color:var(--text);font-family:'Heebo',sans-serif;font-weight
 .bht-sk-row.sm{height:24px}
 [data-theme="dark"] .bht-sk-row{background:#1e293b;background-image:linear-gradient(90deg,#1e293b 0%,#334155 50%,#1e293b 100%)}
 
+/* Dark-mode home tile spacing + contrast polish */
+[data-theme="dark"] .home-group{padding:6px 0}
+[data-theme="dark"] .home-group-title{color:#e2e8f0;border-color:#475569!important}
+[data-theme="dark"] .card-tile{background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+[data-theme="dark"] .card-tile h5{color:#e2e8f0}
+[data-theme="dark"] .card-tile p{color:#94a3b8}
+[data-theme="dark"] .card-tile:hover{background:#243149;transform:translateY(-4px)}
+[data-theme="dark"] #notif-panel{background:#1e293b;color:#e2e8f0}
+[data-theme="dark"] #notif-panel div[style*="background:#f8fafc"]{background:#172033!important;border-bottom-color:#334155!important}
+
+/* Accessibility: focus rings for keyboard navigation */
+*:focus{outline:none}
+*:focus-visible{outline:3px solid #3b82f6;outline-offset:2px;border-radius:4px}
+.btn:focus-visible,.form-control:focus-visible,.form-select:focus-visible{outline:3px solid #3b82f6;outline-offset:1px;box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+a:focus-visible{outline:2px solid #3b82f6;outline-offset:2px}
+[data-theme="dark"] *:focus-visible{outline-color:#60a5fa}
+
 /* Mobile staff page — cards instead of dense table */
 @media (max-width:640px){
   #staff-table .table{display:none}

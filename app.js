@@ -91,7 +91,9 @@ const PAGES = ['login','home','students','behavior','reading','functioning','tes
 
 function showPage(name) {
   PAGES.forEach(p => {
-    document.getElementById('page-' + p).classList.toggle('d-none', p !== name);
+    const el = document.getElementById('page-' + p);
+    if (!el) return; // page may be created lazily (sysmon, staff)
+    el.classList.toggle('d-none', p !== name);
   });
   if (name === 'students' && typeof renderStudents === 'function') renderStudents();
   if (name === 'behavior' && typeof renderBehavior === 'function') renderBehavior();

@@ -237,6 +237,36 @@
     if (e.key === 'Escape' && window._sqv_back) close();
   });
 
+  /**
+   * Auto-open the smart pick once per session after first login.
+   * Acts as a "good morning" nudge for the staff: who needs your
+   * attention today?
+   */
+  window.bhtSmartAutoOpenOnce = function () {
+    try {
+      if (sessionStorage.getItem('bht_smart_opened_today')) return;
+      const home = document.getElementById('page-home');
+      if (!home || home.classList.contains('d-none')) return;
+      const user = sessionStorage.getItem('user') || localStorage.getItem('bht_remembered_user');
+      if (!user) return;
+      sessionStorage.setItem('bht_smart_opened_today', '1');
+      // Wait for charts/data to settle so list rpcs already cached.
+      setTimeout(() => {
+        if (typeof window.smartStudentQuickView === 'function') {
+          window.smartStudentQuickView();
+        }
+      }, 3500);
+    } catch (_) {}
+  };
+
+  // Hook into hashchange so the prompt only fires on real navigation
+  // to home, not on api-driven rerenders.
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#home' || location.hash === '') {
+      setTimeout(window.bhtSmartAutoOpenOnce, 2000);
+    }
+  });
+
   window.showStudentQuickView = show;
   window.closeStudentQuickView = close;
 
