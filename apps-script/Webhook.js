@@ -489,6 +489,46 @@ function handleWebhook(e) {
         return jsonOut({ ok: true, action: 'sendEmail', to, subject, cc: opts.cc || '' });
       }
 
+      case 'geminiAudio': {
+        // Transcribe Hebrew audio via Gemini from Google servers (bypasses NetFree).
+        // params: apiKey, b64 (audio data), mimeType (audio/mp3), prompt (optional)
+        try {
+          const apiKey = String(params.apiKey || '');
+          const b64 = String(params.b64 || '');
+          const mimeType = String(params.mimeType || 'audio/mp3');
+          const prompt = String(params.prompt || 'Transcribe this Hebrew audio verbatim. Output only Hebrew transcript text, no preamble.');
+          if (!apiKey || !b64) {
+            return jsonOut({ ok: false, error: 'missing apiKey or b64' }, 400);
+          }
+          const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+          const body = {
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: b64 } },
+              ],
+            }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 65536 },
+          };
+          const resp = UrlFetchApp.fetch(url, {
+            method: 'post',
+            contentType: 'application/json',
+            payload: JSON.stringify(body),
+            muteHttpExceptions: true,
+          });
+          const code = resp.getResponseCode();
+          if (code !== 200) {
+            return jsonOut({ ok: false, error: 'gemini ' + code, body: resp.getContentText().slice(0, 400) }, code);
+          }
+          const data = JSON.parse(resp.getContentText());
+          const text = ((data.candidates || [{}])[0].content || {}).parts || [{}];
+          const t = text[0].text || '';
+          return jsonOut({ ok: true, action: 'geminiAudio', text: t, chars: t.length });
+        } catch (e) {
+          return jsonOut({ ok: false, error: e.message }, 500);
+        }
+      }
+
       case 'driveUpload': {
         try {
           const folderPath = String(params.folder || 'תמלולים').replace(/^\/+|\/+$/g, '');
