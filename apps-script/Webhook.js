@@ -489,6 +489,34 @@ function handleWebhook(e) {
         return jsonOut({ ok: true, action: 'sendEmail', to, subject, cc: opts.cc || '' });
       }
 
+      case 'driveUpload': {
+        try {
+          const folderPath = String(params.folder || 'תמלולים').replace(/^\/+|\/+$/g, '');
+          const fileName = String(params.fileName || '');
+          const mimeType = String(params.mimeType || 'application/octet-stream');
+          const b64 = String(params.b64 || '');
+          if (!fileName || !b64) {
+            return jsonOut({ ok: false, error: 'missing fileName or b64' }, 400);
+          }
+          let parent = DriveApp.getRootFolder();
+          folderPath.split('/').filter(s => s.trim()).forEach(seg => {
+            seg = seg.trim();
+            const it = parent.getFoldersByName(seg);
+            parent = it.hasNext() ? it.next() : parent.createFolder(seg);
+          });
+          const blob = Utilities.newBlob(Utilities.base64Decode(b64), mimeType, fileName);
+          const f = parent.createFile(blob);
+          return jsonOut({
+            ok: true, action: 'driveUpload',
+            fileUrl: f.getUrl(),
+            folderUrl: parent.getUrl(),
+            folderId: parent.getId(),
+          });
+        } catch (e) {
+          return jsonOut({ ok: false, error: e.message }, 500);
+        }
+      }
+
       case 'setSendEnabled': {
         // Toggle the auto-send kill-switch. Pass ?enabled=1 to allow auto-send,
         // anything else to keep it off (default: off).
